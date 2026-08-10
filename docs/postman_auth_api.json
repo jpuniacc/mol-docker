@@ -1,0 +1,77 @@
+{
+  "info": {
+    "name": "Uniacc Auth API",
+    "description": "Colección de pruebas para la API Express de autenticación de Uniacc (puerto 9502).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Login Rematrícula (LDAP o Pixarron)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "rematricula_dev_key_12345",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"version\": \"1\",\n  \"origin\": 1,\n  \"ambiente\": 1,\n  \"credentials\": {\n    \"username\": \"TU_USUARIO_AQUI\",\n    \"password\": \"TU_PASSWORD_AQUI\"\n  },\n  \"meta\": {\n    \"urlOrigen\": \"http://localhost:9501/login\",\n    \"userAgent\": \"Postman/10.0\"\n  }\n}"
+        },
+        "url": {
+          "raw": "http://localhost:9502/api/auth",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "9502",
+          "path": [
+            "api",
+            "auth"
+          ]
+        }
+      }
+    },
+    {
+      "name": "2. Login WhatsApp (Solo Pixarron)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "whatsapp_dev_key_12345",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"version\": \"1\",\n  \"origin\": 2,\n  \"ambiente\": 1,\n  \"credentials\": {\n    \"username\": \"TU_USUARIO_AQUI\",\n    \"password\": \"TU_PASSWORD_AQUI\"\n  },\n  \"meta\": {\n    \"urlOrigen\": \"whatsapp://bot\",\n    \"userAgent\": \"Postman/10.0\"\n  }\n}"
+        },
+        "url": {
+          "raw": "http://localhost:9502/api/auth",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "9502",
+          "path": [
+            "api",
+            "auth"
+          ]
+        }
+      }
+    }
+  ]
+}

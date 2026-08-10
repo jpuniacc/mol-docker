@@ -1,0 +1,281 @@
+-- Seed documento TyC MOL (contenido oficial inicial).
+
+INSERT INTO public.tp_terminos_condiciones (codigo, titulo, contenido_html)
+VALUES (
+  'mol',
+  'Términos y Condiciones de Matrícula y Rematrícula Online',
+  $TYCHTML$<h2>1. Definición</h2>
+<p>
+            La “matrícula y rematrícula online” o “MOL” es el proceso de matrícula y rematrícula de UNIACC. Este
+            proceso se inicia al ingresar los antecedentes del estudiante y sostenedor económico en la plataforma
+            online de la universidad, la revisión de becas (siempre que el alumno la tenga asignada) y forma de pago.
+            Finaliza con la firma electrónica del contrato de prestación de servicios educacionales y otros documentos
+            anexos.
+          </p>
+<p>
+            En el caso de matrícula nueva, una vez concluido el proceso, el estudiante obtendrá la condición de alumno
+            regular y podrá realizar carga académica. En el caso de rematrícula, el proceso renueva las condiciones
+            contractuales del periodo anterior, generando un nuevo contrato para el periodo académico correspondiente.
+          </p>
+<p>
+<strong>¿Qué es “firma electrónica”?</strong> Es una figura legal que permite celebrar el contrato de
+            prestación de servicios educacionales en línea, de manera sencilla, segura y con el mismo valor que la
+            firma presencial en un documento físico, en conformidad con la Ley N° 19.799 sobre documentos
+            electrónicos, firma electrónica y servicios de certificación. Al descargar los documentos de matrícula,
+            en la última página estará tu comprobante de firma electrónica, del alumno y representante de UNIACC.
+          </p>
+<h3>1.1 Condiciones Especiales de Rematrícula</h3>
+<p>
+            En el proceso de rematrícula, el alumno ya posee la condición de alumno regular en UNIACC. La rematrícula
+            implica la renovación de la relación contractual para un nuevo periodo académico, reemplazando el contrato
+            anterior. Las condiciones económicas (arancel, becas, forma de pago) se recalculan para el nuevo periodo
+            según la normativa institucional vigente. El alumno deberá verificar y actualizar sus datos personales,
+            académicos y de contacto al inicio del proceso. La información precargada en la plataforma corresponde a
+            los registros institucionales vigentes y es responsabilidad del alumno su actualización.
+          </p>
+<h2>
+            2. Documentos que deberás firmar electrónicamente
+          </h2>
+<p>
+            Los documentos para firmar variarán según la forma de pago. Las opciones son las siguientes:
+          </p>
+<h3>2.1 Cuotas Mensuales</h3>
+<ul>
+<li>
+              Firma del contrato de prestación de servicios educacionales y anexos, por parte del alumno y sostenedor
+              económico y/o aval, según corresponda.
+            </li>
+</ul>
+<h3>2.2 WebPay</h3>
+<ul>
+<li>Pago en línea vía web, a través de tarjetas bancarias en el portal de pagos online.</li>
+<li>
+              Firma del contrato de prestación de servicios educacionales y anexos, por parte del alumno y sostenedor
+              económico y/o aval, según corresponda.
+            </li>
+</ul>
+<h3>2.3 Crédito con Garantía Estatal (CAE)</h3>
+<ul>
+<li>
+              Firma del contrato de prestación de servicios educacionales y anexos, declaración de conocimientos del
+              alumno renovante CAE o Licitado CAE.
+            </li>
+<li>
+              Para aquellos alumnos que ya poseen el Crédito con Garantía Estatal, es obligatorio que soliciten un
+              nuevo monto para el período académico al cual están rematriculándose, ingresando a la página web
+              <a
+                href="https://www.ingresa.cl">
+                https://www.ingresa.cl
+              </a>.
+              El monto que requerirán para el año de rematrícula podrá ser $0 o un monto entre $200.000 y el 100% del
+              arancel de referencia.
+            </li>
+</ul>
+<h3>2.4 Beca Estatal</h3>
+<ul>
+<li>Firma del contrato de prestación de servicios educacionales y anexos.</li>
+</ul>
+<h3>2.5 Otras formas de pago</h3>
+<p>
+<strong>Importante:</strong> Cualquier forma de pago distinta a las indicadas en los puntos 2.1 a 2.4 (por
+            ejemplo, convenios institucionales, becas externas, financiamiento de empresas, pagos mixtos u otras
+            modalidades especiales) deberá ser gestionada y coordinada directamente con la Dirección Vida Universitaria
+            (DVU) de UNIACC, quien evaluará la procedencia y entregará las instrucciones específicas que correspondan
+            al caso. La aplicación de estas modalidades requerirá la suscripción de los anexos contractuales
+            adicionales que DVU determine.
+          </p>
+<h2>
+            3. Derecho a Retracto y Política de Devoluciones
+          </h2>
+<p>
+            El alumno tendrá un plazo de 10 días hábiles contados desde la firma electrónica del contrato para
+            ejercer su derecho a retracto, comunicándolo por escrito a la Dirección Vida Universitaria al correo
+            electrónico institucional correspondiente.
+          </p>
+<p>
+            En caso de retracto dentro del plazo señalado, UNIACC procederá a la devolución íntegra de los montos
+            pagados, dentro de los 30 días hábiles siguientes a la recepción de la solicitud, utilizando el mismo
+            medio de pago original. Transcurrido el plazo de retracto, las devoluciones se regirán por la política
+            institucional de devoluciones vigente.
+          </p>
+<p>
+            En caso de errores en los montos informados en el plan de pagos enviado previamente por correo
+            electrónico, UNIACC notificará al alumno la corrección antes de la firma del contrato. Los montos
+            definitivos serán siempre los consignados en el contrato de prestación de servicios educacionales firmado
+            electrónicamente, no los indicados en comunicaciones previas de carácter referencial.
+          </p>
+<h2>
+            4. Cláusula Específica de Protección de Datos Personales
+          </h2>
+<h3>4.1 Marco legal</h3>
+<p>
+            El tratamiento de los datos personales del alumno y del sostenedor económico y/o aval recopilados a través
+            de la plataforma de matrícula online se realizará conforme a la Ley N° 19.628 sobre Protección de la Vida
+            Privada y sus modificaciones, así como a la normativa vigente sobre protección de datos personales en la
+            República de Chile.
+          </p>
+<h3>4.2 Consentimiento informado</h3>
+<p>
+            Al aceptar los presentes términos y condiciones, el alumno y el sostenedor económico y/o aval autorizan
+            expresa, libre, informada y específicamente a la Universidad de Artes, Ciencias y Comunicación (UNIACC) a
+            recolectar, almacenar, tratar, procesar y comunicar los datos personales que proporcionen a través de la
+            MOL.
+          </p>
+<h3>4.3 Datos recopilados</h3>
+<p>
+            Los datos objeto de tratamiento incluyen, entre otros: identificación (nombre completo, RUT, fecha de
+            nacimiento, nacionalidad), datos de contacto (domicilio, teléfono, correo electrónico), datos académicos,
+            datos del sostenedor económico y/o aval, datos socioeconómicos para la evaluación de beneficios y
+            antecedentes financieros y de pago. La entrega de estos datos es voluntaria, pero indispensable para
+            perfeccionar el proceso de matrícula.
+          </p>
+<h3>4.4 Datos sensibles</h3>
+<p>
+            De manera voluntaria, el alumno podrá declarar si presenta alguna condición de discapacidad, seleccionando
+            el tipo correspondiente según la clasificación del SENADIS (Servicio Nacional de la Discapacidad). Esta
+            información constituye un dato sensible en los términos del artículo 2° letra g) de la Ley N° 19.628 y su
+            tratamiento requiere el consentimiento expreso del titular, el cual se otorga de manera separada e
+            independiente al momento de completar la declaración.
+          </p>
+<p>
+            Los datos de discapacidad serán utilizados exclusivamente para gestionar los apoyos institucionales y
+            servicios de inclusión que UNIACC ofrece a sus estudiantes, y serán almacenados con un nivel de
+            confidencialidad alto y acceso restringido al personal autorizado. El alumno podrá revocar esta
+            declaración en cualquier momento, sin que ello afecte su proceso de matrícula o rematrícula.
+          </p>
+<h3>4.5 Finalidades del tratamiento</h3>
+<p>Los datos serán utilizados exclusivamente para:</p>
+<ol>
+<li>Gestionar el proceso de matrícula y rematrícula.</li>
+<li>Ejecutar el contrato de prestación de servicios educacionales.</li>
+<li>Administrar pagos, becas, créditos y beneficios estudiantiles.</li>
+<li>
+              Cumplir obligaciones legales, regulatorias y de información hacia el Ministerio de Educación, la
+              Comisión Ingresa y demás organismos competentes.
+            </li>
+<li>Realizar comunicaciones académicas, administrativas y de servicios universitarios.</li>
+<li>Elaborar estadísticas internas y de gestión institucional.</li>
+<li>
+              Gestionar servicios de apoyo e inclusión para estudiantes con discapacidad, en coordinación con SENADIS
+              cuando corresponda.
+            </li>
+<li>
+              Enviar notificaciones y alertas relacionadas con el estado del proceso de matrícula, pagos, vencimientos
+              y gestiones académicas, a través de correo electrónico, SMS u otros canales electrónicos.
+            </li>
+</ol>
+<h3>4.6 Comunicación a terceros</h3>
+<p>
+            UNIACC podrá comunicar los datos personales a entidades financieras, bancos, organismos públicos,
+            proveedores tecnológicos y prestadores de servicios estrictamente necesarios para la ejecución del
+            contrato y el cumplimiento de obligaciones legales, exigiendo a éstos los mismos estándares de
+            confidencialidad y seguridad. En particular, los datos podrán ser compartidos con el proveedor de firma
+            electrónica utilizado por la plataforma y con Transbank S.A. para el procesamiento de pagos en línea.
+          </p>
+<h3>4.7 Medidas de seguridad</h3>
+<p>
+            UNIACC implementa medidas técnicas, físicas y administrativas razonables para resguardar la
+            confidencialidad, integridad y disponibilidad de los datos personales tratados, así como para evitar su
+            pérdida, alteración o acceso no autorizado.
+          </p>
+<h3>4.8 Derechos del titular (Derechos ARCO)</h3>
+<p>
+            El titular de los datos podrá ejercer en cualquier momento, y de forma gratuita, sus derechos de acceso,
+            rectificación, cancelación y oposición de sus datos personales, y el derecho de portabilidad cuando la
+            normativa vigente lo contemple. Para ello, deberá enviar una solicitud escrita al correo electrónico de la
+            Dirección Vida Universitaria de UNIACC, acreditando su identidad.
+          </p>
+<h3>4.9 Conservación</h3>
+<p>
+            Los datos serán conservados durante el tiempo que se mantenga la relación académica y/o contractual con
+            UNIACC, y posteriormente por los plazos legales de archivo aplicables, momento en el cual serán eliminados
+            o anonimizados.
+          </p>
+<h3>4.10 Cookies y tecnologías similares</h3>
+<p>
+            La plataforma MOL utiliza exclusivamente cookies técnicas necesarias para su correcto funcionamiento y
+            seguridad. No se utilizan cookies de rastreo ni de publicidad de terceros.
+          </p>
+<h2>
+            5. Aceptación Técnica del Uso del Portal de Matrícula Online
+          </h2>
+<p>
+            Para dar cumplimiento a los requisitos legales de digitalización del proceso de matrícula y a la normativa
+            aplicable a la firma electrónica y celebración de contratos por medios electrónicos, el alumno y/o el
+            sostenedor económico declaran y aceptan expresamente lo siguiente:
+          </p>
+<h3>5.1 Identidad y credenciales</h3>
+<p>
+            Las credenciales de acceso (usuario y clave) entregadas por UNIACC son personales, intransferibles y de
+            exclusiva responsabilidad del usuario, comprometiéndose a su debido resguardo y a no compartirlas con
+            terceros.
+          </p>
+<h3>5.2 Validez de la firma electrónica</h3>
+<p>
+            Reconocen la plena validez y eficacia jurídica de la firma electrónica utilizada en la MOL, en conformidad
+            con la Ley N° 19.799, otorgándole el mismo valor que la firma manuscrita.
+          </p>
+<h3>5.3 Integridad del documento</h3>
+<p>
+            Aceptan que los contratos y anexos firmados electrónicamente a través de la plataforma constituyen
+            documentos íntegros, auténticos y oponibles, cuya copia electrónica conservada por UNIACC tendrá pleno
+            valor probatorio.
+          </p>
+<h3>5.4 Medios y requisitos técnicos</h3>
+<p>
+            Cuentan con los medios técnicos necesarios para utilizar el portal (dispositivo con acceso a internet,
+            navegador compatible y un correo electrónico válido), asumiendo la responsabilidad por el correcto
+            funcionamiento de dichos medios.
+          </p>
+<h3>5.5 Comunicaciones electrónicas</h3>
+<p>
+            Aceptan recibir notificaciones, comprobantes y comunicaciones contractuales mediante medios electrónicos,
+            en especial al correo electrónico declarado en el proceso de matrícula, comprometiéndose a mantenerlo
+            actualizado y operativo.
+          </p>
+<h3>5.6 Veracidad de la información</h3>
+<p>
+            La totalidad de la información ingresada en la plataforma es veraz, completa y exacta, asumiendo las
+            consecuencias académicas, administrativas y legales que se deriven de cualquier declaración falsa,
+            inexacta o incompleta.
+          </p>
+<h3>5.7 Disponibilidad del servicio</h3>
+<p>
+            Aceptan que el portal podrá presentar interrupciones por mantención, actualizaciones o causas de fuerza
+            mayor, sin que ello afecte la validez de los documentos previamente suscritos electrónicamente.
+          </p>
+<h3>5.8 Conservación de los documentos</h3>
+<p>
+            UNIACC conservará una copia digital de los documentos firmados, la que se considerará original para todos
+            los efectos legales, sin perjuicio del derecho del alumno a descargar y archivar su propia copia.
+          </p>
+<h2>
+            6. Resolución de Conflictos y Jurisdicción Aplicable
+          </h2>
+<p>
+            Cualquier controversia, dificultad o disputa que surja entre las partes con motivo de la interpretación,
+            aplicación o ejecución de los presentes términos y condiciones, o del contrato de prestación de servicios
+            educacionales, será resuelta en primera instancia mediante un proceso de mediación interna a través de la
+            Dirección Vida Universitaria de UNIACC.
+          </p>
+<p>
+            En caso de no alcanzar acuerdo en la mediación, las partes se someten a la jurisdicción de los Tribunales
+            Ordinarios de Justicia de la comuna de Santiago, Región Metropolitana, renunciando a cualquier otro fuero
+            que pudiere corresponderles.
+          </p>
+<p>
+            Lo anterior es sin perjuicio de los derechos que asisten al alumno en su calidad de consumidor conforme a
+            la Ley N° 19.496 sobre Protección de los Derechos de los Consumidores, pudiendo recurrir al Servicio
+            Nacional del Consumidor (SERNAC) en caso de estimarlo pertinente.
+          </p>
+<p>
+            Atentamente,<br />
+<strong>DVU – Dirección Vida Universitaria</strong><br />
+            UNIACC – Universidad de Artes, Ciencias y Comunicación
+          </p>
+$TYCHTML$
+)
+ON CONFLICT (codigo) DO UPDATE SET
+  titulo = EXCLUDED.titulo,
+  contenido_html = EXCLUDED.contenido_html,
+  updated_at = now();

@@ -1,0 +1,56 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Node
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment Variables
+.env
+.env.*
+!.env.docker.example
+!.env.example
+
+# Supabase (ignoring temp files, keeping migrations/config)
+supabase/.temp/
+
+# Generated types (unplugin-vue-components and unplugin-auto-import)
+auto-imports.d.ts
+components.d.ts
+
+# Testing
+coverage
+.nyc_output
+junit.xml
+
+# Misc
+.eslintcache
+.stylelintcache
+
+# Certificados y secretos (nunca en git)
+docs/01. Certificados SSL Web (Wildcard)/
+*.key
+*.pfx
+*.p12
+**/pass.txt

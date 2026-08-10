@@ -1,0 +1,41 @@
+services:
+  mol-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_KEY: ${VITE_SUPABASE_KEY}
+        VITE_API_URL: ${VITE_API_URL:-}
+        VITE_SIMULADOR_SUPABASE_URL: ${VITE_SIMULADOR_SUPABASE_URL:-}
+        VITE_SIMULADOR_SUPABASE_ANON_KEY: ${VITE_SIMULADOR_SUPABASE_ANON_KEY:-}
+        VITE_AUTH_ORIGIN: ${VITE_AUTH_ORIGIN:-1}
+        VITE_AUTH_AMBIENTE: ${VITE_AUTH_AMBIENTE:-1}
+        VITE_MNP_MV_ANIO_MATRICULA: ${VITE_MNP_MV_ANIO_MATRICULA:-}
+        VITE_MNP_MV_PERIODO_MATRICULA: ${VITE_MNP_MV_PERIODO_MATRICULA:-}
+        VITE_DEBUG_BO_MENU: ${VITE_DEBUG_BO_MENU:-}
+    container_name: mol-dev-dev
+    restart: unless-stopped
+    ports:
+      - "9501:9501"
+    env_file:
+      - ./.env
+    environment:
+      REMATRICULA_API_KEY: ${REMATRICULA_API_KEY}
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./index.html:/app/index.html
+      - ./vite.config.ts:/app/vite.config.ts
+      - ./tailwind.config.js:/app/tailwind.config.js
+      - ./postcss.config.js:/app/postcss.config.js
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "9501"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - traefik_default
+
+networks:
+  traefik_default:
+    external: true
