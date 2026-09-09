@@ -24,10 +24,12 @@ import {
 import { cn } from '@/composables/utils'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import MatriculaMockApoderadoStep from '@/views/matricula-mock/MatriculaMockApoderadoStep.vue'
 import MatriculaMockDiscapacidadStep from '@/views/matricula-mock/MatriculaMockDiscapacidadStep.vue'
 import MatriculaMockTyCStep from '@/views/matricula-mock/MatriculaMockTyCStep.vue'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import { contextoMolAuditoria } from '@/services/molAuditContext'
+import { esPropioSostenedor } from '@/utils/apoderadoResponsable'
 import {
   type ContactoOtpCanalLog,
   type ContactoOtpEventoLog,
@@ -92,7 +94,7 @@ const datosCargando = computed(
   () => !fuente.enModoMockSeleccion.value && !auth.mvUsuario && alumnoMnp.loading,
 )
 
-type PasoDatosPersonales = 'tyc' | 'contacto' | 'discapacidad'
+type PasoDatosPersonales = 'tyc' | 'contacto' | 'apoderado' | 'discapacidad'
 
 const paso = ref<PasoDatosPersonales>(mockCtx.tycAccepted ? 'contacto' : 'tyc')
 const emailDraft = ref('')
@@ -885,11 +887,24 @@ function onTycAceptado() {
   sincronizarDraftsContactoDesdeFuente()
 }
 
-function continuarADiscapacidadDesdeContacto() {
+function irPostContacto(): void {
   if (!puedeContinuarDesdeContacto.value) return
   emailConfirmado.value = emailDraft.value.trim()
   telefonoConfirmado.value = telefonoDraft.value.trim()
-  paso.value = 'discapacidad'
+  const plan = mockCtx.selectedPlanPagos
+  if (plan && esPropioSostenedor(plan.es_responsable_financiero)) {
+    paso.value = 'discapacidad'
+    return
+  }
+  if (mockCtx.apoderadoBloqueo) {
+    paso.value = 'apoderado'
+    return
+  }
+  if (mockCtx.apoderadoConfirmado === true) {
+    paso.value = 'discapacidad'
+    return
+  }
+  paso.value = 'apoderado'
 }
 
 const puedeContinuarDesdeContacto = computed(() => correoValidadoOk.value && telefonoValidadoOk.value)
@@ -898,7 +913,7 @@ watch(
   () => correoValidadoOk.value && telefonoValidadoOk.value,
   (listo) => {
     if (listo && paso.value === 'contacto' && !datosCargando.value) {
-      continuarADiscapacidadDesdeContacto()
+      irPostContacto()
     }
   },
 )
@@ -1340,6 +1355,11 @@ watch(
         </DialogScrollContent>
       </Dialog>
     </template>
+
+    <MatriculaMockApoderadoStep
+      v-else-if="paso === 'apoderado'"
+      @continuar="paso = 'discapacidad'"
+    />
 
     <MatriculaMockDiscapacidadStep v-else-if="paso === 'discapacidad'" />
   </div>
