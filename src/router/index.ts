@@ -17,6 +17,7 @@ import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import { useContactoOtpConfigStore } from '@/stores/contactoOtpConfig'
 
 const MOCK_SELECCION_ROUTE = 'matricula-mock-seleccion-alumno'
+const MOCK_DATOS_ROUTE = 'matricula-mock-datos'
 
 function isMockFlowRoute(name: string | symbol | null | undefined): boolean {
   if (typeof name !== 'string') return false
@@ -358,6 +359,9 @@ router.beforeEach(async (to) => {
     const mockCtx = useMockMatriculaContextStore()
     if (!mockCtx.tieneAlumnoSeleccionado) {
       return { name: MOCK_SELECCION_ROUTE, replace: true }
+    }
+    if (mockCtx.apoderadoBloqueo && to.name !== MOCK_DATOS_ROUTE) {
+      return { name: MOCK_DATOS_ROUTE, replace: true }
     }
   }
 
