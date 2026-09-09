@@ -61,6 +61,8 @@ type StoredMockMatriculaContext = {
   firmaCompletada: boolean
   conveniosDocumentos: Record<string, MockConvenioDocumento>
   pagoMatricula: MockPagoMatricula | null
+  apoderadoConfirmado: boolean | null
+  apoderadoBloqueo: boolean
 }
 
 function sanitizeConveniosDocumentos(v: unknown): Record<string, MockConvenioDocumento> {
@@ -147,6 +149,8 @@ export const useMockMatriculaContextStore = defineStore('mockMatriculaContext', 
     firmaCompletada: false,
     conveniosDocumentos: {} as Record<string, MockConvenioDocumento>,
     pagoMatricula: null as MockPagoMatricula | null,
+    apoderadoConfirmado: null as boolean | null,
+    apoderadoBloqueo: false,
   }),
   getters: {
     tieneAlumnoSeleccionado: (s) => s.selectedPlanPagos != null,
@@ -173,6 +177,8 @@ export const useMockMatriculaContextStore = defineStore('mockMatriculaContext', 
         firmaCompletada: this.firmaCompletada,
         conveniosDocumentos: this.conveniosDocumentos,
         pagoMatricula: this.pagoMatricula,
+        apoderadoConfirmado: this.apoderadoConfirmado,
+        apoderadoBloqueo: this.apoderadoBloqueo,
       }
       sessionStorage.setItem(MOCK_CTX_STORAGE_KEY, JSON.stringify(payload))
     },
@@ -201,6 +207,11 @@ export const useMockMatriculaContextStore = defineStore('mockMatriculaContext', 
         this.firmaCompletada = parsed.firmaCompletada === true
         this.conveniosDocumentos = sanitizeConveniosDocumentos(parsed.conveniosDocumentos)
         this.pagoMatricula = sanitizePagoMatricula(parsed.pagoMatricula)
+        this.apoderadoConfirmado =
+          parsed.apoderadoConfirmado === true || parsed.apoderadoConfirmado === false
+            ? parsed.apoderadoConfirmado
+            : null
+        this.apoderadoBloqueo = parsed.apoderadoBloqueo === true
       } catch {
         sessionStorage.removeItem(MOCK_CTX_STORAGE_KEY)
       }
@@ -219,6 +230,8 @@ export const useMockMatriculaContextStore = defineStore('mockMatriculaContext', 
       this.firmaCompletada = false
       this.conveniosDocumentos = {}
       this.pagoMatricula = null
+      this.apoderadoConfirmado = null
+      this.apoderadoBloqueo = false
       usePa08MtArancelSelMatriculaNetStore().reset()
       useSpListaDocpagMatriculaCajaMatriculaStore().reset()
       useSpListaDocpagMatriculaCajaArancelStore().reset()
@@ -241,6 +254,8 @@ export const useMockMatriculaContextStore = defineStore('mockMatriculaContext', 
       this.firmaCompletada = false
       this.conveniosDocumentos = {}
       this.pagoMatricula = null
+      this.apoderadoConfirmado = null
+      this.apoderadoBloqueo = false
       usePa08MtArancelSelMatriculaNetStore().reset()
       useSpListaDocpagMatriculaCajaMatriculaStore().reset()
       useSpListaDocpagMatriculaCajaArancelStore().reset()
@@ -301,6 +316,18 @@ export const useMockMatriculaContextStore = defineStore('mockMatriculaContext', 
       const { [convenioId]: _omitido, ...resto } = this.conveniosDocumentos
       void _omitido
       this.conveniosDocumentos = resto
+      this.persistToSessionStorage()
+    },
+
+    confirmarApoderadoOk() {
+      this.apoderadoConfirmado = true
+      this.apoderadoBloqueo = false
+      this.persistToSessionStorage()
+    },
+
+    marcarApoderadoDesactualizado() {
+      this.apoderadoConfirmado = false
+      this.apoderadoBloqueo = true
       this.persistToSessionStorage()
     },
   },
