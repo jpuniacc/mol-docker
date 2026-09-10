@@ -164,6 +164,30 @@ export type TpMnpConvenioPeriodoRow = {
   activo: boolean;
 };
 
+/** Fila de `mnp_mv_beneficio_periodo` (catálogo Excel por periodo). */
+export type MnpMvBeneficioPeriodoFlujo =
+  | 'ESTATAL'
+  | 'MOL_DVU'
+  | 'CONVENIO'
+  | 'FORMA_PAGO'
+  | 'NO_RENOVABLE'
+  | 'NO_VIGENTE'
+  | 'EN_REVISION';
+
+export type MnpMvBeneficioPeriodoRow = {
+  id: string;
+  periodo: string;
+  codigo_beneficio: string;
+  beneficio: string;
+  renovable: string | null;
+  convenio: string | null;
+  flujo: MnpMvBeneficioPeriodoFlujo;
+  aplica: boolean;
+  requiere_certificado: boolean;
+  tipo_certificado: 'AFILIACION' | 'ANTIGUEDAD_LABORAL' | null;
+  created_at: string;
+};
+
 /** Documento de vigencia de convenio subido por el alumno (`mnp_convenio_documento`). */
 export type MnpConvenioDocumentoRow = {
   id: string;
@@ -598,10 +622,14 @@ export type PlanPagosMvRow = {
   nombre_alumno: string | null;
   apellido_paterno_alumno: string | null;
   apellido_materno_alumno: string | null;
+  /** S/N/sin datos: alumno = apoderado (responsable financiero). */
+  es_responsable_financiero?: string | null;
   rut_apoder: string | null;
   nombre_apoderado: string | null;
   apellido_paterno_apoderado: string | null;
   apellido_materno_apoderado: string | null;
+  telefono_apoder?: string | null;
+  mail_apoder?: string | null;
   estado_academico: string | null;
   ano_ingreso: number | null;
   periodo_ingreso: number | null;
@@ -846,6 +874,15 @@ export type Database = {
         Update: Partial<MtBeneficioRow>;
         Relationships: [];
       };
+      mnp_mv_beneficio_periodo: {
+        Row: MnpMvBeneficioPeriodoRow;
+        Insert: Omit<MnpMvBeneficioPeriodoRow, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<Omit<MnpMvBeneficioPeriodoRow, "id">>;
+        Relationships: [];
+      };
       mnp_estado_cae_alumnos: {
         Row: MnpEstadoCaeAlumnoRow;
         Insert: Omit<MnpEstadoCaeAlumnoRow, "synced_at"> & { synced_at?: string };
@@ -934,6 +971,10 @@ export type Database = {
     Views: {
       v_mnp_mv_plan_pagos: {
         Row: PlanPagosMvRow;
+        Relationships: [];
+      };
+      v_mnp_mv_convenios: {
+        Row: MnpMvBeneficioPeriodoRow;
         Relationships: [];
       };
       v_log_mol_sesion_timeline: {

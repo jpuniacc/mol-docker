@@ -1,0 +1,68 @@
+codigo,beneficio,renovable_excel,convenio_excel,flujo,detalle,se_mantiene_2027_01,certificado,criterio
+6,Beca Excelencia Academica,BECA ESTATAL,,Estatal (otro flujo),Validación externa MINEDUC / estatal,Otro flujo,,RENOVABLE = BECA ESTATAL
+8,Beca Hijo de Profesional de la Educacion,BECA ESTATAL,,Estatal (otro flujo),Validación externa MINEDUC / estatal,Otro flujo,,RENOVABLE = BECA ESTATAL
+9,Beca Juan Gomez Millas,BECA ESTATAL,,Estatal (otro flujo),Validación externa MINEDUC / estatal,Otro flujo,,RENOVABLE = BECA ESTATAL
+10,Beca Juan Gomez Millas Extranjero,BECA ESTATAL,,Estatal (otro flujo),Validación externa MINEDUC / estatal,Otro flujo,,RENOVABLE = BECA ESTATAL
+12,Beca de Articulacion,BECA ESTATAL,,Estatal (otro flujo),Validación externa MINEDUC / estatal,Otro flujo,,RENOVABLE = BECA ESTATAL
+13,Beca Traspaso Valech,BECA ESTATAL,,Estatal (otro flujo),Validación externa MINEDUC / estatal,Otro flujo,,RENOVABLE = BECA ESTATAL
+93,Beca Juan Gomez Millas Discapacidad,BECA ESTATAL,,Estatal (otro flujo),Validación externa MINEDUC / estatal,Otro flujo,,RENOVABLE = BECA ESTATAL
+2009,Compensacion de Beneficio,BECA ESTATAL,,Estatal (otro flujo),Validación externa MINEDUC / estatal,Otro flujo,,RENOVABLE = BECA ESTATAL
+1859,Beca Migrante Matricula Renovante,BECA DVU,,MOL / DVU (mismo flujo),Renovable DVU sin regla de notas UNIACC,Sí,,RENOVABLE = BECA DVU
+2002,Beca Migrante Arancel Renovante,BECA DVU,,MOL / DVU (mismo flujo),Renovable DVU sin regla de notas UNIACC,Sí,,RENOVABLE = BECA DVU
+760,Beca PSU,RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR,,MOL / DVU (mismo flujo),Renovable si promedio >= 5.5,Sí si promedio >= 5.5,,RENOVABLE = renovación por notas
+1519,BECA NEM,RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR,,MOL / DVU (mismo flujo),Renovable si promedio >= 5.5,Sí si promedio >= 5.5,,RENOVABLE = renovación por notas
+1636,Admision UNIACC,RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR,,MOL / DVU (mismo flujo),Renovable si promedio >= 5.5,Sí si promedio >= 5.5,,RENOVABLE = renovación por notas
+1640,Beca Complementaria Fondo UNIACC,RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR,,MOL / DVU (mismo flujo),Renovable si promedio >= 5.5,Sí si promedio >= 5.5,,RENOVABLE = renovación por notas
+1641,DACC,RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR,,MOL / DVU (mismo flujo),Renovable si promedio >= 5.5,Sí si promedio >= 5.5,,RENOVABLE = renovación por notas
+1645,Beca Egresados de IACC,RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR,,MOL / DVU (mismo flujo),Renovable si promedio >= 5.5,Sí si promedio >= 5.5,,RENOVABLE = renovación por notas
+1744,Beca Talento Presencial,RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR,,MOL / DVU (mismo flujo),Renovable si promedio >= 5.5,Sí si promedio >= 5.5,,RENOVABLE = renovación por notas
+1745,Beca Merito Academico,RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR,,MOL / DVU (mismo flujo),Renovable si promedio >= 5.5,Sí si promedio >= 5.5,,RENOVABLE = renovación por notas
+1746,Beca Merito Prueba de Seleccion Universitaria PSU PTU,RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR,,MOL / DVU (mismo flujo),Renovable si promedio >= 5.5,Sí si promedio >= 5.5,,RENOVABLE = renovación por notas
+1747,Beca Apoyo Regional,RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR,,MOL / DVU (mismo flujo),Renovable si promedio >= 5.5,Sí si promedio >= 5.5,,RENOVABLE = renovación por notas
+1748,Beca Complementaria Becas MINEDUC,RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR,,MOL / DVU (mismo flujo),Renovable si promedio >= 5.5,Sí si promedio >= 5.5,,RENOVABLE = renovación por notas
+1750,Beca EgresadosTitulados UNIACC Hijos y Conyuge,RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR,,MOL / DVU (mismo flujo),Renovable si promedio >= 5.5,Sí si promedio >= 5.5,,RENOVABLE = renovación por notas
+1756,Beneficio Apoyo UNIACC Renovable,RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR,,MOL / DVU (mismo flujo),Renovable si promedio >= 5.5,Sí si promedio >= 5.5,,RENOVABLE = renovación por notas
+1795,Beca Talento Virtual,RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR,,MOL / DVU (mismo flujo),Renovable si promedio >= 5.5,Sí si promedio >= 5.5,,RENOVABLE = renovación por notas
+1809,Beca Talento Virtual 2,RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR,,MOL / DVU (mismo flujo),Renovable si promedio >= 5.5,Sí si promedio >= 5.5,,RENOVABLE = renovación por notas
+2033,BECA ACTRIZ DESTACADA,RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR,,MOL / DVU (mismo flujo),Renovable si promedio >= 5.5,Sí si promedio >= 5.5,,RENOVABLE = renovación por notas
+1752,Beca Funcionarios Sindicalizados Hijos y Conyuges,SIN REQUISITO DE NOTAS,,MOL / DVU (mismo flujo),Renovable sin validar promedio,Sí,,RENOVABLE = sin requisito de notas
+1753,Beca Docente UNIACC,SIN REQUISITO DE NOTAS,,MOL / DVU (mismo flujo),Renovable sin validar promedio,Sí,,RENOVABLE = sin requisito de notas
+2019,RESOLUCION NICOLAS OLIVERA PELEGRI,SIN REQUISITO DE NOTAS,,MOL / DVU (mismo flujo),Renovable sin validar promedio,Sí,,RENOVABLE = sin requisito de notas
+89,SINDICATO BANCOESTADO,,SI (CERTIFICADO ANTIGUEDAD LABORAL ACTUALIZADO),MOL convenio (mismo flujo),Vigente; exige certificado,Sí si certificado,Antigüedad laboral actualizado,CONVENIO = SI + certificado
+749,Convenio Carabineros de Chile,,SI (CERTIFICADO ANTIGUEDAD LABORAL ACTUALIZADO),MOL convenio (mismo flujo),Vigente; exige certificado,Sí si certificado,Antigüedad laboral actualizado,CONVENIO = SI + certificado
+1552,CAJA LOS ANDES,,SI (CERTIFICADO AFILIACION ACTUALIZADO),MOL convenio (mismo flujo),Vigente; exige certificado,Sí si certificado,Afiliación actualizado,CONVENIO = SI + certificado
+1565,CAJA LA ARAUCANA,,SI (CERTIFICADO AFILIACION ACTUALIZADO),MOL convenio (mismo flujo),Vigente; exige certificado,Sí si certificado,Afiliación actualizado,CONVENIO = SI + certificado
+1801,DESCUENTO PAGO CHEQUE MNP,DESCUENTO POR FORMA DE PAGO,,MOL forma de pago (mismo flujo),No se hereda; se recalcula al elegir pago,Se recalcula,,RENOVABLE = descuento forma de pago
+1829,Descuento pago contado,DESCUENTO POR FORMA DE PAGO,,MOL forma de pago (mismo flujo),No se hereda; se recalcula al elegir pago,Se recalcula,,RENOVABLE = descuento forma de pago
+1855,Descuento Forma de Pago Multiple Total,DESCUENTO POR FORMA DE PAGO,,MOL forma de pago (mismo flujo),No se hereda; se recalcula al elegir pago,Se recalcula,,RENOVABLE = descuento forma de pago
+1657,Beneficio Complementario un periodo Antiguos,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+1665,Anticipacion de Matricula Antiguos,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+1760,MC ASIGNATURAS EN UN SEMESTRE,NO ES BECA/NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no es beca / no renovable
+1790,DESCUENTO ANTICIPACION COLEGIATURA NUEVO,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+1791,DESCUENTO ANTICIPACION MATRICULA NUEVO,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+1806,Descuento Arancel Matricula TLU,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+1807,Ajuste Plan de Pago Antiguos,NO ES BECA/NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no es beca / no renovable
+1811,Beneficio Apoyo UNIACC No Renovable,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+1812,MC 1 ASIG EN CADA SEMESTRE,NO ES BECA/NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no es beca / no renovable
+1813,MC HASTA 4 ASIG DISTRIBUIDAS EN 2 SEMESTRES,NO ES BECA/NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no es beca / no renovable
+1820,MENOR CARGA ACADEMICA TLU,NO ES BECA/NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no es beca / no renovable
+1825,BECA INTERCAMBIO ARANCEL,NO ES BECA/NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no es beca / no renovable
+1826,BECA INTERCAMBIO MATRICULA,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+1831,RESOLUCION CAMBIO CARRERA JORNADA,NO ES BECA/NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no es beca / no renovable
+1832,RESOLUCION CAMBIO CARRERA JORNADA MAT,NO ES BECA/NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no es beca / no renovable
+1853,Ajuste Arancel 2022 BTV1 No Renovable,NO ES BECA/NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no es beca / no renovable
+2003,Matricula costo 0 Campaña Reintegro,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+2025,Descuento matricula noviembre,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+2028,Descuento matricula diciembre,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+2031,Descuento matricula BTU 1 referido,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+2032,Descuento matricula BTU 2 o mas referidos,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+2034,BECA RETENCION PRIMER AÑO,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+2035,Beca Rectoria Arancel,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+2036,Beca Rectoria Matricula,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+2037,Matricula costo 0 Retencion,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+2039,Matricula campaña Marzo,BENEFICIO NO RENOVABLE,,No se renueva 2027-01,Queda fuera de renovación,No,,RENOVABLE = no renovable
+1709,MIS BENEFICIOS AFP,,NO VIGENTE,No vigente,Convenio caído; no aplica 2027-01,No,,CONVENIO = NO VIGENTE
+1766,ASOCIACION DE PILOTOS DE CHILE,,NO VIGENTE,No vigente,Convenio caído; no aplica 2027-01,No,,CONVENIO = NO VIGENTE
+1773,ENAC Centro de Formacion Tecnica,,NO VIGENTE,No vigente,Convenio caído; no aplica 2027-01,No,,CONVENIO = NO VIGENTE
+1775,INJUV,,NO VIGENTE,No vigente,Convenio caído; no aplica 2027-01,No,,CONVENIO = NO VIGENTE
+2026,Descuento especial convenio no vigente,EN REVISION,,En revisión,No aplica 2027-01,No,,RENOVABLE = EN REVISION; aplica = false
