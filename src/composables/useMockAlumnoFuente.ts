@@ -72,6 +72,8 @@ export function useMockAlumnoFuente() {
     return pickStr(mnpLegacy.value?.nombre_apoderado)
   })
 
+  const mailApoderadoMostrado = computed(() => pickStr(plan.value?.mail_apoder))
+
   const direccionMostrada = computed(() => {
     if (plan.value) return pickStr(plan.value.direccion)
     return pickStr(mnpLegacy.value?.direccion)
@@ -137,6 +139,7 @@ export function useMockAlumnoFuente() {
     telefonoMostrado,
     rutApoderadoMostrado,
     nombreApoderadoMostrado,
+    mailApoderadoMostrado,
     direccionMostrada,
     comunaMostrada,
     ciudadMostrada,
