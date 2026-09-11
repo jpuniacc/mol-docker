@@ -1,56 +1,154 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Download, Pencil, Search } from 'lucide-vue-next'
+import { Download, Loader2, Mail } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 
+import ContratoPrestacionServiciosPreview from '@/components/rematricula/ContratoPrestacionServiciosPreview.vue'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { useContratoMatriculaViewModel } from '@/composables/useContratoMatriculaViewModel'
 import { useMockAlumnoFuente } from '@/composables/useMockAlumnoFuente'
+import {
+  ensureContratoFirma,
+  getContratoFirmaEstado,
+  type ContratoFirmaEstadoResponse,
+  type ContratoFirmaFirmanteEstado,
+} from '@/services/contratoFirmaApi'
+import { downloadContratoPreviewPdf } from '@/services/contratoPreviewApi'
 import { useMockMatriculaContextStore } from '@/stores/mockMatriculaContext'
+import { esPropioSostenedor } from '@/utils/apoderadoResponsable'
+
+const POLL_MS = 5000
 
 const router = useRouter()
 const mockCtx = useMockMatriculaContextStore()
 const fuente = useMockAlumnoFuente()
+const { viewModel, tienePlanConfirmado } = useContratoMatriculaViewModel()
 
-const FES_OTP_MOCK = '112233'
-const serieCedula = ref('')
-const otpInstitucional = ref('')
-const otpEnviado = ref(false)
-const firmando = ref(false)
+const descargando = ref(false)
+const enviando = ref(false)
+const errorFirma = ref<string | null>(null)
+const firmantes = ref<ContratoFirmaFirmanteEstado[]>([])
+const numOperacionFirma = ref<string | null>(null)
 
-function descargaMock() {
-  toast.message('Descarga de borrador del contrato (mock).')
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let unmounted = false
+
+function clearPoll(): void {
+  if (pollTimer !== null) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
 }
 
-async function enviarOtpInstitucional() {
-  otpEnviado.value = true
-  toast.message(`OTP institucional mock enviado a ${fuente.correoInstitucionalMostrado}. Código demo: ${FES_OTP_MOCK}`)
+function completarYNavegar(): void {
+  clearPoll()
+  mockCtx.setFirmaCompletada(true)
+  void router.push({ name: 'matricula-mock-resumen' })
 }
 
-async function firmarContrato() {
-  if (!serieCedula.value.trim()) {
-    toast.error('Ingresa la serie de tu cédula.')
+function aplicarEstadoOk(estado: Extract<ContratoFirmaEstadoResponse, { ok: true }>): void {
+  firmantes.value = estado.firmantes
+  numOperacionFirma.value = estado.numOperacion
+  if (estado.ready) {
+    completarYNavegar()
+  }
+}
+
+async function pollEstado(numOperacion: string): Promise<void> {
+  const res = await getContratoFirmaEstado(numOperacion)
+  if (unmounted || !res.ok) {
     return
   }
-  if (!otpEnviado.value) {
-    toast.error('Solicita el OTP institucional primero.')
+  aplicarEstadoOk(res)
+}
+
+function iniciarPoll(numOperacion: string): void {
+  clearPoll()
+  pollTimer = setInterval(() => {
+    void pollEstado(numOperacion)
+  }, POLL_MS)
+}
+
+async function enviarAFirmar(): Promise<void> {
+  const vm = viewModel.value
+  if (!vm || enviando.value) {
     return
   }
-  if (otpInstitucional.value.replace(/\D/g, '') !== FES_OTP_MOCK) {
-    toast.error('OTP incorrecto (mock).')
-    return
-  }
-  firmando.value = true
+
+  clearPoll()
+  enviando.value = true
+  errorFirma.value = null
+
   try {
-    await new Promise((r) => setTimeout(r, 500))
-    mockCtx.setFirmaCompletada(true)
-    toast.success('Firma electrónica simulada correctamente.')
-    void router.push({ name: 'matricula-mock-resumen' })
+    const incluirApoderado = !esPropioSostenedor(fuente.plan.value?.es_responsable_financiero)
+    const codcli = fuente.codcliMostrado.value
+    const res = await ensureContratoFirma({
+      ...vm,
+      incluirApoderado,
+      codcli,
+    })
+
+    if (unmounted) {
+      return
+    }
+
+    if (!res.ok) {
+      errorFirma.value = res.error
+      return
+    }
+
+    aplicarEstadoOk(res)
+    if (!res.ready) {
+      iniciarPoll(res.numOperacion)
+    }
   } finally {
-    firmando.value = false
+    enviando.value = false
+  }
+}
+
+watch(
+  tienePlanConfirmado,
+  (ok: boolean) => {
+    if (ok) {
+      void enviarAFirmar()
+    } else {
+      clearPoll()
+    }
+  },
+  { immediate: true },
+)
+
+onUnmounted(() => {
+  unmounted = true
+  clearPoll()
+})
+
+async function descargaBorrador(): Promise<void> {
+  const vm = viewModel.value
+  if (!vm) {
+    toast.error('Confirma el plan de pagos antes de descargar el contrato.')
+    return
+  }
+  descargando.value = true
+  try {
+    const res = await downloadContratoPreviewPdf(vm)
+    if (!res.ok || !res.blob) {
+      toast.error(res.error || 'No se pudo generar el PDF')
+      return
+    }
+    const url = URL.createObjectURL(res.blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `contrato-${vm.numOperacion || 'borrador'}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success('Borrador del contrato descargado.')
+  } finally {
+    descargando.value = false
   }
 }
 </script>
@@ -58,81 +156,123 @@ async function firmarContrato() {
 <template>
   <div class="space-y-6">
     <p class="text-muted-foreground">
-      Vista 08 — Firma electrónica simple (FES mock): revisa el contrato y firma con serie de cédula + OTP
-      institucional.
+      Vista 08 — Firma del contrato: revisa el contrato y espera a que firmen todos por correo.
     </p>
 
-    <Card class="shadow-md">
+    <Card v-if="!tienePlanConfirmado" class="shadow-md border-amber-200 bg-amber-50">
       <CardHeader>
-        <CardTitle>Firma electrónica del contrato</CardTitle>
+        <CardTitle>Falta el plan de pagos</CardTitle>
         <CardDescription>
-          Estudiante: {{ fuente.nombreMostrado }} · RUT {{ fuente.rutMostrado }}
+          Confirma el plan de pagos en el paso anterior para ver el contrato con los datos de
+          {{ fuente.nombreMostrado }}.
         </CardDescription>
       </CardHeader>
-      <CardContent class="space-y-6">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-8">
-          <div class="flex gap-3">
-            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted">
-              <Search class="h-6 w-6 text-muted-foreground" />
-            </div>
-            <div>
-              <p class="font-semibold">1. Revisa el contrato</p>
-              <p class="text-sm text-muted-foreground">Vista previa simulada del contrato de matrícula.</p>
-            </div>
-          </div>
-          <div class="flex gap-3">
-            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted">
-              <Pencil class="h-6 w-6 text-muted-foreground" />
-            </div>
-            <div>
-              <p class="font-semibold">2. Firma estudiante</p>
-              <p class="text-sm font-medium">{{ fuente.nombreMostrado }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div class="space-y-2">
-            <Label for="serie-cedula">Serie cédula de identidad</Label>
-            <Input id="serie-cedula" v-model="serieCedula" placeholder="Ej. A12345678" autocomplete="off" />
-          </div>
-          <div class="space-y-2">
-            <Label for="otp-fes">OTP institucional (mock: {{ FES_OTP_MOCK }})</Label>
-            <div class="flex flex-wrap gap-2">
-              <Input
-                id="otp-fes"
-                v-model="otpInstitucional"
-                inputmode="numeric"
-                maxlength="6"
-                placeholder="000000"
-                class="max-w-[160px] font-mono"
-              />
-              <Button type="button" variant="secondary" @click="enviarOtpInstitucional">
-                Enviar OTP
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex flex-wrap justify-end gap-3">
-          <Button variant="outline" class="gap-2" type="button" @click="descargaMock">
-            <Download class="h-4 w-4" />
-            Descarga borrador
-          </Button>
-          <Button
-            class="bg-uniacc-orange hover:bg-uniacc-orange/90"
-            type="button"
-            :disabled="firmando"
-            @click="firmarContrato"
-          >
-            {{ firmando ? 'Firmando…' : 'Firmar contrato (mock FES)' }}
-          </Button>
-        </div>
+      <CardContent>
+        <Button
+          class="bg-uniacc-orange hover:bg-uniacc-orange/90"
+          type="button"
+          @click="router.push({ name: 'matricula-mock-forma-pago' })"
+        >
+          Ir a forma de pago
+        </Button>
       </CardContent>
     </Card>
 
+    <template v-else>
+      <Card class="shadow-md">
+        <CardHeader>
+          <CardTitle>1. Revisa el contrato</CardTitle>
+          <CardDescription>
+            Estudiante: {{ fuente.nombreMostrado }} · RUT {{ fuente.rutMostrado }} · Op.
+            {{ viewModel?.numOperacion }}
+          </CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-4">
+          <div
+            class="max-h-[70vh] overflow-y-auto rounded-md border border-zinc-200 bg-zinc-100/80 p-2"
+          >
+            <ContratoPrestacionServiciosPreview v-if="viewModel" :model="viewModel" />
+          </div>
+          <div class="flex flex-wrap justify-end gap-3">
+            <Button
+              variant="outline"
+              class="gap-2"
+              type="button"
+              :disabled="descargando"
+              @click="descargaBorrador"
+            >
+              <Download class="h-4 w-4" />
+              {{ descargando ? 'Generando…' : 'Descarga borrador' }}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card class="shadow-md">
+        <CardHeader>
+          <CardTitle>Firma del contrato</CardTitle>
+          <CardDescription>
+            Enviamos el contrato a firmar por correo. Esta pantalla espera a que firmen todos.
+          </CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-6">
+          <div
+            v-if="enviando && firmantes.length === 0 && !errorFirma"
+            class="flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-muted-foreground"
+          >
+            <Loader2 class="h-5 w-5 shrink-0 animate-spin text-uniacc-orange" aria-hidden="true" />
+            <span>Enviando el contrato a firmar…</span>
+          </div>
+
+          <Alert v-if="errorFirma" variant="destructive">
+            <AlertTitle>No se pudo enviar el contrato a firmar</AlertTitle>
+            <AlertDescription class="mt-2 space-y-3">
+              <p>{{ errorFirma }}</p>
+              <Button type="button" variant="secondary" :disabled="enviando" @click="enviarAFirmar">
+                {{ enviando ? 'Reintentando…' : 'Reintentar' }}
+              </Button>
+            </AlertDescription>
+          </Alert>
+
+          <div v-if="firmantes.length > 0" class="space-y-3">
+            <div class="flex items-center gap-2 text-sm text-muted-foreground">
+              <Mail class="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>
+                Firmar desde el correo. Operación
+                {{ numOperacionFirma || viewModel?.numOperacion }}.
+              </span>
+            </div>
+            <ul class="divide-y rounded-md border" role="list">
+              <li
+                v-for="(firmante, idx) in firmantes"
+                :key="`${firmante.rol}-${firmante.email}-${idx}`"
+                class="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+              >
+                <div class="min-w-0">
+                  <p class="font-medium text-foreground">{{ firmante.nombre }}</p>
+                  <p class="text-sm text-muted-foreground">{{ firmante.email }}</p>
+                </div>
+                <Badge :variant="firmante.ready ? 'success' : 'warning'">
+                  {{ firmante.ready ? 'Firmado' : 'Pendiente' }}
+                </Badge>
+              </li>
+            </ul>
+            <p
+              v-if="!errorFirma"
+              class="flex items-center gap-2 text-sm text-muted-foreground"
+            >
+              <Loader2 class="h-4 w-4 shrink-0 animate-spin text-uniacc-orange" aria-hidden="true" />
+              Esperando firmas…
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </template>
+
     <div class="flex flex-wrap justify-between gap-3">
-      <Button variant="outline" @click="router.push({ name: 'matricula-mock-forma-pago' })">Anterior</Button>
+      <Button variant="outline" @click="router.push({ name: 'matricula-mock-forma-pago' })">
+        Anterior
+      </Button>
     </div>
   </div>
 </template>

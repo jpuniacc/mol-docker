@@ -18,6 +18,7 @@ import { useContactoOtpConfigStore } from '@/stores/contactoOtpConfig'
 
 const MOCK_SELECCION_ROUTE = 'matricula-mock-seleccion-alumno'
 const MOCK_DATOS_ROUTE = 'matricula-mock-datos'
+const MOCK_FORMA_PAGO_ROUTE = 'matricula-mock-forma-pago'
 
 function isMockFlowRoute(name: string | symbol | null | undefined): boolean {
   if (typeof name !== 'string') return false
@@ -220,6 +221,17 @@ const routes = [
           import('../views/dashboard/rematricula/MantenedorConveniosView.vue'),
       },
       {
+        path: '/dashboard/casos-rematricula',
+        name: 'dashboard-casos-rematricula',
+        meta: {
+          requiresAdminAdmision: true,
+          requiresSoloGrupoDvU: true,
+          requiresPerfilUsuarioIn: [1, 2, 3],
+        },
+        component: () =>
+          import('../views/dashboard/rematricula/CasosRematriculaView.vue'),
+      },
+      {
         path: '/dashboard/mantenedor-descuento-matricula-anticipada',
         name: 'dashboard-mantenedor-descuento-matricula-anticipada',
         meta: {
@@ -351,6 +363,16 @@ router.beforeEach(async (to) => {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
 
+  if (
+    needsAuth &&
+    auth.isAuthenticated &&
+    auth.authSource === 'pixarron' &&
+    datosMnp.fueraCarteraOficial &&
+    (isMockFlowRoute(to.name) || to.name === MOCK_SELECCION_ROUTE)
+  ) {
+    return { name: 'dashboard-home', replace: true }
+  }
+
   if (to.name === 'login' && auth.isAuthenticated) {
     return { name: 'dashboard-home', replace: true }
   }
@@ -362,6 +384,18 @@ router.beforeEach(async (to) => {
     }
     if (mockCtx.apoderadoBloqueo && to.name !== MOCK_DATOS_ROUTE) {
       return { name: MOCK_DATOS_ROUTE, replace: true }
+    }
+    if (
+      (mockCtx.convenioCertificadoBloqueo ||
+        mockCtx.estatalBloqueo ||
+        mockCtx.promedioBloqueo) &&
+      to.name !== MOCK_DATOS_ROUTE &&
+      to.name !== MOCK_FORMA_PAGO_ROUTE
+    ) {
+      return { name: MOCK_FORMA_PAGO_ROUTE, replace: true }
+    }
+    if (to.name === 'matricula-mock-resumen' && !mockCtx.firmaCompletada) {
+      return { name: 'matricula-mock-firma', replace: true }
     }
   }
 
