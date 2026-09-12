@@ -40,6 +40,8 @@ const seleccionado = ref<ContratoFirmaListRow | null>(null)
 const pdfUrl = ref<string | null>(null)
 const pdfLoading = ref(false)
 const pdfError = ref<string | null>(null)
+const pdfFetchGeneration = ref(0)
+let pdfAbortController: AbortController | null = null
 
 const filasVisibles = computed(() => {
   const q = busqueda.value.trim().toLowerCase()
@@ -65,6 +67,20 @@ function revokePdfUrl(): void {
   }
 }
 
+function invalidatePdfFetch(): void {
+  pdfAbortController?.abort()
+  pdfAbortController = null
+  pdfFetchGeneration.value += 1
+}
+
+function isPdfFetchStale(generation: number, numOperacion: string): boolean {
+  return (
+    generation !== pdfFetchGeneration.value ||
+    !dialogOpen.value ||
+    seleccionado.value?.num_operacion !== numOperacion
+  )
+}
+
 async function cargar(): Promise<void> {
   loading.value = true
   try {
@@ -81,13 +97,23 @@ async function cargar(): Promise<void> {
 }
 
 async function abrirDetalle(row: ContratoFirmaListRow): Promise<void> {
+  invalidatePdfFetch()
+  revokePdfUrl()
+
+  const numOperacion = row.num_operacion
+  const generation = pdfFetchGeneration.value
+  const controller = new AbortController()
+  pdfAbortController = controller
+
   seleccionado.value = row
   pdfError.value = null
-  revokePdfUrl()
   dialogOpen.value = true
   pdfLoading.value = true
+
   try {
-    const res = await downloadContratoFirmaPdf(row.num_operacion)
+    const res = await downloadContratoFirmaPdf(numOperacion)
+    if (isPdfFetchStale(generation, numOperacion) || controller.signal.aborted) return
+
     if (!res.ok) {
       pdfError.value = res.error
       toast.error(res.error)
@@ -95,13 +121,19 @@ async function abrirDetalle(row: ContratoFirmaListRow): Promise<void> {
     }
     pdfUrl.value = URL.createObjectURL(res.blob)
   } finally {
-    pdfLoading.value = false
+    if (!isPdfFetchStale(generation, numOperacion)) {
+      pdfLoading.value = false
+    }
+    if (pdfAbortController === controller) {
+      pdfAbortController = null
+    }
   }
 }
 
 function onDialogOpenChange(open: boolean): void {
   dialogOpen.value = open
   if (!open) {
+    invalidatePdfFetch()
     revokePdfUrl()
     seleccionado.value = null
     pdfError.value = null
@@ -114,6 +146,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  invalidatePdfFetch()
   revokePdfUrl()
 })
 </script>
@@ -169,7 +202,7 @@ onUnmounted(() => {
               <TableCell>{{ row.nombre ?? row.codcli ?? '—' }}</TableCell>
               <TableCell>{{ row.carrera ?? '—' }}</TableCell>
               <TableCell>{{ row.num_operacion }}</TableCell>
-              <TableCell>{{ quienFalta(row.firmantes) }}</TableCell>
+              <TableCell>{{ quienFalta(row.firmantes ?? []) }}</TableCell>
               <TableCell>
                 <Badge variant="outline">{{ row.ready ? 'Firmado' : 'Pendiente' }}</Badge>
               </TableCell>
