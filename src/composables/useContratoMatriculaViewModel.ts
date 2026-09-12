@@ -62,8 +62,6 @@ export function useContratoMatriculaViewModel() {
     if (!pago) return null
 
     const asignaturasNuevo = false
-    const repKey = asignaturasNuevo ? 'nuevo' : 'default'
-    const rep = clausulasFixture.representantes[repKey]
 
     const direccion = dash(fuente.direccionMostrada.value)
     const comuna = dash(fuente.comunaMostrada.value)
@@ -141,8 +139,8 @@ export function useContratoMatriculaViewModel() {
         item: c.item,
       })),
       representante: {
-        nombre: rep.nombre,
-        rut: rep.rut,
+        nombre: '',
+        rut: '',
       },
       asignaturasNuevo,
     }
