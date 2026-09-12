@@ -12,6 +12,7 @@ import {
   Handshake,
   Home,
   Menu,
+  PenLine,
   Percent,
   School,
   Settings,
@@ -36,6 +37,7 @@ const ICON_MAP: Record<string, Component> = {
   Gift,
   FileCheck,
   Percent,
+  PenLine,
 }
 
 export function menuIconFromKey(iconKey: string | null | undefined): Component {

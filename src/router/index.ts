@@ -232,6 +232,17 @@ const routes = [
           import('../views/dashboard/rematricula/CasosRematriculaView.vue'),
       },
       {
+        path: '/dashboard/gestion-firmas',
+        name: 'dashboard-gestion-firmas',
+        meta: {
+          requiresAdminAdmision: true,
+          requiresSoloGrupoDvU: true,
+          requiresPerfilUsuarioIn: [1, 2, 3],
+        },
+        component: () =>
+          import('../views/dashboard/rematricula/GestionFirmasView.vue'),
+      },
+      {
         path: '/dashboard/mantenedor-descuento-matricula-anticipada',
         name: 'dashboard-mantenedor-descuento-matricula-anticipada',
         meta: {
