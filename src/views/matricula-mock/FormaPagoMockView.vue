@@ -49,6 +49,7 @@ import { detectarConveniosAlumno } from '@/services/convenioAlumno'
 import { fmtMontoClp, fetchPlanPagosMvByCodcli } from '@/services/fetchPlanPagosMv'
 import { contextoMolAuditoria, type ContextoMolAuditoriaOpciones } from '@/services/molAuditContext'
 import { ejecutarVerificacionCae } from '@/services/verificacionCae'
+import { registrarFormaPagoAudit } from '@/services/formaPagoAuditLog'
 import { useConvenioInstitucionalStore } from '@/stores/convenioInstitucional'
 import { usePa08MtArancelSelMatriculaNetStore } from '@/stores/datos_erp/pa08_MT_ARANCEL_sel_MATRICULA_NET'
 import { useSpAlumnoDeudaNetStore } from '@/stores/datos_erp/sp_alumno_deuda_net'
@@ -640,7 +641,7 @@ function simularPagoMatricula(medio: 'webpay' | 'toku') {
   cerrarPagoMatriculaDialog()
 }
 
-function confirmarPagareMatricula() {
+async function confirmarPagareMatricula() {
   const hoy = hoyIsoLocal()
   const fecha = pagareFechaInicio.value
   const dia = Number(pagareDiaVencimiento.value)
@@ -663,6 +664,9 @@ function confirmarPagareMatricula() {
     return
   }
   const monto = montoNetoMatricula()
+  const montoMat = arancelSp.montoMatricula
+  const montoAra = arancelSp.montoArancel
+  const nCuotas = 10
   const cuotasDetalle = pagareCuotasPreview.value.map(
     ({ seleccionado: _sel, ...rest }) => rest,
   )
@@ -670,7 +674,7 @@ function confirmarPagareMatricula() {
     medio: 'pagare',
     tipodoc: '5',
     nombre: 'PAGARÉ',
-    cuotas: 10,
+    cuotas: nCuotas,
     diaVencimiento: dia,
     fechaInicio: fecha,
     monto,
@@ -680,6 +684,26 @@ function confirmarPagareMatricula() {
   }
   console.log('[forma-pago] pagoMatricula pagaré', payload)
   mockCtx.setPagoMatricula(payload)
+
+  // Registrar evento de forma de pago confirmada
+  await registrarFormaPagoAudit({
+    rutAlumno: rutMostrado.value,
+    codcli: codcliMostrado.value,
+    nombreAlumno: nombreMostrado.value,
+    anioPeriodo: periodoActivo.anio,
+    semestrePeriodo: periodoActivo.semestre,
+    esMock: mockCtx.tieneAlumnoSeleccionado,
+    accion: 'confirmado',
+    payload: {
+      medio: 'pagare',
+      cuotas: nCuotas,
+      montoMatricula: montoMat,
+      montoArancel: montoAra,
+      montoTotal: monto,
+      simulado: false,
+    },
+  })
+
   toast.success('Pago de matrícula (pagaré) configurado')
   cerrarPagoMatriculaDialog()
 }
