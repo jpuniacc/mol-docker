@@ -232,6 +232,17 @@ const routes = [
           import('../views/dashboard/rematricula/CasosRematriculaView.vue'),
       },
       {
+        path: '/dashboard/rematricula-kpi',
+        name: 'dashboard-rematricula-kpi',
+        meta: {
+          requiresAdminAdmision: true,
+          requiresSoloGrupoDvU: true,
+          requiresPerfilUsuarioIn: [1, 2, 3],
+        },
+        component: () =>
+          import('../views/dashboard/rematricula/RematriculaKpiView.vue'),
+      },
+      {
         path: '/dashboard/gestion-firmas',
         name: 'dashboard-gestion-firmas',
         meta: {
