@@ -188,6 +188,84 @@ export type MnpMvBeneficioPeriodoRow = {
   created_at: string;
 };
 
+export type MnpCasoRematriculaTipo =
+  | 'CONVENIO_CERTIFICADO'
+  | 'APODERADO_DATOS'
+  | 'CAE_RESOLUCION'
+  | 'ESTATAL_MINEDUC'
+  | 'TYC_RECHAZO';
+
+export type MnpCasoRematriculaEstado =
+  | 'ABIERTO'
+  | 'EN_REVISION'
+  | 'APROBADO'
+  | 'RECHAZADO'
+  | 'CERRADO';
+
+export type MnpCasoRematriculaRow = {
+  id: string;
+  periodo: string;
+  tipo: MnpCasoRematriculaTipo;
+  estado: MnpCasoRematriculaEstado;
+  rut_alumno: string | null;
+  codcli: string;
+  nombre_alumno: string | null;
+  carrera: string | null;
+  jornada: string | null;
+  titulo: string;
+  detalle: string | null;
+  ref_tipo: 'convenio_documento' | 'log_evento' | 'verificacion_cae' | null;
+  ref_id: string | null;
+  payload: Record<string, unknown>;
+  resuelto_por: string | null;
+  resuelto_en: string | null;
+  motivo: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EtapaProgresoRematricula =
+  | "sin_ingreso"
+  | "ingreso"
+  | "tyc"
+  | "datos"
+  | "forma_pago"
+  | "firma"
+  | "matriculado";
+
+export type MnpProgresoRematriculaRow = {
+  codcli: string;
+  anio_periodo: number;
+  semestre_periodo: number;
+  rut: string | null;
+  rut_norm: string | null;
+  nombre_alumno: string | null;
+  codigo_carrera: string | null;
+  nombre_carrera: string | null;
+  jornada_carrera: string | null;
+  etapa_actual: EtapaProgresoRematricula;
+  ultima_actividad_en: string | null;
+  ultima_actividad_label: string | null;
+  es_mock: boolean;
+  excluido_mol: boolean;
+  rematriculable: boolean;
+  sin_match_mol: boolean;
+  actualizado_en: string;
+};
+
+export type KpiProgresoRematricula = {
+  total_cartera: number;
+  excluidos_mol: number;
+  sin_match: number;
+  sin_ingreso: number;
+  ingreso: number;
+  tyc: number;
+  datos: number;
+  forma_pago: number;
+  firma: number;
+  matriculado: number;
+};
+
 /** Documento de vigencia de convenio subido por el alumno (`mnp_convenio_documento`). */
 export type MnpConvenioDocumentoRow = {
   id: string;
@@ -220,6 +298,31 @@ export type TpPeriodoActivoRow = {
   semestre_periodo: number;
   created_at: string;
   estado: boolean;
+  promedios_cerrados: boolean;
+};
+
+export type ResultadoResolucionBecaPromedio =
+  | 'MANTIENE'
+  | 'BAJA'
+  | 'PIERDE'
+  | 'BLOQUEO_SIN_PROMEDIO'
+  | 'NO_APLICA';
+
+export type MnpResolucionBecaPromedioRow = {
+  id: string;
+  periodo: string;
+  codcli: string;
+  codigo_beneficio: string;
+  promedio_usado: number | null;
+  fuente: 'anio' | 'periodo' | null;
+  porc_base: number | null;
+  monto_base: number | null;
+  porc_final: number | null;
+  monto_final: number | null;
+  disminucion: number;
+  resultado: ResultadoResolucionBecaPromedio;
+  created_at: string;
+  updated_at: string;
 };
 
 /** Ambiente SQL Server para SP on-demand (`tp_mnp_erp_sp_ambiente`). */
@@ -682,6 +785,16 @@ export type PlanPagosMvRow = {
   beneficio_periodo?: number | null;
   cantidad_beneficios?: number | null;
   monto_total_beneficios?: number | null;
+  /** true si el RUT no está en la cartera oficial (Excel BASE PARA PRUEBA). */
+  fuera_cartera_oficial?: boolean | null;
+};
+
+/** RUT de la cartera oficial Rematrícula (Excel BASE PARA PRUEBA). */
+export type MnpCarteraOficialRow = {
+  rut_norm: string;
+  rematriculable: boolean;
+  fuente: string;
+  loaded_at: string;
 };
 
 /** Ítem del menú lateral del backoffice (`bo_menu_item`). */
@@ -745,6 +858,12 @@ export type Database = {
         Row: MnpDatosAlumnosRow;
         Insert: Partial<MnpDatosAlumnosRow> & { synced_at?: string };
         Update: Partial<MnpDatosAlumnosRow>;
+        Relationships: [];
+      };
+      mnp_cartera_oficial: {
+        Row: MnpCarteraOficialRow;
+        Insert: Partial<MnpCarteraOficialRow> & { rut_norm: string };
+        Update: Partial<MnpCarteraOficialRow>;
         Relationships: [];
       };
       mnp_informacion_finanzas: {
@@ -881,6 +1000,29 @@ export type Database = {
           created_at?: string;
         };
         Update: Partial<Omit<MnpMvBeneficioPeriodoRow, "id">>;
+        Relationships: [];
+      };
+      mnp_caso_rematricula: {
+        Row: MnpCasoRematriculaRow;
+        Insert: Omit<MnpCasoRematriculaRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Omit<MnpCasoRematriculaRow, "id">>;
+        Relationships: [];
+      };
+      mnp_progreso_rematricula: {
+        Row: MnpProgresoRematriculaRow;
+        Insert: Omit<MnpProgresoRematriculaRow, "actualizado_en"> & {
+          actualizado_en?: string;
+        };
+        Update: Partial<
+          Omit<
+            MnpProgresoRematriculaRow,
+            "codcli" | "anio_periodo" | "semestre_periodo"
+          >
+        >;
         Relationships: [];
       };
       mnp_estado_cae_alumnos: {
@@ -1104,6 +1246,103 @@ export type Database = {
           p_es_mock?: boolean | null;
         };
         Returns: string;
+      };
+      abrir_mnp_caso_rematricula: {
+        Args: {
+          p_periodo: string;
+          p_tipo: string;
+          p_estado: string;
+          p_codcli: string;
+          p_titulo: string;
+          p_rut_alumno?: string | null;
+          p_nombre_alumno?: string | null;
+          p_carrera?: string | null;
+          p_jornada?: string | null;
+          p_detalle?: string | null;
+          p_ref_tipo?: string | null;
+          p_ref_id?: string | null;
+          p_payload?: Record<string, unknown> | null;
+        };
+        Returns: string;
+      };
+      resolver_mnp_caso_rematricula: {
+        Args: {
+          p_id: string;
+          p_estado: string;
+          p_resuelto_por: string;
+          p_motivo?: string | null;
+        };
+        Returns: MnpCasoRematriculaRow;
+      };
+      listar_mnp_casos_rematricula: {
+        Args: {
+          p_periodo?: string | null;
+          p_tipo?: string | null;
+          p_estado?: string | null;
+        };
+        Returns: MnpCasoRematriculaRow[];
+      };
+      consultar_casos_alumno: {
+        Args: {
+          p_codcli: string;
+          p_periodo: string;
+        };
+        Returns: MnpCasoRematriculaRow[];
+      };
+      refresh_mnp_progreso_rematricula: {
+        Args: {
+          p_anio: number;
+          p_semestre: number;
+        };
+        Returns: number;
+      };
+      kpi_mnp_progreso_rematricula: {
+        Args: {
+          p_anio: number;
+          p_semestre: number;
+        };
+        Returns: KpiProgresoRematricula[];
+      };
+      listar_mnp_progreso_rematricula: {
+        Args: {
+          p_anio: number;
+          p_semestre: number;
+          p_etapa?: string | null;
+          p_q?: string | null;
+        };
+        Returns: MnpProgresoRematriculaRow[];
+      };
+      listar_timeline_mol_alumno: {
+        Args: {
+          p_codcli: string;
+          p_anio: number;
+          p_semestre: number;
+        };
+        Returns: VLogMolSesionTimelineRow[];
+      };
+      guardar_resoluciones_beca_promedio: {
+        Args: {
+          p_periodo: string;
+          p_codcli: string;
+          p_items: unknown;
+        };
+        Returns: undefined;
+      };
+      consultar_resoluciones_beca_promedio: {
+        Args: {
+          p_codcli: string;
+          p_periodo: string;
+        };
+        Returns: MnpResolucionBecaPromedioRow[];
+      };
+      consultar_ultima_tyc_respuesta_alumno: {
+        Args: {
+          p_codcli: string;
+          p_anio_periodo: number;
+          p_semestre_periodo: number;
+          p_codigo_tyc?: string | null;
+        };
+        Returns: { accion: string; tyc_updated_at: string }[];
       };
       registrar_mnp_convenio_documento: {
         Args: {
