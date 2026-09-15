@@ -52,6 +52,7 @@ const busqueda = ref('')
 
 const timelineOpen = ref(false)
 const timelineLoading = ref(false)
+const timelineError = ref(false)
 const timelineAlumno = ref<MnpProgresoRematriculaRow | null>(null)
 const timelineRows = ref<VLogMolSesionTimelineRow[]>([])
 
@@ -63,16 +64,22 @@ const periodoLabel = computed(() => {
   return periodoActivo.label ?? '—'
 })
 
-const filasVisibles = computed(() => {
-  const q = busqueda.value.trim().toLowerCase()
-  if (!q) return rows.value
-  return rows.value.filter((row) => {
-    const rut = (row.rut ?? '').toLowerCase()
-    const nombre = (row.nombre_alumno ?? '').toLowerCase()
-    const codcli = (row.codcli ?? '').toLowerCase()
-    return rut.includes(q) || nombre.includes(q) || codcli.includes(q)
-  })
-})
+function formatearFecha(fecha: string | null): string {
+  if (!fecha) return '—'
+  try {
+    const date = new Date(fecha)
+    return date.toLocaleString('es-CL', {
+      timeZone: 'America/Santiago',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch {
+    return fecha
+  }
+}
 
 async function cargar() {
   if (!tienePeriodo.value) return
@@ -106,6 +113,7 @@ async function cargar() {
 async function abrirTimeline(row: MnpProgresoRematriculaRow) {
   timelineAlumno.value = row
   timelineRows.value = []
+  timelineError.value = false
   timelineOpen.value = true
   timelineLoading.value = true
 
@@ -118,6 +126,7 @@ async function abrirTimeline(row: MnpProgresoRematriculaRow) {
 
     if (error) {
       toast.error(`Error al cargar timeline: ${error}`)
+      timelineError.value = true
       return
     }
 
@@ -131,6 +140,7 @@ function cerrarTimeline() {
   timelineOpen.value = false
   timelineAlumno.value = null
   timelineRows.value = []
+  timelineError.value = false
 }
 
 watch([filtroEtapa, busqueda], () => {
@@ -209,7 +219,7 @@ onMounted(async () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow v-for="row in filasVisibles" :key="row.codcli">
+            <TableRow v-for="row in rows" :key="row.codcli">
               <TableCell>{{ row.rut ?? '—' }}</TableCell>
               <TableCell>{{ row.nombre_alumno ?? '—' }}</TableCell>
               <TableCell>{{ row.codcli }}</TableCell>
@@ -219,7 +229,7 @@ onMounted(async () => {
               </TableCell>
               <TableCell>
                 <div class="flex flex-col gap-1">
-                  <span class="text-sm">{{ row.ultima_actividad_en ?? '—' }}</span>
+                  <span class="text-sm">{{ formatearFecha(row.ultima_actividad_en) }}</span>
                   <span v-if="row.ultima_actividad_label" class="text-xs text-muted-foreground">
                     {{ row.ultima_actividad_label }}
                   </span>
@@ -249,7 +259,7 @@ onMounted(async () => {
                 </Button>
               </TableCell>
             </TableRow>
-            <TableRow v-if="filasVisibles.length === 0">
+            <TableRow v-if="rows.length === 0">
               <TableCell colspan="8" class="text-center text-muted-foreground py-8">
                 Sin alumnos en seguimiento.
               </TableCell>
@@ -259,7 +269,7 @@ onMounted(async () => {
       </CardContent>
     </Card>
 
-    <Sheet :open="timelineOpen" @update:open="cerrarTimeline">
+    <Sheet :open="timelineOpen" @update:open="(v) => { if (!v) cerrarTimeline() }">
       <SheetContent class="w-full sm:max-w-2xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Timeline de actividad</SheetTitle>
@@ -273,6 +283,9 @@ onMounted(async () => {
         <div class="mt-6">
           <div v-if="timelineLoading" class="text-center text-sm text-muted-foreground py-8">
             Cargando timeline...
+          </div>
+          <div v-else-if="timelineError" class="text-center text-sm text-destructive py-8">
+            Error al cargar el timeline. Intenta nuevamente.
           </div>
           <div v-else-if="timelineRows.length === 0" class="text-center text-sm text-muted-foreground py-8">
             Sin actividad en MOL
