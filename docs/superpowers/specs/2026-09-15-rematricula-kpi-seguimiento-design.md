@@ -50,7 +50,7 @@ mnp_progreso_rematricula  (PK: codcli, anio_periodo, semestre_periodo)
 
 **Refresh:** `refresh_mnp_progreso_rematricula(anio, semestre)` — botón en UI; opcional cron después. Los logs del portal ya se escriben; el progreso se **deriva**.
 
-**Caso sin `codcli`:** RUT en cartera sin match en consolidado del periodo → fila de seguimiento con `sin_match_mol = true` (y `codcli` nulo o sentinel acordado en implementación). No entra al denominador del embudo MOL.
+**Caso sin `codcli`:** RUT en cartera sin match en consolidado del periodo → fila con `sin_match_mol = true` y `codcli = 'SIN_MATCH:' || rut_norm` (sentinel para mantener la PK). No entra al denominador del embudo MOL.
 
 ## Reglas del embudo (`etapa_actual`)
 
