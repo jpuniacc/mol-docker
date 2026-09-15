@@ -8,7 +8,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { fetchKpiProgresoRematricula, refreshProgresoRematricula } from '@/services/progresoRematriculaApi'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import type { EtapaProgresoRematricula, KpiProgresoRematricula } from '@/types/supabase'
-import { etiquetaEtapaProgreso, ORDEN_ETAPAS_PROGRESO } from '@/utils/etapaProgresoRematricula'
+import { etiquetaEtapaProgreso } from '@/utils/etapaProgresoRematricula'
+
+const ORDEN_EMBUDO_ASC: EtapaProgresoRematricula[] = [
+  'sin_ingreso',
+  'ingreso',
+  'tyc',
+  'datos',
+  'forma_pago',
+  'firma',
+  'matriculado',
+]
 
 const periodoActivo = usePeriodoActivoStore()
 
@@ -25,19 +35,12 @@ const periodoLabel = computed(() => {
 })
 
 const embudoEtapas = computed(() => {
-  if (!kpi.value || !kpi.value.embudo) return []
-  
-  const embudo = kpi.value.embudo as Record<EtapaProgresoRematricula, number>
-  
-  // Filtrar etapas del embudo (excluir sin_ingreso)
-  const etapasEmbudo: EtapaProgresoRematricula[] = ORDEN_ETAPAS_PROGRESO.filter(
-    e => e !== 'sin_ingreso'
-  )
-  
-  return etapasEmbudo.map(etapa => ({
+  if (!kpi.value) return []
+
+  return ORDEN_EMBUDO_ASC.map(etapa => ({
     etapa,
     label: etiquetaEtapaProgreso(etapa),
-    count: embudo[etapa] ?? 0
+    count: kpi.value![etapa] ?? 0,
   }))
 })
 
@@ -137,7 +140,7 @@ onMounted(async () => {
 
       <Card>
         <CardHeader>
-          <CardTitle class="text-2xl">{{ kpi.sin_match_mol ?? 0 }}</CardTitle>
+          <CardTitle class="text-2xl">{{ kpi.sin_match ?? 0 }}</CardTitle>
           <CardDescription>Sin match MOL</CardDescription>
         </CardHeader>
       </Card>
@@ -147,7 +150,7 @@ onMounted(async () => {
       <CardHeader>
         <CardTitle>Embudo de etapas</CardTitle>
         <CardDescription>
-          Distribución de alumnos por etapa del proceso (excluye "Sin ingreso")
+          Distribución de alumnos por etapa del proceso de rematrícula
         </CardDescription>
       </CardHeader>
       <CardContent>
