@@ -159,6 +159,9 @@ async function eliminar() {
         <p v-else-if="estadoCaso === 'EN_REVISION' || !estadoCaso" class="text-sm text-amber-800">
           Documento enviado. En revisión por tu consejero.
         </p>
+        <p v-if="documento && error && estadoCaso !== 'RECHAZADO'" class="mt-2 text-sm text-red-600">
+          {{ error }}
+        </p>
       </div>
 
       <div v-if="!documento || estadoCaso === 'RECHAZADO'" class="mt-3 space-y-2">
