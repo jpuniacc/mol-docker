@@ -46,12 +46,23 @@ import ConvenioVigenteUpload from '@/components/rematricula/ConvenioVigenteUploa
 import { useMockAlumnoFuente } from '@/composables/useMockAlumnoFuente'
 import { tieneCae } from '@/constants/verificacionCae'
 import { abrirCasoRematricula } from '@/services/casoRematriculaApi'
+import {
+  consultarCarteraBeneficios,
+  PERIODO_CARTERA_BENEFICIOS,
+} from '@/services/carteraBeneficiosApi'
 import { detectarConveniosAlumno } from '@/services/convenioAlumno'
 import { fmtMontoClp, fetchPlanPagosMvByCodcli } from '@/services/fetchPlanPagosMv'
 import { contextoMolAuditoria, type ContextoMolAuditoriaOpciones } from '@/services/molAuditContext'
 import { ejecutarVerificacionCae } from '@/services/verificacionCae'
 import { registrarFormaPagoAudit } from '@/services/formaPagoAuditLog'
+import {
+  flagsConsolidado,
+  itemsBeneficioDesdeCartera,
+  type BeneficioExcelUiItem,
+  type CarteraBeneficioRow,
+} from '@/utils/carteraBeneficiosUi'
 import { periodoCatalogoLabel } from '@/utils/periodoCatalogo'
+import { rutNorm } from '@/utils/rutNorm'
 import { useConvenioInstitucionalStore } from '@/stores/convenioInstitucional'
 import { usePa08MtArancelSelMatriculaNetStore } from '@/stores/datos_erp/pa08_MT_ARANCEL_sel_MATRICULA_NET'
 import { useSpAlumnoDeudaNetStore } from '@/stores/datos_erp/sp_alumno_deuda_net'
@@ -66,7 +77,7 @@ import {
 } from '@/stores/mockMatriculaContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import MatriculaMockVerificacionCaeStep from '@/views/matricula-mock/MatriculaMockVerificacionCaeStep.vue'
-import type { PlanPagosMvBeneficioDetalle, PlanPagosMvRow } from '@/types/supabase'
+import type { PlanPagosMvRow } from '@/types/supabase'
 
 const router = useRouter()
 const mockCtx = useMockMatriculaContextStore()
@@ -293,10 +304,21 @@ const plan = computed(() => mockCtx.selectedPlanPagos)
 const verificandoCae = ref(false)
 const reintentandoCae = ref(false)
 
-const beneficios = computed((): PlanPagosMvBeneficioDetalle[] => {
-  const raw = plan.value?.beneficios_detalle
-  return Array.isArray(raw) ? raw : []
-})
+const carteraBeneficiosRow = ref<CarteraBeneficioRow | null>(null)
+const cargandoCarteraBeneficios = ref(false)
+const errorCarteraBeneficios = ref<string | null>(null)
+
+const beneficios = computed((): BeneficioExcelUiItem[] =>
+  itemsBeneficioDesdeCartera(carteraBeneficiosRow.value),
+)
+
+const flagsConsolidadoUi = computed(() =>
+  flagsConsolidado(carteraBeneficiosRow.value?.consolidado ?? null),
+)
+
+const periodoBeneficioLabel = computed(
+  () => carteraBeneficiosRow.value?.periodo ?? PERIODO_CARTERA_BENEFICIOS,
+)
 
 const beneficiosSeleccionados = ref<Record<number, boolean>>({})
 
@@ -378,11 +400,45 @@ function onConvenioEliminado(payload: { convenioId: string }) {
 
 function initBeneficiosSeleccionados() {
   const sel: Record<number, boolean> = {}
-  beneficios.value.forEach((_, i) => {
-    sel[i] = true
+  beneficios.value.forEach((b) => {
+    if (!b.sinMapear) sel[b.slot] = true
   })
   beneficiosSeleccionados.value = sel
 }
+
+async function cargarCarteraBeneficios() {
+  const codcli = pickCampoAlumno(fuente.codcliMostrado.value)
+  const rut = pickCampoAlumno(fuente.rutMostrado.value)
+  if (!codcli && !rut) {
+    carteraBeneficiosRow.value = null
+    errorCarteraBeneficios.value = null
+    initBeneficiosSeleccionados()
+    return
+  }
+
+  cargandoCarteraBeneficios.value = true
+  errorCarteraBeneficios.value = null
+  try {
+    const { data, error } = await consultarCarteraBeneficios({
+      periodo: PERIODO_CARTERA_BENEFICIOS,
+      codcliExcel: codcli,
+      rutNorm: rut ? rutNorm(rut) : null,
+    })
+    if (error) {
+      errorCarteraBeneficios.value = error
+      carteraBeneficiosRow.value = null
+    } else {
+      carteraBeneficiosRow.value = data
+    }
+  } finally {
+    cargandoCarteraBeneficios.value = false
+  }
+  initBeneficiosSeleccionados()
+}
+
+watch([codcliMostrado, rutMostrado], () => {
+  void cargarCarteraBeneficios()
+})
 
 async function correrVerificacionCae(reintento = false) {
   const p = plan.value
@@ -451,13 +507,13 @@ async function correrVerificacionCae(reintento = false) {
 }
 
 onMounted(async () => {
-  initBeneficiosSeleccionados()
   await Promise.all([
     periodoActivo.ensureLoaded(),
     convenioStore.ensureLoaded(),
     erpSpAmbiente.ensureLoaded(),
     docpagMatricula.ensureLoaded(),
     docpagArancel.ensureLoaded(),
+    cargarCarteraBeneficios(),
   ])
 
   let p = plan.value
@@ -752,7 +808,16 @@ async function confirmarPagareMatricula() {
 }
 
 function calcularBecasMock() {
-  toast.message('Beneficios recalculados (mock). En producción se aplicarían reglas del Excel.')
+  const items = beneficios.value.filter(
+    (b) => b.cod_beneficio && beneficiosSeleccionados.value[b.slot],
+  )
+  if (items.length === 0) {
+    toast.message('Sin beneficios mapeados seleccionados desde Excel.')
+    return
+  }
+  console.log('[forma-pago] becas mock desde Excel', items)
+  const lista = items.map((b) => `${b.cod_beneficio} (${b.pct ?? 0}%)`).join(', ')
+  toast.success(`Beneficios aplicados (mock): ${lista}`)
 }
 
 watch(
@@ -925,38 +990,67 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
         <Card class="shadow-md">
           <CardHeader>
             <CardTitle class="text-lg text-uniacc-orange">Beneficios del alumno</CardTitle>
-            <CardDescription>
-              Periodo beneficio:
-              {{
-                plan?.beneficio_ano && plan?.beneficio_periodo
-                  ? `${plan.beneficio_ano}-${plan.beneficio_periodo}`
-                  : '—'
-              }}
-            </CardDescription>
+            <CardDescription>Periodo beneficio: {{ periodoBeneficioLabel }}</CardDescription>
           </CardHeader>
           <CardContent class="space-y-4">
-            <Table v-if="beneficios.length > 0">
+            <p v-if="cargandoCarteraBeneficios" class="text-sm text-muted-foreground">
+              Consultando cartera de beneficios (Excel)…
+            </p>
+            <p v-else-if="errorCarteraBeneficios" class="text-sm text-red-700">
+              {{ errorCarteraBeneficios }}
+            </p>
+            <Table v-else-if="beneficios.length > 0">
               <TableHeader>
                 <TableRow>
                   <TableHead>Descripción</TableHead>
-                  <TableHead class="hidden sm:table-cell">Aplica a</TableHead>
+                  <TableHead class="hidden sm:table-cell">Código</TableHead>
+                  <TableHead class="w-[56px] text-right">%</TableHead>
                   <TableHead class="w-[72px] text-center">Sel.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow v-for="(b, i) in beneficios" :key="i">
+                <TableRow v-for="b in beneficios" :key="b.slot">
                   <TableCell class="text-xs sm:text-sm">
-                    {{ b.descripcion ?? 'Beneficio' }}
-                    <span v-if="b.monto" class="ml-1 text-muted-foreground">({{ fmt(Number(b.monto)) }})</span>
+                    {{ b.descripcion || 'Beneficio' }}
                   </TableCell>
-                  <TableCell class="hidden sm:table-cell">Arancel</TableCell>
+                  <TableCell class="hidden sm:table-cell">
+                    <span v-if="b.cod_beneficio" class="font-mono text-xs">{{ b.cod_beneficio }}</span>
+                    <Badge v-else variant="outline" class="text-[10px]">sin mapear</Badge>
+                  </TableCell>
+                  <TableCell class="text-right tabular-nums text-xs">
+                    {{ b.pct != null ? `${b.pct}%` : '—' }}
+                  </TableCell>
                   <TableCell class="text-center">
-                    <Checkbox v-model:checked="beneficiosSeleccionados[i]" />
+                    <Checkbox
+                      v-if="!b.sinMapear"
+                      v-model:checked="beneficiosSeleccionados[b.slot]"
+                    />
+                    <span v-else class="text-xs text-muted-foreground">—</span>
                   </TableCell>
                 </TableRow>
               </TableBody>
             </Table>
-            <p v-else class="text-sm text-muted-foreground">Sin beneficios detallados en la fila del plan.</p>
+            <p v-else class="text-sm text-muted-foreground">
+              Sin beneficios en cartera Excel para este alumno.
+            </p>
+            <p
+              v-if="
+                !cargandoCarteraBeneficios &&
+                (flagsConsolidadoUi.cae ||
+                  flagsConsolidadoUi.ministerial ||
+                  flagsConsolidadoUi.subdere)
+              "
+              class="text-xs text-muted-foreground"
+            >
+              Consolidado:
+              <span v-if="flagsConsolidadoUi.cae">CAE</span>
+              <span v-if="flagsConsolidadoUi.ministerial">
+                {{ flagsConsolidadoUi.cae ? ' · ' : '' }}Ministerial
+              </span>
+              <span v-if="flagsConsolidadoUi.subdere">
+                {{ flagsConsolidadoUi.cae || flagsConsolidadoUi.ministerial ? ' · ' : '' }}SUBDERE
+              </span>
+            </p>
             <Button variant="secondary" class="w-full" type="button" @click="calcularBecasMock">
               Calcular becas / descuentos
             </Button>
