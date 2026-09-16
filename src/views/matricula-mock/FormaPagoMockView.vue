@@ -45,6 +45,7 @@ import {
 import ConvenioVigenteUpload from '@/components/rematricula/ConvenioVigenteUpload.vue'
 import { useMockAlumnoFuente } from '@/composables/useMockAlumnoFuente'
 import { tieneCae } from '@/constants/verificacionCae'
+import { Check, FileText } from 'lucide-vue-next'
 import { abrirCasoRematricula } from '@/services/casoRematriculaApi'
 import {
   consultarCarteraBeneficios,
@@ -64,6 +65,7 @@ import {
 import { periodoCatalogoLabel } from '@/utils/periodoCatalogo'
 import { rutNorm } from '@/utils/rutNorm'
 import { useConvenioInstitucionalStore } from '@/stores/convenioInstitucional'
+import { useMatriculaFlujoPreflightStore } from '@/stores/datos_erp/matricula_flujo_preflight'
 import { usePa08MtArancelSelMatriculaNetStore } from '@/stores/datos_erp/pa08_MT_ARANCEL_sel_MATRICULA_NET'
 import { useSpAlumnoDeudaNetStore } from '@/stores/datos_erp/sp_alumno_deuda_net'
 import { useSpListaDocpagMatriculaCajaArancelStore } from '@/stores/datos_erp/sp_lista_docpag_matricula_caja_arancel'
@@ -72,10 +74,20 @@ import { useErpSpAmbienteStore } from '@/stores/erpSpAmbiente'
 import {
   useMockMatriculaContextStore,
   type MockConvenioDocumento,
+  type MockCuotaPagareDetalle,
   type MockPagoMatricula,
-  type MockPagoMatriculaMedio,
 } from '@/stores/mockMatriculaContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
+import {
+  buildPagareCuotasDraft,
+  incrementPeek,
+  type CuotaPagareDraftRow,
+} from '@/utils/pagareCuotasDraft'
+import {
+  etiquetaMesPrimeraCuota,
+  fechaInicioPagarePeriodo,
+  proximaFechaDiaVencimiento,
+} from '@/utils/pagareFechaInicio'
 import MatriculaMockVerificacionCaeStep from '@/views/matricula-mock/MatriculaMockVerificacionCaeStep.vue'
 import type { PlanPagosMvRow } from '@/types/supabase'
 
@@ -93,33 +105,49 @@ const arancelSp = usePa08MtArancelSelMatriculaNetStore()
 const docpagMatricula = useSpListaDocpagMatriculaCajaMatriculaStore()
 const docpagArancel = useSpListaDocpagMatriculaCajaArancelStore()
 const deudaNet = useSpAlumnoDeudaNetStore()
+const preflight = useMatriculaFlujoPreflightStore()
 const { loading: cargandoArancelSp, error: errorArancelSp, paramsUsados: paramsUsadosSp } =
   storeToRefs(arancelSp)
 const { docs: docsPagoMatricula } = storeToRefs(docpagMatricula)
 const { docs: docsPagoArancel } = storeToRefs(docpagArancel)
 const { loading: cargandoDeuda, tieneDeuda, deudaValor } = storeToRefs(deudaNet)
+const {
+  corrpagnumPreview,
+  correlativoPreview,
+  contratoPreview,
+  loading: cargandoPreflight,
+} = storeToRefs(preflight)
 
 const deudaModalOpen = ref(false)
 const pagoMatriculaDialogOpen = ref(false)
 /** 'selector' | 'pagare' */
 const pagoMatriculaPaso = ref<'selector' | 'pagare'>('selector')
+/** Solo Pagaré habilitado por ahora (WebPay pendiente de integración; TOKU no aplica). */
+type MedioPagoConcepto = 'pagare'
+const medioPagoMatricula = ref<MedioPagoConcepto | null>(null)
+const medioPagoArancel = ref<MedioPagoConcepto | null>(null)
 const pagareDiaVencimiento = ref<string>('5')
+const pagareTotalCuotas = ref<'10' | '12'>('10')
 const pagareFechaInicio = ref('')
 const abriendoPagoMatricula = ref(false)
+
+function totalCuotasActual(): 10 | 12 {
+  return pagareTotalCuotas.value === '12' ? 12 : 10
+}
+
+const puedeContinuarSelectorMedios = computed(
+  () => medioPagoMatricula.value != null && medioPagoArancel.value != null,
+)
+
+const ambosMediosPagare = computed(
+  () => medioPagoMatricula.value === 'pagare' && medioPagoArancel.value === 'pagare',
+)
 
 function hoyIsoLocal(d = new Date()): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
-}
-
-/**
- * Día D (5|15|25) del mes siguiente a `desde` (siempre mes+1).
- */
-function proximaFechaDiaVencimiento(dia: 5 | 15 | 25, desde = new Date()): string {
-  const candidato = new Date(desde.getFullYear(), desde.getMonth() + 1, dia)
-  return hoyIsoLocal(candidato)
 }
 
 function diaVencimientoActual(): 5 | 15 | 25 {
@@ -129,7 +157,11 @@ function diaVencimientoActual(): 5 | 15 | 25 {
 }
 
 function sincronizarFechaInicioConDiaVencimiento() {
-  pagareFechaInicio.value = proximaFechaDiaVencimiento(diaVencimientoActual())
+  pagareFechaInicio.value = fechaInicioPagarePeriodo({
+    dia: diaVencimientoActual(),
+    anioPeriodo: periodoActivo.anio,
+    semestrePeriodo: periodoActivo.semestre,
+  })
   invalidarCuotasGeneradas()
 }
 
@@ -141,24 +173,35 @@ watch(pagareFechaInicio, () => {
   invalidarCuotasGeneradas()
 })
 
-const pagareFechaInicioMin = computed(() =>
-  proximaFechaDiaVencimiento(diaVencimientoActual()),
+watch(pagareTotalCuotas, () => {
+  invalidarCuotasGeneradas()
+})
+
+const pagareFechaInicioMin = computed(() => {
+  const porPeriodo = fechaInicioPagarePeriodo({
+    dia: diaVencimientoActual(),
+    anioPeriodo: periodoActivo.anio,
+    semestrePeriodo: periodoActivo.semestre,
+  })
+  const desdeHoy = proximaFechaDiaVencimiento(diaVencimientoActual())
+  // No permitir fechas pasadas; si el periodo fija un mes futuro, ese es el mínimo.
+  return porPeriodo >= desdeHoy || porPeriodo >= hoyIsoLocal() ? porPeriodo : desdeHoy
+})
+
+const etiquetaPrimeraCuota = computed(() =>
+  etiquetaMesPrimeraCuota(periodoActivo.anio, periodoActivo.semestre),
 )
 
-type CuotaPagarePreview = {
-  documento: 'PAGARÉ'
-  correlativo: string
-  vencimiento: string
-  monto: number
-  totalAcumulado: number
-  items: 'MATRICULA'
-  cuota: number
-  totalCuotas: 10
-  idDocumento: 5
-  seleccionado: boolean
-}
+type CuotaPagarePreview = CuotaPagareDraftRow
 
 const pagareCuotasPreview = ref<CuotaPagarePreview[]>([])
+
+const pagareCuotasMat = computed(() =>
+  pagareCuotasPreview.value.filter((r) => r.items === 'MATRICULA'),
+)
+const pagareCuotasAra = computed(() =>
+  pagareCuotasPreview.value.filter((r) => r.items === 'ARANCEL'),
+)
 
 function invalidarCuotasGeneradas() {
   if (pagareCuotasPreview.value.length > 0) {
@@ -166,13 +209,39 @@ function invalidarCuotasGeneradas() {
   }
 }
 
-function addMonthsSameDay(isoYmd: string, months: number): string {
-  const [y, m, d] = isoYmd.split('-').map(Number)
-  const dt = new Date(y, m - 1 + months, d)
-  return hoyIsoLocal(dt)
+function codCarrParaPreflight(): string {
+  const desdePlan = (plan.value?.cod_carrera ?? '').trim()
+  if (desdePlan) return desdePlan
+  return (paramsUsadosSp.value?.codCarr ?? '').trim()
 }
 
-function generarCuotasPagare() {
+async function asegurarPreflightPagare(force = false): Promise<boolean> {
+  const rut = rutMostrado.value
+  if (!rut || rut === '—') {
+    toast.error('Sin RUT para consultar correlativos ERP')
+    return false
+  }
+  const codCarr = codCarrParaPreflight()
+  if (!codCarr) {
+    toast.error('Sin código de carrera para preflight ERP')
+    return false
+  }
+  if (!force && corrpagnumPreview.value) return true
+
+  const ok = await preflight.fetchFromErp({ rutCompleto: rut, codCarr })
+  console.log('[forma-pago] gate preflight antes de pagar matrícula y arancel', {
+    ok: preflight.ok,
+    steps: preflight.steps,
+    error: preflight.error,
+  })
+  if (!ok || !corrpagnumPreview.value) {
+    toast.error(preflight.error || 'No se pudo obtener CORRPAGNUM del preflight ERP')
+    return false
+  }
+  return true
+}
+
+async function generarCuotasPagare() {
   const fecha = pagareFechaInicio.value
   const dia = diaVencimientoActual()
   const hoy = hoyIsoLocal()
@@ -187,31 +256,45 @@ function generarCuotasPagare() {
     return
   }
 
-  const montoTotal = montoNetoMatricula()
-  const n = 10
-  const baseCuota = Math.floor(montoTotal / n)
-  const seed = Date.now()
-  const rows: CuotaPagarePreview[] = []
-  let acumulado = 0
-  for (let i = 1; i <= n; i++) {
-    const monto = i === n ? montoTotal - acumulado : baseCuota
-    acumulado += monto
-    rows.push({
-      documento: 'PAGARÉ',
-      correlativo: `MOCK${seed}${String(i).padStart(2, '0')}`,
-      vencimiento: addMonthsSameDay(fecha, i - 1),
-      monto,
-      totalAcumulado: acumulado,
-      items: 'MATRICULA',
-      cuota: i,
-      totalCuotas: 10,
-      idDocumento: 5,
-      seleccionado: true,
-    })
+  const peeksOk = await asegurarPreflightPagare()
+  if (!peeksOk) return
+
+  const corrpag = (corrpagnumPreview.value ?? '').trim()
+  if (!/^\d+$/.test(corrpag)) {
+    toast.error('Falta peek CORRPAGNUM del preflight')
+    return
   }
-  pagareCuotasPreview.value = rows
-  console.log('[forma-pago] cuotas pagaré generadas (mock)', rows)
-  toast.success('Cuotas generadas (correlativo provisional)')
+
+  let corrpagAra: string
+  try {
+    corrpagAra = incrementPeek(corrpag, 1)
+  } catch {
+    toast.error('Peek CORRPAGNUM no numérico')
+    return
+  }
+
+  const result = buildPagareCuotasDraft({
+    fechaInicio: fecha,
+    dia,
+    montoMat: montoNetoMatricula(),
+    montoAra: montoNetoArancel(),
+    corrpagMat: corrpag,
+    corrpagAra,
+    n: totalCuotasActual(),
+  })
+  if (!result.ok) {
+    toast.error(result.error)
+    return
+  }
+
+  pagareCuotasPreview.value = result.rows
+  console.log('[forma-pago] cuotas pagaré generadas (correlativo peek / no consumido)', {
+    corrpagMat: corrpag,
+    corrpagAra,
+    n: totalCuotasActual(),
+    rows: result.rows,
+  })
+  toast.success('Cuotas generadas (correlativo preview ERP)')
 }
 
 const resumenPagoMatricula = computed(() => {
@@ -658,10 +741,12 @@ const puedeAbrirPagoMatricula = computed(() => {
   )
 })
 
-const valorCuotaPagare = computed(() => {
-  const monto = montoNetoMatricula()
-  return Math.round(monto / 10)
-})
+const valorCuotaPagareMat = computed(() =>
+  Math.round(montoNetoMatricula() / totalCuotasActual()),
+)
+const valorCuotaPagareAra = computed(() =>
+  Math.round(montoNetoArancel() / totalCuotasActual()),
+)
 
 async function precargarDeudaSiHayRut() {
   const rut = rutMostrado.value
@@ -690,8 +775,12 @@ async function abrirPagoMatricula() {
       deudaModalOpen.value = true
       return
     }
+    await asegurarPreflightPagare(true)
     pagoMatriculaPaso.value = 'selector'
+    medioPagoMatricula.value = 'pagare'
+    medioPagoArancel.value = 'pagare'
     pagareDiaVencimiento.value = '5'
+    pagareTotalCuotas.value = '10'
     sincronizarFechaInicioConDiaVencimiento()
     pagoMatriculaDialogOpen.value = true
   } finally {
@@ -702,6 +791,8 @@ async function abrirPagoMatricula() {
 function cerrarPagoMatriculaDialog() {
   pagoMatriculaDialogOpen.value = false
   pagoMatriculaPaso.value = 'selector'
+  medioPagoMatricula.value = null
+  medioPagoArancel.value = null
   pagareCuotasPreview.value = []
 }
 
@@ -715,29 +806,23 @@ function onPagoMatriculaDialogOpenChange(open: boolean) {
   else pagoMatriculaDialogOpen.value = true
 }
 
-function elegirMedioMatricula(medio: MockPagoMatriculaMedio) {
-  if (medio === 'pagare') {
-    pagoMatriculaPaso.value = 'pagare'
-    pagareCuotasPreview.value = []
-    sincronizarFechaInicioConDiaVencimiento()
+async function continuarSelectorMedios() {
+  if (!puedeContinuarSelectorMedios.value) {
+    toast.error('Selecciona cómo pagarás matrícula y arancel')
     return
   }
-  simularPagoMatricula(medio)
-}
-
-function simularPagoMatricula(medio: 'webpay' | 'toku') {
-  const monto = montoNetoMatricula()
-  const nombre = medio === 'webpay' ? 'WebPay' : 'TOKU'
-  const payload: MockPagoMatricula = {
-    medio,
-    nombre,
-    monto,
-    simulado: true,
+  if (!ambosMediosPagare.value) {
+    toast.message('Próximamente', {
+      description:
+        'Por ahora solo está disponible Pagaré en matrícula y arancel. Las otras formas se habilitarán después.',
+    })
+    return
   }
-  console.log('[forma-pago] pagoMatricula simulado', payload)
-  mockCtx.setPagoMatricula(payload)
-  toast.success(`Pago matrícula simulado vía ${nombre}`)
-  cerrarPagoMatriculaDialog()
+  const ok = await asegurarPreflightPagare()
+  if (!ok) return
+  pagoMatriculaPaso.value = 'pagare'
+  pagareCuotasPreview.value = []
+  sincronizarFechaInicioConDiaVencimiento()
 }
 
 async function confirmarPagareMatricula() {
@@ -758,31 +843,36 @@ async function confirmarPagareMatricula() {
     sincronizarFechaInicioConDiaVencimiento()
     return
   }
-  if (pagareCuotasPreview.value.length !== 10) {
-    toast.error('Debes generar las cuotas antes de confirmar')
+  const nCuotas = totalCuotasActual()
+  if (pagareCuotasPreview.value.length !== nCuotas * 2) {
+    toast.error('Debes generar las cuotas (matrícula y arancel) antes de confirmar')
     return
   }
-  const monto = montoNetoMatricula()
-  const montoMat = arancelSp.montoMatricula
-  const montoAra = arancelSp.montoArancel
-  const nCuotas = 10
-  const cuotasDetalle = pagareCuotasPreview.value.map(
+  const montoMat = montoNetoMatricula()
+  const montoAra = montoNetoArancel()
+  const monto = montoMat + montoAra
+  const cuotasDetalle: MockCuotaPagareDetalle[] = pagareCuotasPreview.value.map(
     ({ seleccionado: _sel, ...rest }) => rest,
   )
+  const numOperacion = (correlativoPreview.value ?? '').trim() || undefined
+  const contrato = (contratoPreview.value ?? '').trim() || undefined
   const payload: MockPagoMatricula = {
     medio: 'pagare',
     tipodoc: '5',
     nombre: 'PAGARÉ',
     cuotas: nCuotas,
-    diaVencimiento: dia,
+    diaVencimiento: dia as 5 | 15 | 25,
     fechaInicio: fecha,
     monto,
-    valorCuota: cuotasDetalle[0]?.monto ?? Math.floor(monto / 10),
+    valorCuota: cuotasDetalle[0]?.monto ?? Math.floor(montoMat / nCuotas),
     simulado: false,
     cuotasDetalle,
+    numOperacion,
+    contrato,
   }
-  console.log('[forma-pago] pagoMatricula pagaré', payload)
+  console.log('[forma-pago] pagoMatricula pagaré → firma', payload)
   mockCtx.setPagoMatricula(payload)
+  mockCtx.setFormaPago('pagare')
 
   // Registrar evento de forma de pago confirmada
   await registrarFormaPagoAudit({
@@ -800,11 +890,14 @@ async function confirmarPagareMatricula() {
       montoArancel: montoAra,
       montoTotal: monto,
       simulado: false,
+      numOperacion: numOperacion ?? null,
+      contrato: contrato ?? null,
     },
   })
 
-  toast.success('Pago de matrícula (pagaré) configurado')
+  toast.success('Plan de pagos confirmado. Continúa con el contrato.')
   cerrarPagoMatriculaDialog()
+  void router.push({ name: 'matricula-mock-firma' })
 }
 
 function calcularBecasMock() {
@@ -1244,189 +1337,291 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
       <DialogScrollContent
         :class="
           pagoMatriculaPaso === 'pagare'
-            ? 'max-h-[90vh] w-[min(96vw,72rem)] max-w-6xl'
-            : 'max-h-[85vh] max-w-lg'
+            ? 'flex max-h-[90vh] w-[min(96vw,72rem)] max-w-6xl flex-col overflow-hidden'
+            : 'max-h-[85vh] max-w-lg sm:max-w-xl'
         "
       >
-        <DialogHeader>
-          <DialogTitle>
-            {{ pagoMatriculaPaso === 'selector' ? 'Pagar matrícula' : 'Pagaré — matrícula' }}
+        <DialogHeader class="shrink-0 space-y-3 text-left">
+          <DialogTitle class="text-xl text-zinc-900">
+            {{
+              pagoMatriculaPaso === 'selector'
+                ? 'Forma de pago'
+                : 'Configurar pagaré'
+            }}
           </DialogTitle>
-          <DialogDescription>
-            Monto:
-            <strong>{{ fmt(montoNetoMatricula()) }}</strong>
+          <DialogDescription v-if="pagoMatriculaPaso === 'selector'" class="text-sm text-muted-foreground">
+            Confirma el medio para matrícula y arancel. Luego definirás cuotas y vencimientos.
+          </DialogDescription>
+          <DialogDescription v-else>
+            Monto total:
+            <strong class="text-zinc-900">{{ fmt(montoNetoMatricula() + montoNetoArancel()) }}</strong>
           </DialogDescription>
         </DialogHeader>
 
-        <div v-if="pagoMatriculaPaso === 'selector'" class="grid gap-3 py-2">
-          <Card
-            class="cursor-pointer shadow-sm transition hover:border-uniacc-orange"
-            @click="elegirMedioMatricula('webpay')"
+        <div v-if="pagoMatriculaPaso === 'selector'" class="space-y-5 py-1">
+          <div
+            class="rounded-lg border border-uniacc-orange/25 bg-gradient-to-br from-uniacc-orange/10 to-white px-4 py-3"
           >
-            <CardHeader class="py-3">
-              <CardTitle class="text-base">WebPay</CardTitle>
-              <CardDescription>Simulación de pago en línea.</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card
-            class="cursor-pointer shadow-sm transition hover:border-uniacc-orange"
-            @click="elegirMedioMatricula('pagare')"
-          >
-            <CardHeader class="py-3">
-              <CardTitle class="text-base">Pagaré</CardTitle>
-              <CardDescription>tipodoc 5 · 10 cuotas · días 5 / 15 / 25.</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card
-            class="cursor-pointer shadow-sm transition hover:border-uniacc-orange"
-            @click="elegirMedioMatricula('toku')"
-          >
-            <CardHeader class="py-3">
-              <CardTitle class="text-base">TOKU</CardTitle>
-              <CardDescription>Simulación PAC/PAT.</CardDescription>
-            </CardHeader>
-          </Card>
+            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Total a financiar
+            </p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-uniacc-orange">
+              {{ fmt(montoNetoMatricula() + montoNetoArancel()) }}
+            </p>
+            <div class="mt-3 grid gap-1.5 text-sm text-zinc-700 sm:grid-cols-2">
+              <p class="flex justify-between gap-2 sm:block">
+                <span class="text-muted-foreground">Matrícula</span>
+                <span class="font-medium tabular-nums">{{ fmt(montoNetoMatricula()) }}</span>
+              </p>
+              <p class="flex justify-between gap-2 sm:block">
+                <span class="text-muted-foreground">Arancel</span>
+                <span class="font-medium tabular-nums">{{ fmt(montoNetoArancel()) }}</span>
+              </p>
+            </div>
+          </div>
+
+          <section class="space-y-2">
+            <h3 class="text-sm font-semibold text-zinc-900">Matrícula</h3>
+            <button
+              type="button"
+              class="flex w-full cursor-pointer items-center gap-3 rounded-lg border border-uniacc-orange bg-white px-3 py-3 text-left shadow-sm ring-1 ring-uniacc-orange/40 transition duration-200 hover:bg-uniacc-orange/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange"
+              :aria-pressed="medioPagoMatricula === 'pagare'"
+              @click="medioPagoMatricula = 'pagare'"
+            >
+              <span
+                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-uniacc-orange/15 text-uniacc-orange"
+              >
+                <FileText class="h-5 w-5" aria-hidden="true" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-sm font-semibold text-zinc-900">Pagaré</span>
+                <span class="block text-xs text-muted-foreground">
+                  En cuotas · {{ fmt(montoNetoMatricula()) }}
+                </span>
+              </span>
+              <span
+                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-uniacc-orange text-white"
+                aria-hidden="true"
+              >
+                <Check class="h-3.5 w-3.5" />
+              </span>
+            </button>
+          </section>
+
+          <section class="space-y-2">
+            <h3 class="text-sm font-semibold text-zinc-900">Arancel</h3>
+            <button
+              type="button"
+              class="flex w-full cursor-pointer items-center gap-3 rounded-lg border border-uniacc-orange bg-white px-3 py-3 text-left shadow-sm ring-1 ring-uniacc-orange/40 transition duration-200 hover:bg-uniacc-orange/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange"
+              :aria-pressed="medioPagoArancel === 'pagare'"
+              @click="medioPagoArancel = 'pagare'"
+            >
+              <span
+                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-uniacc-orange/15 text-uniacc-orange"
+              >
+                <FileText class="h-5 w-5" aria-hidden="true" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-sm font-semibold text-zinc-900">Pagaré</span>
+                <span class="block text-xs text-muted-foreground">
+                  En cuotas · {{ fmt(montoNetoArancel()) }}
+                </span>
+              </span>
+              <span
+                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-uniacc-orange text-white"
+                aria-hidden="true"
+              >
+                <Check class="h-3.5 w-3.5" />
+              </span>
+            </button>
+          </section>
+
+          <p class="text-xs text-muted-foreground">
+            En el siguiente paso eliges 10 o 12 cuotas y el día de vencimiento.
+          </p>
         </div>
 
-        <div v-else class="space-y-4 py-2">
-          <div class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm">
-            <p>
-              Forma:
-              <strong>Pagaré</strong>
-              <Badge variant="outline" class="ml-2 font-mono text-[10px]">tipodoc 5</Badge>
-            </p>
-            <p class="mt-1">
-              Cuotas: <strong>10</strong>
-              · Valor cuota:
-              <strong>{{ fmt(valorCuotaPagare) }}</strong>
-            </p>
-          </div>
+        <div v-else class="flex min-h-0 flex-1 flex-col gap-4 py-2">
+          <div class="shrink-0 space-y-4">
+            <div class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm">
+              <p>
+                Forma:
+                <strong>Pagaré</strong>
+              </p>
+              <p class="mt-1">
+                Cuotas:
+                <strong>{{ pagareTotalCuotas }} matrícula + {{ pagareTotalCuotas }} arancel</strong>
+                · Valor cuota mat:
+                <strong>{{ fmt(valorCuotaPagareMat) }}</strong>
+                · arancel:
+                <strong>{{ fmt(valorCuotaPagareAra) }}</strong>
+              </p>
+            </div>
 
-          <div class="space-y-2">
-            <Label>Día de vencimiento</Label>
-            <Select v-model="pagareDiaVencimiento">
-              <SelectTrigger>
-                <SelectValue placeholder="Día" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">Día 5</SelectItem>
-                <SelectItem value="15">Día 15</SelectItem>
-                <SelectItem value="25">Día 25</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+            <div class="space-y-2">
+              <Label>Cantidad de cuotas</Label>
+              <Select v-model="pagareTotalCuotas">
+                <SelectTrigger>
+                  <SelectValue placeholder="Cuotas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 cuotas</SelectItem>
+                  <SelectItem value="12">12 cuotas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div class="space-y-2">
-            <Label for="pagare-fecha-inicio">Fecha de inicio</Label>
-            <Input
-              id="pagare-fecha-inicio"
-              v-model="pagareFechaInicio"
-              type="date"
-              :min="pagareFechaInicioMin"
-            />
-            <p class="text-xs text-muted-foreground">
-              Día {{ pagareDiaVencimiento }} del mes siguiente a hoy.
-            </p>
-          </div>
+            <div class="space-y-2">
+              <Label>Día de vencimiento</Label>
+              <Select v-model="pagareDiaVencimiento">
+                <SelectTrigger>
+                  <SelectValue placeholder="Día" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">Día 5</SelectItem>
+                  <SelectItem value="15">Día 15</SelectItem>
+                  <SelectItem value="25">Día 25</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div class="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              :disabled="!pagareFechaInicio || !pagareDiaVencimiento"
-              @click="generarCuotasPagare"
-            >
-              Generar cuotas
-            </Button>
-            <Badge v-if="pagareCuotasPreview.length" variant="outline" class="text-[10px]">
-              Correlativo provisional (mock)
-            </Badge>
+            <div class="space-y-2">
+              <Label for="pagare-fecha-inicio">Fecha de inicio</Label>
+              <Input
+                id="pagare-fecha-inicio"
+                v-model="pagareFechaInicio"
+                type="date"
+                :min="pagareFechaInicioMin"
+              />
+              <p class="text-xs text-muted-foreground">
+                <template v-if="etiquetaPrimeraCuota">
+                  Primera cuota del periodo: {{ etiquetaPrimeraCuota }} (día
+                  {{ pagareDiaVencimiento }}).
+                </template>
+                <template v-else>
+                  Día {{ pagareDiaVencimiento }} del mes siguiente a hoy.
+                </template>
+              </p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                :disabled="!pagareFechaInicio || !pagareDiaVencimiento || cargandoPreflight"
+                @click="generarCuotasPagare"
+              >
+                {{ cargandoPreflight ? 'Consultando ERP…' : 'Generar cuotas' }}
+              </Button>
+              <Badge v-if="pagareCuotasPreview.length" variant="outline" class="text-[10px]">
+                {{
+                  corrpagnumPreview
+                    ? 'Correlativo preview ERP (no consumido)'
+                    : 'Correlativo provisional (sin preview ERP)'
+                }}
+              </Badge>
+            </div>
           </div>
 
           <div
             v-if="pagareCuotasPreview.length"
-            class="-mx-1 max-h-72 overflow-auto rounded-md border border-zinc-200"
+            class="min-h-0 flex-1 space-y-3 overflow-y-auto pr-0.5"
           >
-            <table class="w-max min-w-full border-collapse text-left text-[11px] leading-tight">
-              <thead class="sticky top-0 z-10 bg-zinc-50">
-                <tr class="border-b border-zinc-200">
-                  <th class="w-8 px-2 py-2" />
-                  <th class="whitespace-nowrap px-2 py-2 font-medium text-muted-foreground">
-                    DOCUMENTO
-                  </th>
-                  <th class="whitespace-nowrap px-2 py-2 font-medium text-muted-foreground">
-                    CORRELATIVO
-                  </th>
-                  <th class="whitespace-nowrap px-2 py-2 font-medium text-muted-foreground">
-                    VENCIMIENTO
-                  </th>
-                  <th
-                    class="whitespace-nowrap px-2 py-2 text-right font-medium text-muted-foreground"
+            <div
+              v-for="bloque in [
+                { titulo: 'Matrícula', rows: pagareCuotasMat },
+                { titulo: 'Arancel', rows: pagareCuotasAra },
+              ]"
+              :key="bloque.titulo"
+              class="overflow-auto rounded-md border border-zinc-200"
+            >
+              <p class="sticky top-0 z-10 border-b border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs font-medium">
+                {{ bloque.titulo }}
+                <span class="font-normal text-muted-foreground">
+                  ({{ bloque.rows.length }} cuotas)
+                </span>
+              </p>
+              <table class="w-max min-w-full border-collapse text-left text-[11px] leading-tight">
+                <thead class="bg-zinc-50/80">
+                  <tr class="border-b border-zinc-200">
+                    <th class="w-8 px-2 py-2" />
+                    <th class="whitespace-nowrap px-2 py-2 font-medium text-muted-foreground">
+                      DOCUMENTO
+                    </th>
+                    <th class="whitespace-nowrap px-2 py-2 font-medium text-muted-foreground">
+                      CORRELATIVO
+                    </th>
+                    <th class="whitespace-nowrap px-2 py-2 font-medium text-muted-foreground">
+                      VENCIMIENTO
+                    </th>
+                    <th
+                      class="whitespace-nowrap px-2 py-2 text-right font-medium text-muted-foreground"
+                    >
+                      MONTO
+                    </th>
+                    <th class="whitespace-nowrap px-2 py-2 font-medium text-muted-foreground">
+                      GASTOS
+                    </th>
+                    <th
+                      class="whitespace-nowrap px-2 py-2 text-right font-medium text-muted-foreground"
+                    >
+                      TOTAL
+                    </th>
+                    <th class="whitespace-nowrap px-2 py-2 font-medium text-muted-foreground">
+                      ÍTEMS
+                    </th>
+                    <th
+                      class="whitespace-nowrap px-2 py-2 text-center font-medium text-muted-foreground"
+                    >
+                      CUOTA
+                    </th>
+                    <th
+                      class="whitespace-nowrap px-2 py-2 text-center font-medium text-muted-foreground"
+                    >
+                      TOTAL CUOTA
+                    </th>
+                    <th
+                      class="whitespace-nowrap px-2 py-2 text-center font-medium text-muted-foreground"
+                    >
+                      ID DOCUMENTO
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="row in bloque.rows"
+                    :key="row.correlativo"
+                    class="border-b border-zinc-100 last:border-0"
                   >
-                    MONTO
-                  </th>
-                  <th class="whitespace-nowrap px-2 py-2 font-medium text-muted-foreground">
-                    GASTOS
-                  </th>
-                  <th
-                    class="whitespace-nowrap px-2 py-2 text-right font-medium text-muted-foreground"
-                  >
-                    TOTAL
-                  </th>
-                  <th class="whitespace-nowrap px-2 py-2 font-medium text-muted-foreground">
-                    ÍTEMS
-                  </th>
-                  <th
-                    class="whitespace-nowrap px-2 py-2 text-center font-medium text-muted-foreground"
-                  >
-                    CUOTA
-                  </th>
-                  <th
-                    class="whitespace-nowrap px-2 py-2 text-center font-medium text-muted-foreground"
-                  >
-                    TOTAL CUOTA
-                  </th>
-                  <th
-                    class="whitespace-nowrap px-2 py-2 text-center font-medium text-muted-foreground"
-                  >
-                    ID DOCUMENTO
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="row in pagareCuotasPreview"
-                  :key="row.correlativo"
-                  class="border-b border-zinc-100 last:border-0"
-                >
-                  <td class="px-2 py-1.5">
-                    <Checkbox :checked="row.seleccionado" aria-label="Seleccionar cuota" />
-                  </td>
-                  <td class="whitespace-nowrap px-2 py-1.5">{{ row.documento }}</td>
-                  <td class="whitespace-nowrap px-2 py-1.5 font-mono text-[10px]">
-                    {{ row.correlativo }}
-                  </td>
-                  <td class="whitespace-nowrap px-2 py-1.5">
-                    {{ fmtFechaCuota(row.vencimiento) }}
-                  </td>
-                  <td class="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
-                    {{ fmt(row.monto) }}
-                  </td>
-                  <td class="whitespace-nowrap px-2 py-1.5 text-muted-foreground">—</td>
-                  <td class="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
-                    {{ fmt(row.totalAcumulado) }}
-                  </td>
-                  <td class="whitespace-nowrap px-2 py-1.5">{{ row.items }}</td>
-                  <td class="whitespace-nowrap px-2 py-1.5 text-center">{{ row.cuota }}</td>
-                  <td class="whitespace-nowrap px-2 py-1.5 text-center">{{ row.totalCuotas }}</td>
-                  <td class="whitespace-nowrap px-2 py-1.5 text-center">{{ row.idDocumento }}</td>
-                </tr>
-              </tbody>
-            </table>
+                    <td class="px-2 py-1.5">
+                      <Checkbox :checked="row.seleccionado" aria-label="Seleccionar cuota" />
+                    </td>
+                    <td class="whitespace-nowrap px-2 py-1.5">{{ row.documento }}</td>
+                    <td class="whitespace-nowrap px-2 py-1.5 font-mono text-[10px]">
+                      {{ row.correlativo }}
+                    </td>
+                    <td class="whitespace-nowrap px-2 py-1.5">
+                      {{ fmtFechaCuota(row.vencimiento) }}
+                    </td>
+                    <td class="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
+                      {{ fmt(row.monto) }}
+                    </td>
+                    <td class="whitespace-nowrap px-2 py-1.5 text-muted-foreground">—</td>
+                    <td class="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
+                      {{ fmt(row.totalAcumulado) }}
+                    </td>
+                    <td class="whitespace-nowrap px-2 py-1.5">{{ row.items }}</td>
+                    <td class="whitespace-nowrap px-2 py-1.5 text-center">{{ row.cuota }}</td>
+                    <td class="whitespace-nowrap px-2 py-1.5 text-center">{{ row.totalCuotas }}</td>
+                    <td class="whitespace-nowrap px-2 py-1.5 text-center">{{ row.idDocumento }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <DialogFooter class="gap-2 sm:gap-0">
+        <DialogFooter class="shrink-0 gap-2 border-t border-zinc-200 pt-4 sm:gap-0">
           <Button
             v-if="pagoMatriculaPaso === 'pagare'"
             type="button"
@@ -1439,9 +1634,19 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
             Cancelar
           </Button>
           <Button
+            v-if="pagoMatriculaPaso === 'selector'"
+            type="button"
+            class="bg-uniacc-orange hover:bg-uniacc-orange/90"
+            :disabled="!puedeContinuarSelectorMedios || cargandoPreflight"
+            @click="continuarSelectorMedios"
+          >
+            Continuar
+          </Button>
+          <Button
             v-if="pagoMatriculaPaso === 'pagare'"
             type="button"
             class="bg-uniacc-orange hover:bg-uniacc-orange/90"
+            :disabled="pagareCuotasPreview.length !== totalCuotasActual() * 2"
             @click="confirmarPagareMatricula"
           >
             Confirmar pagaré

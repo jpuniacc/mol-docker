@@ -1,15 +1,12 @@
 import { supabase } from '@/services/supabaseClient'
+import type { EstadoCarteraOficial } from '@/constants/carteraOficial'
 import { rutNorm } from '@/utils/rutNorm'
 
-export type EstadoCarteraOficial = {
-  /** false si la tabla está vacía o la consulta falló (fail-open). */
-  carteraCargada: boolean
-  enCartera: boolean
-}
+export type { EstadoCarteraOficial }
 
 /**
  * Cruce contra `mnp_cartera_oficial` (Excel BASE PARA PRUEBA).
- * Si no hay cartera cargada, no bloquea.
+ * Si no hay cartera cargada, no bloquea (fail-open).
  */
 export async function estadoCarteraOficial(
   rut: string | null | undefined,
@@ -19,23 +16,27 @@ export async function estadoCarteraOficial(
     .select('rut_norm', { count: 'exact', head: true })
 
   if (countError || !count) {
-    return { carteraCargada: false, enCartera: true }
+    return { carteraCargada: false, enCartera: true, excluidoMol: false }
   }
 
   const norm = rutNorm(rut)
   if (!norm) {
-    return { carteraCargada: true, enCartera: false }
+    return { carteraCargada: true, enCartera: false, excluidoMol: false }
   }
 
   const { data, error } = await supabase
     .from('mnp_cartera_oficial')
-    .select('rut_norm')
+    .select('rut_norm, excluido_mol')
     .eq('rut_norm', norm)
     .maybeSingle()
 
   if (error) {
-    return { carteraCargada: false, enCartera: true }
+    return { carteraCargada: false, enCartera: true, excluidoMol: false }
   }
 
-  return { carteraCargada: true, enCartera: Boolean(data) }
+  return {
+    carteraCargada: true,
+    enCartera: Boolean(data),
+    excluidoMol: data?.excluido_mol === true,
+  }
 }

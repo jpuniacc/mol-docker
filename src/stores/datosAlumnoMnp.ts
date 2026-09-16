@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 
+import { fueraCarteraDesdeEstado } from '@/constants/carteraOficial'
 import { estadoCarteraOficial } from '@/services/carteraOficialApi'
 import { supabase } from '@/services/supabaseClient'
 import type { MnpDatosAlumnosRow } from '@/types/supabase'
@@ -14,7 +15,7 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
     loading: false,
     error: null as string | null,
     filas: [] as MnpDatosAlumnosRow[],
-    /** true = RUT en consolidado/MOL pero ausente del Excel oficial. */
+    /** true = ausente del Excel oficial o excluido MOL (SUBDERE). */
     fueraCarteraOficial: false,
   }),
   getters: {
@@ -36,7 +37,7 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
         return
       }
       const estado = await estadoCarteraOficial(rut)
-      this.fueraCarteraOficial = estado.carteraCargada && !estado.enCartera
+      this.fueraCarteraOficial = fueraCarteraDesdeEstado(estado)
     },
 
     /**

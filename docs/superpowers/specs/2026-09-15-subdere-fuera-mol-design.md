@@ -2,7 +2,7 @@
 
 Fecha: 2026-09-15  
 Proyecto: `mol-docker`  
-Estado: decisión cerrada (docs). Pendiente marcar exclusión en `mnp_cartera_oficial` y recálculo de `fuera_cartera_oficial`.
+Estado: implementado (excluido_mol + refresh). Sin bandeja NEDA.
 
 ## Decisión
 

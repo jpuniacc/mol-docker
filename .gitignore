@@ -47,6 +47,7 @@ junit.xml
 # Misc
 .eslintcache
 .stylelintcache
+scripts/.venv/
 
 # Certificados y secretos (nunca en git)
 docs/01. Certificados SSL Web (Wildcard)/
