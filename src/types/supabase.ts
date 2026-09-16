@@ -795,6 +795,8 @@ export type MnpCarteraOficialRow = {
   rematriculable: boolean;
   fuente: string;
   loaded_at: string;
+  excluido_mol?: boolean;
+  email_ejecutivo?: string | null;
 };
 
 /** Ítem del menú lateral del backoffice (`bo_menu_item`). */
