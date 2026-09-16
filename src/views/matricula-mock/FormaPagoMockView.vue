@@ -333,6 +333,11 @@ async function onConvenioSubido(payload: {
   documentoId?: string | null
 }) {
   mockCtx.setConvenioDocumento(payload.convenioId, payload.doc)
+  const refId = payload.documentoId?.trim() || payload.doc.storagePath?.trim()
+  if (!refId) {
+    toast.error('No se pudo abrir el caso: el documento no tiene una referencia válida.')
+    return
+  }
   const ctx = contextoMolAuditoria({
     rutAlumno: pickCampoAlumno(fuente.rutMostrado.value),
     codcli: pickCampoAlumno(fuente.codcliMostrado.value),
@@ -357,7 +362,7 @@ async function onConvenioSubido(payload: {
     titulo: 'Certificado de convenio en revisión',
     detalle: 'El alumno subió el documento de vigencia del convenio.',
     refTipo: 'convenio_documento',
-    refId: payload.documentoId ?? payload.doc.storagePath,
+    refId,
     esMock: ctx.esMock,
     payload: {
       convenio_id: payload.convenioId,

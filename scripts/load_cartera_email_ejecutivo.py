@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Carga email_ejecutivo desde BASE PARA PRUEBA.xlsx → mnp_cartera_oficial."""
+"""Carga email_ejecutivo desde BASE PARA PRUEBA.xlsx → mnp_cartera_oficial.
+
+Instalar dependencias: python3 -m pip install -r scripts/requirements.txt
+"""
 from openpyxl import load_workbook
 import os
 import sys
