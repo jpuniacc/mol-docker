@@ -1290,7 +1290,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
           <CardTitle class="text-lg text-uniacc-orange">Convenios institucionales</CardTitle>
           <CardDescription>
             El alumno tiene beneficios asociados a convenios registrados. Los convenios vigentes
-            requieren subir el documento que acredita su vigencia para continuar.
+            requieren subir el documento que acredita su vigencia para poder pagar la matrícula.
           </CardDescription>
         </CardHeader>
         <CardContent class="space-y-3">

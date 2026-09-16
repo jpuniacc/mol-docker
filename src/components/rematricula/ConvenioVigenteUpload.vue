@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { CheckCircle2, FileUp, Loader2, Trash2 } from 'lucide-vue-next'
+import { FileUp, Loader2, Trash2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -130,30 +130,38 @@ async function eliminar() {
 
     <!-- Solo los vigentes requieren documento -->
     <template v-if="match.esVigente">
-      <div
-        v-if="documento"
-        class="mt-3 flex flex-wrap items-center justify-between gap-2"
-      >
-        <div class="flex items-center gap-2 text-sm text-green-700">
-          <CheckCircle2 class="h-4 w-4" />
-          <span>Documento cargado: {{ documento.nombreArchivo }}</span>
+      <div v-if="documento" class="mt-3 space-y-2">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex flex-wrap items-center gap-2 text-sm">
+            <Badge v-if="estadoCaso === 'APROBADO'" class="bg-green-700">Aprobado</Badge>
+            <Badge v-else-if="estadoCaso === 'RECHAZADO'" variant="destructive">Rechazado</Badge>
+            <Badge v-else class="bg-amber-600">En revisión</Badge>
+            <span class="text-zinc-700">{{ documento.nombreArchivo }}</span>
+          </div>
+          <Button
+            v-if="estadoCaso !== 'APROBADO'"
+            type="button"
+            variant="outline"
+            size="sm"
+            class="gap-1.5 text-red-600 hover:bg-red-50 hover:text-red-700"
+            :disabled="eliminando"
+            @click="eliminar"
+          >
+            <Loader2 v-if="eliminando" class="h-4 w-4 animate-spin" />
+            <Trash2 v-else class="h-4 w-4" />
+            {{ eliminando ? 'Eliminando…' : 'Eliminar' }}
+          </Button>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          class="gap-1.5 text-red-600 hover:bg-red-50 hover:text-red-700"
-          :disabled="eliminando"
-          @click="eliminar"
-        >
-          <Loader2 v-if="eliminando" class="h-4 w-4 animate-spin" />
-          <Trash2 v-else class="h-4 w-4" />
-          {{ eliminando ? 'Eliminando…' : 'Eliminar' }}
-        </Button>
+        <p v-if="estadoCaso === 'RECHAZADO'" class="text-sm text-red-700">
+          {{ motivoRechazo?.trim() || 'Documento rechazado.' }}
+          Vuelve a subir el documento.
+        </p>
+        <p v-else-if="estadoCaso === 'EN_REVISION' || !estadoCaso" class="text-sm text-amber-800">
+          Documento enviado. En revisión por tu consejero.
+        </p>
       </div>
-      <p v-if="documento && error" class="mt-2 text-sm text-red-600">{{ error }}</p>
 
-      <div v-else class="mt-3 space-y-2">
+      <div v-if="!documento || estadoCaso === 'RECHAZADO'" class="mt-3 space-y-2">
         <p class="text-sm text-zinc-700">
           Este convenio está vigente. Sube el documento que acredita que continúa vigente
           (PDF, PNG o JPG, máx. 10 MB).
