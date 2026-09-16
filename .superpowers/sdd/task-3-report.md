@@ -23,3 +23,11 @@ Implementado.
 ## Consideraciones
 
 El árbol ya contenía numerosos cambios sin commit. El commit de esta tarea se limita a los archivos del brief y este reporte.
+
+## Corrección posterior a revisión
+
+- Se agregó `src/utils/periodoCatalogo.ts`, dependencia requerida por las vistas de TyC, apoderado y forma de pago.
+- Se agregó `src/utils/periodoCatalogo.test.ts`.
+- Se agregó `supabase/migrations/20260910180000_resolver_caso_cerrado.sql`, que habilita el estado `CERRADO` usado al aceptar TyC después de un rechazo.
+- `npx vitest run src/utils/periodoCatalogo.test.ts`: no inició por un error preexistente de configuración de Vitest: `Cannot merge config in form of callback`.
+- `git diff --check` sobre los archivos de la corrección: PASS.
