@@ -46,7 +46,7 @@ import ConvenioVigenteUpload from '@/components/rematricula/ConvenioVigenteUploa
 import { useMockAlumnoFuente } from '@/composables/useMockAlumnoFuente'
 import { tieneCae } from '@/constants/verificacionCae'
 import { Check, FileText } from 'lucide-vue-next'
-import { abrirCasoRematricula } from '@/services/casoRematriculaApi'
+import { abrirCasoRematricula, consultarCasosAlumno } from '@/services/casoRematriculaApi'
 import {
   consultarCarteraBeneficios,
   PERIODO_CARTERA_BENEFICIOS,
@@ -62,6 +62,10 @@ import {
   type BeneficioExcelUiItem,
   type CarteraBeneficioRow,
 } from '@/utils/carteraBeneficiosUi'
+import {
+  casoCertificadoConvenio,
+  evaluarGateMatriculaConvenios,
+} from '@/utils/convenioCertificadoGate'
 import { periodoCatalogoLabel } from '@/utils/periodoCatalogo'
 import { rutNorm } from '@/utils/rutNorm'
 import { useConvenioInstitucionalStore } from '@/stores/convenioInstitucional'
@@ -89,7 +93,7 @@ import {
   proximaFechaDiaVencimiento,
 } from '@/utils/pagareFechaInicio'
 import MatriculaMockVerificacionCaeStep from '@/views/matricula-mock/MatriculaMockVerificacionCaeStep.vue'
-import type { PlanPagosMvRow } from '@/types/supabase'
+import type { MnpCasoRematriculaRow, PlanPagosMvRow } from '@/types/supabase'
 
 const router = useRouter()
 const mockCtx = useMockMatriculaContextStore()
@@ -419,9 +423,53 @@ const conveniosVigentes = computed(() =>
   conveniosDetectados.value.filter((m) => m.esVigente),
 )
 
-const conveniosVigentesPendientes = computed(() =>
-  conveniosVigentes.value.filter((m) => !mockCtx.conveniosDocumentos[m.convenio.id]),
+const casosConvenio = ref<MnpCasoRematriculaRow[]>([])
+
+const gateConvenioMatricula = computed(() =>
+  evaluarGateMatriculaConvenios({
+    vigentes: conveniosVigentes.value.map((m) => ({
+      id: m.convenio.id,
+      codigoBeneficio: m.convenio.codigo_beneficio,
+    })),
+    casos: casosConvenio.value,
+    docsByConvenioId: mockCtx.conveniosDocumentos,
+  }),
 )
+
+function estadoUiConvenio(convenioId: string): MnpCasoRematriculaRow['estado'] | null {
+  const match = conveniosVigentes.value.find((m) => m.convenio.id === convenioId)
+  if (!match) return null
+  const doc = mockCtx.conveniosDocumentos[convenioId]
+  return (
+    casoCertificadoConvenio(
+      casosConvenio.value,
+      { id: match.convenio.id, codigoBeneficio: match.convenio.codigo_beneficio },
+      doc?.storagePath,
+    )?.estado ?? null
+  )
+}
+
+const estadoPorConvenioId = computed(() => {
+  const out: Record<string, MnpCasoRematriculaRow['estado'] | null> = {}
+  for (const m of conveniosDetectados.value) {
+    out[m.convenio.id] = estadoUiConvenio(m.convenio.id)
+  }
+  return out
+})
+
+const motivoPorConvenioId = computed(() => {
+  const out: Record<string, string | null> = {}
+  for (const m of conveniosDetectados.value) {
+    const doc = mockCtx.conveniosDocumentos[m.convenio.id]
+    out[m.convenio.id] =
+      casoCertificadoConvenio(
+        casosConvenio.value,
+        { id: m.convenio.id, codigoBeneficio: m.convenio.codigo_beneficio },
+        doc?.storagePath,
+      )?.motivo ?? null
+  }
+  return out
+})
 
 const contextoConvenio = computed<ContextoMolAuditoriaOpciones>(() => ({
   rutAlumno: pickCampoAlumno(fuente.rutMostrado.value),
@@ -431,6 +479,42 @@ const contextoConvenio = computed<ContextoMolAuditoriaOpciones>(() => ({
   semestrePeriodo: periodoActivo.semestre,
   esMock: mockCtx.tieneAlumnoSeleccionado,
 }))
+
+async function refrescarCasosConvenio(): Promise<void> {
+  const ctx = contextoConvenio.value
+  const anio = ctx.anioPeriodo
+  const sem = ctx.semestrePeriodo
+  const codcli = pickCampoAlumno(fuente.codcliMostrado.value)
+  if (!codcli || anio == null || sem == null) {
+    casosConvenio.value = []
+    return
+  }
+  const { data, error } = await consultarCasosAlumno(
+    codcli,
+    periodoCatalogoLabel(anio, sem),
+  )
+  if (error) {
+    console.warn('[forma-pago] consultar_casos_alumno', error)
+    return
+  }
+  casosConvenio.value = (data ?? []).filter((c) => c.tipo === 'CONVENIO_CERTIFICADO')
+  // Rehidratar docs desde payload/ref si el store no los tiene
+  for (const c of casosConvenio.value) {
+    const payload = (c.payload ?? {}) as Record<string, unknown>
+    const convenioId =
+      typeof payload.convenio_id === 'string' ? payload.convenio_id.trim() : ''
+    const path =
+      (typeof payload.storage_path === 'string' && payload.storage_path.trim()) ||
+      (c.ref_id ?? '').trim()
+    if (!convenioId || !path) continue
+    if (mockCtx.conveniosDocumentos[convenioId]) continue
+    const nombre = path.split('/').pop() || 'documento-convenio.pdf'
+    mockCtx.setConvenioDocumento(convenioId, {
+      storagePath: path,
+      nombreArchivo: nombre,
+    })
+  }
+}
 
 async function onConvenioSubido(payload: {
   convenioId: string
@@ -475,6 +559,7 @@ async function onConvenioSubido(payload: {
       codigo_beneficio: match?.convenio.codigo_beneficio ?? null,
     },
   })
+  await refrescarCasosConvenio()
 }
 
 function onConvenioEliminado(payload: { convenioId: string }) {
@@ -598,6 +683,7 @@ onMounted(async () => {
     docpagArancel.ensureLoaded(),
     cargarCarteraBeneficios(),
   ])
+  await refrescarCasosConvenio()
 
   let p = plan.value
   if (!p) return
@@ -737,7 +823,8 @@ const puedeAbrirPagoMatricula = computed(() => {
     tieneRut &&
     !cargandoDeuda.value &&
     !tieneDeuda.value &&
-    !abriendoPagoMatricula.value
+    !abriendoPagoMatricula.value &&
+    gateConvenioMatricula.value.puedePagarPorConvenio
   )
 })
 
@@ -947,28 +1034,6 @@ function simularPago(medio: 'webpay' | 'pagare' | 'toku') {
   const labels = { webpay: 'WebPay', pagare: 'Pagaré', toku: 'TOKU' } as const
   toast.success(`Pago simulado vía ${labels[medio]}.`)
   void router.push({ name: 'matricula-mock-firma' })
-}
-
-/** Pasa a forma de pago; consulta deuda ERP y muestra modal si corresponde. */
-async function irAFormaPago() {
-  const rut = rutMostrado.value
-  if (rut && rut !== '—') {
-    await deudaNet.fetchFromErp(rut)
-    console.log('[forma-pago] sp_alumno_deuda_net', {
-      rut,
-      tieneDeuda: deudaNet.tieneDeuda,
-      deuda: deudaNet.deudaValor,
-      data: deudaNet.data,
-      params: deudaNet.paramsUsados,
-      error: deudaNet.error,
-    })
-    if (deudaNet.tieneDeuda) {
-      deudaModalOpen.value = true
-    }
-  } else {
-    console.warn('[forma-pago] sin RUT para consultar deuda')
-  }
-  subPaso.value = 'pago'
 }
 
 function cerrarModalDeuda() {
@@ -1191,6 +1256,12 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
               <p v-if="tieneDeuda" class="text-xs text-red-700">
                 No puedes pagar matrícula: hay deuda pendiente por regularizar.
               </p>
+              <p
+                v-else-if="!gateConvenioMatricula.puedePagarPorConvenio && gateConvenioMatricula.mensaje"
+                class="text-xs text-amber-800"
+              >
+                {{ gateConvenioMatricula.mensaje }}
+              </p>
               <p v-else-if="resumenPagoMatricula" class="text-xs text-zinc-600">
                 Configurado: {{ resumenPagoMatricula }}
               </p>
@@ -1229,31 +1300,16 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
             :match="m"
             :documento="mockCtx.conveniosDocumentos[m.convenio.id] ?? null"
             :contexto="contextoConvenio"
+            :estado-caso="estadoPorConvenioId[m.convenio.id] ?? null"
+            :motivo-rechazo="motivoPorConvenioId[m.convenio.id] ?? null"
             @subido="onConvenioSubido"
             @eliminado="onConvenioEliminado"
           />
         </CardContent>
       </Card>
 
-      <div
-        v-if="conveniosVigentesPendientes.length > 0"
-        class="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700"
-      >
-        Debes subir el documento de vigencia de
-        {{ conveniosVigentesPendientes.length === 1 ? 'el convenio vigente' : 'los convenios vigentes' }}
-        antes de continuar a la forma de pago.
-      </div>
-
       <div class="flex flex-wrap justify-between gap-3">
         <Button variant="outline" type="button" @click="anterior">Anterior</Button>
-        <Button
-          class="bg-uniacc-orange rounded-full px-6 hover:bg-uniacc-orange/90"
-          type="button"
-          :disabled="conveniosVigentesPendientes.length > 0 || cargandoDeuda"
-          @click="irAFormaPago"
-        >
-          {{ cargandoDeuda ? 'Consultando deuda…' : 'Siguiente — forma de pago' }}
-        </Button>
       </div>
     </template>
 

@@ -13,11 +13,16 @@ import {
 } from '@/services/convenioDocumento'
 import type { ContextoMolAuditoriaOpciones } from '@/services/molAuditContext'
 import type { MockConvenioDocumento } from '@/stores/mockMatriculaContext'
+import type { MnpCasoRematriculaEstado } from '@/types/supabase'
 
 const props = defineProps<{
   match: ConvenioAlumnoMatch
   documento: MockConvenioDocumento | null
   contexto: ContextoMolAuditoriaOpciones
+  /** Estado del caso CONVENIO_CERTIFICADO (badge UI en Task 3). */
+  estadoCaso?: MnpCasoRematriculaEstado | null
+  /** Motivo de rechazo del caso, si aplica (badge UI en Task 3). */
+  motivoRechazo?: string | null
 }>()
 
 const emit = defineEmits<{
