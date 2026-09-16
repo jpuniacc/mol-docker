@@ -14,10 +14,10 @@ export const VERIFICACION_CAE_UI = {
   badgeVerificando: 'Verificando…',
   badgeCaeActivo: 'CAE activo',
   verificandoDescripcion: 'Estamos validando si existe resolución CAE para el periodo activo.',
-  pendienteTitulo: 'Matrícula en espera',
+  pendienteTitulo: 'Rematrícula en espera',
   pendienteMensaje:
-    'Detectamos que tienes CAE activo, pero aún no está disponible la resolución para este periodo. Tu registro de matrícula quedará guardado en espera. Te avisaremos cuando puedas continuar.',
-  pendienteAclaracion: 'Esto no significa que tu matrícula fue rechazada.',
+    'Detectamos que tienes CAE activo, pero aún no está disponible la resolución para este periodo. Tu registro de rematrícula quedará guardado en espera. Te avisaremos cuando puedas continuar.',
+  pendienteAclaracion: 'Esto no significa que tu rematrícula fue rechazada.',
   pasosTitulo: '¿Qué ocurre ahora?',
   pasos: [
     'Tu avance queda pausado en este paso.',

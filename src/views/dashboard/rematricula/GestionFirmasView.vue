@@ -158,7 +158,7 @@ onUnmounted(() => {
         <CardTitle>Gestión de firmas</CardTitle>
         <CardDescription>
           Contratos enviados a TuFirma. Ver el PDF en pantalla (original o estampado) y quién falta
-          por firmar. No reemplaza Firma Contrato (Acepta).
+          por firmar.
         </CardDescription>
       </CardHeader>
       <CardContent class="space-y-4">

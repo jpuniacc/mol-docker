@@ -6,6 +6,7 @@ import {
   fetchPeriodosActivos,
   periodoActivoDesdeEnv,
   periodoActivoLabel,
+  setPromediosCerrados as persistPromediosCerrados,
 } from '@/services/periodoActivo'
 import type { TpPeriodoActivoRow } from '@/types/supabase'
 
@@ -37,8 +38,11 @@ export const usePeriodoActivoStore = defineStore('periodoActivo', {
       if (anio != null && semestre != null) return periodoActivoLabel(anio, semestre)
       return null
     },
-    tituloMatricula(): string {
-      return this.label ? `Matrícula ${this.label}` : 'Matrícula'
+    tituloRematricula(): string {
+      return this.label ? `Rematrícula ${this.label}` : 'Rematrícula'
+    },
+    promediosCerrados(): boolean {
+      return this.vigente?.promedios_cerrados === true
     },
   },
 
@@ -92,6 +96,27 @@ export const usePeriodoActivoStore = defineStore('periodoActivo', {
       this.error = null
       try {
         const { error } = await activarPeriodo(id)
+        if (error) {
+          this.error = error
+          return false
+        }
+        await this.fetchAll()
+        return true
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async setPromediosCerrados(cerrado: boolean) {
+      const id = this.vigente?.id
+      if (id == null) {
+        this.error = 'No hay periodo vigente para actualizar promedios.'
+        return false
+      }
+      this.loading = true
+      this.error = null
+      try {
+        const { error } = await persistPromediosCerrados(id, cerrado)
         if (error) {
           this.error = error
           return false

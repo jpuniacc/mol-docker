@@ -1,15 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import {
+  MSG_FUERA_CARTERA_OFICIAL,
+  TITULO_FUERA_CARTERA_OFICIAL,
+} from '@/constants/carteraOficial'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
+import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import { GraduationCap, LayoutDashboard, Sparkles } from 'lucide-vue-next'
 
 const appStore = useAppStore()
 const auth = useAuthStore()
+const datosMnp = useDatosAlumnoMnpStore()
 
 const saludo = computed(() => auth.displayNombreCompleto || auth.username || 'Usuario')
+const bloqueoFueraCartera = computed(() => datosMnp.fueraCarteraOficial)
 </script>
 
 <template>
@@ -29,7 +37,7 @@ const saludo = computed(() => auth.displayNombreCompleto || auth.username || 'Us
             <h1 class="text-2xl font-bold tracking-tight text-zinc-900 md:text-3xl">Inicio</h1>
             <p class="mt-1 text-sm text-zinc-600 md:text-base">
               Hola, <span class="font-semibold text-zinc-900">{{ saludo }}</span>. Desde aquí puedes
-              acceder al flujo de matrícula y a las herramientas del portal.
+              acceder al flujo de rematrícula y a las herramientas del portal.
             </p>
           </div>
           <div class="hidden items-center gap-2 text-uniacc-orange sm:flex">
@@ -40,15 +48,24 @@ const saludo = computed(() => auth.displayNombreCompleto || auth.username || 'Us
       </div>
     </div>
 
+    <Alert
+      v-if="bloqueoFueraCartera"
+      class="border-red-300 bg-red-50 text-red-950"
+    >
+      <AlertTitle>{{ TITULO_FUERA_CARTERA_OFICIAL }}</AlertTitle>
+      <AlertDescription>{{ MSG_FUERA_CARTERA_OFICIAL }}</AlertDescription>
+    </Alert>
+
     <Card
+      v-if="!bloqueoFueraCartera"
       class="border border-uniacc-orange/30 bg-white shadow-md ring-1 ring-uniacc-orange/10"
     >
       <CardHeader class="flex flex-row items-start gap-3 space-y-0 pb-2">
         <GraduationCap class="h-8 w-8 shrink-0 text-uniacc-orange" />
         <div class="space-y-1">
-          <CardTitle class="text-lg text-zinc-900">Mock matrícula (sin mv_usuario)</CardTitle>
+          <CardTitle class="text-lg text-zinc-900">Simular rematrícula</CardTitle>
           <CardDescription class="text-zinc-700">
-            Demostración del flujo para alumnos sin fila en
+            Demostración del flujo de rematrícula para alumnos sin fila en
             <code class="rounded bg-uniacc-orange/10 px-1 py-0.5 text-zinc-800">mv_usuario</code>
             (validación alternativa). En producción podrías restringirlo a
             <code class="rounded bg-uniacc-orange/10 px-1 py-0.5 text-zinc-800">authSource === 'pixarron'</code>.
@@ -61,7 +78,7 @@ const saludo = computed(() => auth.displayNombreCompleto || auth.username || 'Us
             type="button"
             class="rounded-full bg-uniacc-orange px-6 font-semibold text-white shadow-md hover:bg-uniacc-orange/90"
           >
-            Iniciar mock de matrícula
+            Iniciar simulación de rematrícula
           </Button>
         </RouterLink>
       </CardContent>
@@ -101,7 +118,7 @@ const saludo = computed(() => auth.displayNombreCompleto || auth.username || 'Us
         <CardHeader class="pb-2">
           <CardTitle class="text-sm font-medium text-zinc-900">Ayuda</CardTitle>
           <CardDescription class="text-zinc-600">
-            ¿Necesitas asistencia con la matrícula?
+            ¿Necesitas asistencia con la rematrícula?
           </CardDescription>
         </CardHeader>
         <CardContent>

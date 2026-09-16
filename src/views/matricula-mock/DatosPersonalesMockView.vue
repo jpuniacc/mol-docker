@@ -28,7 +28,10 @@ import MatriculaMockApoderadoStep from '@/views/matricula-mock/MatriculaMockApod
 import MatriculaMockDiscapacidadStep from '@/views/matricula-mock/MatriculaMockDiscapacidadStep.vue'
 import MatriculaMockTyCStep from '@/views/matricula-mock/MatriculaMockTyCStep.vue'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
+import { useTerminosCondicionesStore } from '@/stores/terminosCondiciones'
+import { consultarUltimaTycRespuestaAlumno } from '@/services/tycAuditLog'
 import { contextoMolAuditoria } from '@/services/molAuditContext'
+import { debeSaltarPasoTyc } from '@/utils/tycAceptacion'
 import { esPropioSostenedor } from '@/utils/apoderadoResponsable'
 import {
   type ContactoOtpCanalLog,
@@ -57,6 +60,7 @@ const alumnoMnp = useDatosAlumnoMnpStore()
 const mockCtx = useMockMatriculaContextStore()
 const otpUi = useMockContactoOtpUiStore()
 const periodoActivo = usePeriodoActivoStore()
+const tycStore = useTerminosCondicionesStore()
 const fuente = useMockAlumnoFuente()
 
 const {
@@ -96,6 +100,7 @@ const datosCargando = computed(
 
 type PasoDatosPersonales = 'tyc' | 'contacto' | 'apoderado' | 'discapacidad'
 
+const resolviendoTyc = ref(!mockCtx.tycAccepted)
 const paso = ref<PasoDatosPersonales>(mockCtx.tycAccepted ? 'contacto' : 'tyc')
 const emailDraft = ref('')
 const telefonoDraft = ref('')
@@ -163,6 +168,43 @@ function sincronizarDraftsContactoDesdeFuente(opciones?: { forzarResetValidacion
   if (!telefonoValidadoOk.value) {
     telefonoDigitosLocal.value = valorInicialTelefonoDigitos()
     sincronizarTelefonoDraftDesdeDigitos()
+  }
+}
+
+async function hidratarTycDesdeTabla(): Promise<void> {
+  if (mockCtx.tycAccepted) {
+    resolviendoTyc.value = false
+    return
+  }
+  try {
+    await Promise.all([tycStore.ensureLoaded(), periodoActivo.ensureLoaded()])
+    const ctx = contextoMolAuditoria({
+      rutAlumno: pickCampoAlumno(fuente.rutMostrado.value),
+      codcli: pickCampoAlumno(fuente.codcliMostrado.value),
+      nombreAlumno: pickCampoAlumno(fuente.nombreMostrado.value),
+      anioPeriodo: periodoActivo.anio,
+      semestrePeriodo: periodoActivo.semestre,
+      esMock: mockCtx.tieneAlumnoSeleccionado,
+    })
+    if (!ctx.codcli || ctx.anioPeriodo == null || ctx.semestrePeriodo == null) return
+    const { data } = await consultarUltimaTycRespuestaAlumno({
+      codcli: ctx.codcli,
+      anioPeriodo: ctx.anioPeriodo,
+      semestrePeriodo: ctx.semestrePeriodo,
+    })
+    if (
+      debeSaltarPasoTyc({
+        aceptadoEnSesion: false,
+        ultimaRespuesta: data,
+        tycUpdatedAtActual: tycStore.documento?.updated_at ?? null,
+      })
+    ) {
+      mockCtx.acceptTyc()
+      paso.value = 'contacto'
+      sincronizarDraftsContactoDesdeFuente()
+    }
+  } finally {
+    resolviendoTyc.value = false
   }
 }
 
@@ -332,6 +374,7 @@ onMounted(() => {
     })
   })
   void periodoActivo.ensureLoaded()
+  void hidratarTycDesdeTabla()
   window.addEventListener('pageshow', onPageShowRestaurarContacto)
 })
 
@@ -935,9 +978,9 @@ watch(
       <AlertDescription>{{ alumnoMnp.error }}</AlertDescription>
     </Alert>
 
-    <p v-if="datosCargando" class="text-sm text-muted-foreground">Cargando datos del alumno…</p>
+    <p v-if="datosCargando || resolviendoTyc" class="text-sm text-muted-foreground">Cargando datos del alumno…</p>
 
-    <MatriculaMockTyCStep v-if="paso === 'tyc'" @aceptado="onTycAceptado" />
+    <MatriculaMockTyCStep v-else-if="paso === 'tyc'" @aceptado="onTycAceptado" />
 
     <!-- Paso contacto: validar correo personal y teléfono -->
     <template v-else-if="paso === 'contacto'">

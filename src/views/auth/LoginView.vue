@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
@@ -26,11 +26,14 @@ import {
 import { runLoginFlow } from '@/services/auth'
 import { useAuthStore } from '@/stores/auth'
 import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
+import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import { FileText, Loader2, Lock, User } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const periodoActivo = usePeriodoActivoStore()
+const tituloRematricula = computed(() => periodoActivo.tituloRematricula)
 
 const username = ref('')
 const password = ref('')
@@ -43,6 +46,7 @@ function syncModalTyCRechazado() {
 
 onMounted(() => {
   syncModalTyCRechazado()
+  void periodoActivo.ensureLoaded()
 })
 
 watch(
@@ -131,7 +135,7 @@ async function onSubmit() {
           height="98"
         />
         <div class="text-right">
-          <p class="text-lg font-bold tracking-tight text-zinc-900 md:text-xl">Matrícula 2026</p>
+          <p class="text-lg font-bold tracking-tight text-zinc-900 md:text-xl">{{ tituloRematricula }}</p>
           <div class="mt-1 ml-auto h-1 w-24 rounded-full bg-uniacc-orange md:w-28" />
         </div>
       </div>
@@ -144,7 +148,7 @@ async function onSubmit() {
           class="px-4 py-3 text-center text-sm font-semibold leading-snug text-white md:text-[15px]"
           style="background: linear-gradient(90deg, #ff5b00 0%, #ee2183 50%, #4d98c5 100%)"
         >
-          Bienvenidos al Portal de Matrícula para Estudiantes antiguos
+          Bienvenidos al Portal de Rematrícula para estudiantes antiguos
         </div>
 
         <div class="space-y-6 p-6 md:p-8">

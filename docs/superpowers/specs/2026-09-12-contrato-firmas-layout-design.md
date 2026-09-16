@@ -25,7 +25,7 @@ El PDF de rematrícula estampa TuFirma en una página extra «Firmas electrónic
 | UNIACC / Aliste | No firma en TuFirma |
 | Página extra «Firmas electrónicas» | Se elimina |
 | Anexo N° 1 | `pageBreak` antes. Hoja propia, **sin** firmas |
-| Página de recuadros | Última página del cuerpo (total − páginas del anexo). Si el anexo es 1 hoja: `page = n - 1` |
+| Página de recuadros | Hoja propia e indivisible antes del anexo (`pageBreak` + `unbreakable`). `signaturePage = n - 1` |
 | Documentos ya en TuFirma | Fuera de este alcance (p. ej. `960258`). Se prueban con operación nueva |
 
 ## Layout (como págs. 8–9 Bettersoft)

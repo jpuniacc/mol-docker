@@ -23,6 +23,12 @@ export type ArancelMatriculaNetParams = {
   ambiente?: 'prod' | 'test'
   /** Host enmascarado del pool. */
   host?: string
+  /** Si TEST no tenía filas y el API reintentó en PROD. */
+  fallbackDesde?: 'test'
+  /** Año pedido por el front (si el SP usó otro). */
+  anoSolicitado?: number
+  /** Año realmente consultado cuando no había tarifa del año pedido. */
+  fallbackAno?: number
 }
 
 export type ArancelMatriculaNetData = {

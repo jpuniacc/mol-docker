@@ -21,7 +21,7 @@ export async function fetchPeriodosActivos(): Promise<{
 }> {
   const { data, error } = await supabase
     .from('tp_periodo_activo')
-    .select('id, anio_periodo, semestre_periodo, created_at, estado')
+    .select('id, anio_periodo, semestre_periodo, created_at, estado, promedios_cerrados')
     .order('anio_periodo', { ascending: false })
     .order('semestre_periodo', { ascending: false })
 
@@ -37,7 +37,7 @@ export async function fetchPeriodoActivoVigente(): Promise<{
 }> {
   const { data, error } = await supabase
     .from('tp_periodo_activo')
-    .select('id, anio_periodo, semestre_periodo, created_at, estado')
+    .select('id, anio_periodo, semestre_periodo, created_at, estado, promedios_cerrados')
     .eq('estado', true)
     .maybeSingle()
 
@@ -49,5 +49,16 @@ export async function fetchPeriodoActivoVigente(): Promise<{
 
 export async function activarPeriodo(id: number): Promise<{ error: string | null }> {
   const { error } = await supabase.rpc('activar_tp_periodo_activo', { p_id: id })
+  return { error: error?.message ?? null }
+}
+
+export async function setPromediosCerrados(
+  id: number,
+  cerrado: boolean,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('tp_periodo_activo')
+    .update({ promedios_cerrados: cerrado })
+    .eq('id', id)
   return { error: error?.message ?? null }
 }

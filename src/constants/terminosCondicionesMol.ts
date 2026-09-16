@@ -1,7 +1,7 @@
 export const TERMINOS_CONDICIONES_MOL_CODIGO = 'mol' as const
 
 export const TERMINOS_CONDICIONES_MOL_TITULO_DEFAULT =
-  'Términos y Condiciones de Matrícula y Rematrícula Online'
+  'Términos y Condiciones de Rematrícula Online'
 
 export const TYC_RECHAZO_SONNER_MENSAJE =
   '¿Estás seguro de que no aceptas los términos y condiciones?'

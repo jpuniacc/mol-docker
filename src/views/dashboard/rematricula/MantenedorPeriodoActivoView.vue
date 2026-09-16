@@ -56,6 +56,16 @@ async function recargar() {
   await store.fetchAll()
 }
 
+async function alternarPromediosCerrados() {
+  const actual = vigente.value?.promedios_cerrados === true
+  const ok = await store.setPromediosCerrados(!actual)
+  if (ok) {
+    toast.success(!actual ? 'Promedios marcados como cerrados.' : 'Promedios marcados como abiertos.')
+  } else {
+    toast.error(store.error ?? 'No se pudo actualizar el cierre de promedios.')
+  }
+}
+
 function openConfirm(row: TpPeriodoActivoRow) {
   if (row.estado) return
   pendingRow.value = row
@@ -115,6 +125,26 @@ onMounted(() => {
           El cambio aplica de inmediato en cabecera y en Alumnos a matricular. Use
           <strong>Sincronizar desde ERP</strong> en ese mantenedor para cargar datos del periodo activo.
         </p>
+        <div
+          v-if="vigente"
+          class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm"
+        >
+          <p class="text-zinc-700">
+            Promedios del periodo vigente:
+            <span class="font-semibold text-zinc-900">
+              {{ vigente.promedios_cerrados ? 'cerrados (promedio final / anual)' : 'abiertos (promedio a la fecha)' }}
+            </span>
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            :disabled="loading"
+            @click="alternarPromediosCerrados"
+          >
+            {{ vigente.promedios_cerrados ? 'Marcar abiertos' : 'Marcar cerrados' }}
+          </Button>
+        </div>
 
         <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
 

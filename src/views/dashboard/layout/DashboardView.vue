@@ -21,7 +21,7 @@ useSessionCloseBeacon()
 
 const isMatriculaMock = computed(() => route.path.includes('/matricula-mock'))
 
-const tituloMatriculaCabecera = computed(() => periodoActivo.tituloMatricula)
+const tituloRematriculaCabecera = computed(() => periodoActivo.tituloRematricula)
 
 function logout() {
   auth.logout()
@@ -43,18 +43,18 @@ function logout() {
           <div class="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
             <SidebarTrigger class="text-zinc-700" />
             <div class="min-w-0 sm:hidden">
-              <p class="truncate text-xs font-medium text-zinc-600">{{ tituloMatriculaCabecera }}</p>
+              <p class="truncate text-xs font-medium text-zinc-600">{{ tituloRematriculaCabecera }}</p>
             </div>
             <div class="hidden min-w-0 sm:block">
               <p class="truncate text-sm font-semibold text-zinc-900">
                 {{ appStore.appName }}
               </p>
-              <p class="truncate text-xs text-zinc-500">{{ tituloMatriculaCabecera }}</p>
+              <p class="truncate text-xs text-zinc-500">{{ tituloRematriculaCabecera }}</p>
             </div>
           </div>
           <div class="hidden flex-shrink-0 text-right md:block">
             <p class="text-lg font-bold tracking-tight text-zinc-900 md:text-xl">
-              {{ tituloMatriculaCabecera }}
+              {{ tituloRematriculaCabecera }}
             </p>
             <div class="mt-1 ml-auto h-1 w-20 rounded-full bg-uniacc-orange md:w-28" />
           </div>

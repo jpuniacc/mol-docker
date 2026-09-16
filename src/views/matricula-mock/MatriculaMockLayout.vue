@@ -51,7 +51,7 @@ const mockRut = computed(() => fuente.rutMostrado.value)
 const mockCarrera = computed(() => fuente.carreraMostrada.value)
 const mockCampus = computed(() => fuente.campusMostrado.value)
 const mockNombre = computed(() => fuente.nombreMostrado.value)
-const tituloMatricula = computed(() => periodoActivo.tituloMatricula)
+const tituloRematricula = computed(() => periodoActivo.tituloRematricula)
 const periodoLabel = computed(() => periodoActivo.label ?? '—')
 const yScroll = ref(0)
 const isCompactHeader = computed(() => yScroll.value > 24)
@@ -79,6 +79,7 @@ function cambiarAlumnoPrueba() {
 }
 
 function anularSimulacion() {
+  mockCtx.clearAlumno()
   void router.push({ name: 'dashboard-home' })
 }
 </script>
@@ -113,7 +114,7 @@ function anularSimulacion() {
                 ]"
               />
             </RouterLink>
-            <!-- <span class="hidden text-sm text-muted-foreground md:inline">{{ tituloMatricula }} — Estudiantes antiguos</span> -->
+            <!-- <span class="hidden text-sm text-muted-foreground md:inline">{{ tituloRematricula }} — Estudiantes antiguos</span> -->
           </div>
           <div class="hidden text-right transition-all duration-200 md:block">
             <p
@@ -122,7 +123,7 @@ function anularSimulacion() {
                 isCompactHeader ? 'text-base' : 'text-lg',
               ]"
             >
-              {{ tituloMatricula }}
+              {{ tituloRematricula }}
             </p>
             <div
               :class="[
@@ -147,7 +148,7 @@ function anularSimulacion() {
               isCompactHeader ? 'md:gap-3' : 'md:gap-4',
             ]"
           >
-            <p class="font-medium">Matrícula en línea — Periodo {{ periodoLabel }}</p>
+            <p class="font-medium">Rematrícula en línea — Periodo {{ periodoLabel }}</p>
             <p class="flex flex-wrap gap-x-4 gap-y-1">
               <span v-if="mockCtx.tieneAlumnoSeleccionado" class="rounded bg-white/20 px-2 py-0.5 text-xs font-semibold">
                 Alumno de prueba
@@ -213,8 +214,8 @@ function anularSimulacion() {
           <StepperTrigger class="flex min-w-0 flex-1 flex-col items-center gap-1">
             <StepperIndicator class="h-9 w-9 text-sm">3</StepperIndicator>
             <div class="text-center">
-              <StepperTitle class="text-xs font-semibold md:text-sm">Firma</StepperTitle>
-              <StepperDescription class="hidden sm:block">Contrato</StepperDescription>
+              <StepperTitle class="text-xs font-semibold md:text-sm">Firma de contrato</StepperTitle>
+              <StepperDescription class="hidden sm:block">Revisión y FES</StepperDescription>
             </div>
           </StepperTrigger>
           <StepperSeparator class="mx-1 mt-4 h-0.5 min-w-[1rem] flex-1 self-start bg-border md:mx-2" />

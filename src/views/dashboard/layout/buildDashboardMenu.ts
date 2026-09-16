@@ -1,5 +1,6 @@
 import type { Component } from 'vue'
 
+import { isValidDashboardMenuRouteName } from '@/constants/dashboardRouteNames'
 import type { BoMenuItemGrupoRow, BoMenuItemRow } from '@/types/supabase'
 import { boMenuGroup, boMenuJson, boMenuLog, boMenuTable } from '@/utils/boMenuDebug'
 
@@ -35,7 +36,7 @@ export type DashboardNavPlanResolved = {
 
 const MOCK_ROUTE_PREFIX = 'matricula-mock'
 
-/** Rutas hijas del flujo mock cuando el usuario ve el ítem «Mock matrícula». */
+/** Rutas hijas del flujo mock cuando el usuario ve el ítem «Mock rematrícula». */
 const MOCK_CHILD_ROUTE_NAMES = [
   'matricula-mock-seleccion-alumno',
   'matricula-mock-datos',
@@ -68,7 +69,7 @@ function pixarronDefaultPlan(): DashboardNavPlanResolved {
       {
         kind: 'link',
         routeName: 'matricula-mock-seleccion-alumno',
-        label: 'Mock matrícula',
+        label: 'Mock rematrícula',
         icon: menuIconFromKey('GraduationCap'),
       },
     ],
@@ -183,6 +184,10 @@ export function buildDashboardMenuPlan(
         boMenuLog('root link sin route_name, skip:', root.id, root.label)
         continue
       }
+      if (!isValidDashboardMenuRouteName(name)) {
+        boMenuLog('root link route_name no registrada en app, skip:', name, root.label)
+        continue
+      }
       topLinks.push({
         kind: 'link',
         routeName: name,
@@ -236,6 +241,10 @@ export function buildDashboardMenuPlan(
           boMenuLog('hijo link sin route_name, skip:', c.id, c.label)
           continue
         }
+        if (!isValidDashboardMenuRouteName(name)) {
+          boMenuLog('hijo link route_name no registrada en app, skip:', name, c.label)
+          continue
+        }
         children.push({
           kind: 'link',
           routeName: name,
@@ -256,6 +265,14 @@ export function buildDashboardMenuPlan(
         for (const gc of grandChildrenRows) {
           if (!tipoEsLink(gc.tipo)) continue
           if (!gc.route_name) continue
+          if (!isValidDashboardMenuRouteName(gc.route_name)) {
+            boMenuLog(
+              'nieto link route_name no registrada en app, skip:',
+              gc.route_name,
+              gc.label,
+            )
+            continue
+          }
           grandChildrenLinks.push({
             kind: 'link',
             routeName: gc.route_name,

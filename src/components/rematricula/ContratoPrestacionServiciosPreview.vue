@@ -44,9 +44,16 @@ const cuotasAra = computed(() => props.model.cuotas.filter((c) => c.item === 2))
     class="contrato-preview space-y-4 bg-white p-4 text-[11px] leading-relaxed text-zinc-900 shadow-sm sm:p-6 sm:text-xs"
   >
     <header class="space-y-2 border-b border-zinc-200 pb-3">
-      <div class="flex flex-wrap items-start justify-between gap-2">
-        <p class="font-semibold">N° {{ model.numOperacion }}</p>
-        <p class="text-muted-foreground">{{ model.ciudadFirma }} de Chile, a {{ model.fechaContratoLabel }}</p>
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <img
+          src="/Logo/logoUniaccNew.svg"
+          alt="UNIACC"
+          class="h-10 w-auto sm:h-12"
+        />
+        <div class="text-right">
+          <p class="font-semibold">N° {{ model.numOperacion }}</p>
+          <p class="text-muted-foreground">{{ model.ciudadFirma }} de Chile, a {{ model.fechaContratoLabel }}</p>
+        </div>
       </div>
       <h1 class="text-center text-sm font-bold uppercase tracking-wide sm:text-base">
         {{ clausulasFixture.titulo }}

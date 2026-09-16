@@ -1,5 +1,6 @@
 import { TERMINOS_CONDICIONES_MOL_CODIGO } from '@/constants/terminosCondicionesMol'
 import { supabase } from '@/services/supabaseClient'
+import type { UltimaRespuestaTyc } from '@/utils/tycAceptacion'
 
 export type TyCAccionLog = 'acepta' | 'rechaza'
 
@@ -37,4 +38,26 @@ export async function registrarLogTyCRespuesta(payload: RegistrarLogTyCPayload):
 
   if (error) return error.message
   return null
+}
+
+export async function consultarUltimaTycRespuestaAlumno(input: {
+  codcli: string
+  anioPeriodo: number
+  semestrePeriodo: number
+}): Promise<{ data: UltimaRespuestaTyc; error: string | null }> {
+  const { data, error } = await supabase.rpc('consultar_ultima_tyc_respuesta_alumno', {
+    p_codcli: input.codcli,
+    p_anio_periodo: input.anioPeriodo,
+    p_semestre_periodo: input.semestrePeriodo,
+    p_codigo_tyc: TERMINOS_CONDICIONES_MOL_CODIGO,
+  })
+  if (error) return { data: null, error: error.message }
+  const row = Array.isArray(data) ? data[0] : null
+  if (!row || (row.accion !== 'acepta' && row.accion !== 'rechaza')) {
+    return { data: null, error: null }
+  }
+  return {
+    data: { accion: row.accion, tycUpdatedAt: row.tyc_updated_at },
+    error: null,
+  }
 }

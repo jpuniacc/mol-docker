@@ -3,7 +3,7 @@
  * Aquí puedes agregar estado global que necesites
  */
 export const useAppStore = defineStore('app-store', () => {
-  const appName = ref('Sitio Matricula Online')
+  const appName = ref('Sitio Rematrícula Online')
   const isLoading = ref(false)
 
   const setLoading = (loading: boolean) => {

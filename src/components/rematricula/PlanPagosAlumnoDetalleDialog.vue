@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { filaFueraCarteraOficial } from '@/constants/carteraOficial'
 import { fmtMontoClp } from '@/services/fetchPlanPagosMv'
 import type { PlanPagosMvBeneficioDetalle, PlanPagosMvRow } from '@/types/supabase'
 
@@ -246,6 +247,12 @@ const detalleTieneBeneficios = computed(
           <Badge variant="secondary">
             {{ row.estado_academico ?? 'Estado no informado' }}
           </Badge>
+          <Badge
+            v-if="filaFueraCarteraOficial(row)"
+            class="bg-red-600 hover:bg-red-600/90"
+          >
+            Fuera de cartera oficial
+          </Badge>
         </div>
       </DialogHeader>
 
@@ -319,9 +326,19 @@ const detalleTieneBeneficios = computed(
                 <span class="text-zinc-500">Nombre completo</span>
                 <span class="text-right">{{ nombreCompletoApoderado(row) }}</span>
               </div>
-              <div class="flex justify-between gap-4 py-2">
+              <div class="flex justify-between gap-4 border-b border-zinc-100 py-2">
+                <span class="text-zinc-500">Responsable financiero</span>
+                <span class="text-right">{{ fmtTexto(row.es_responsable_financiero) }}</span>
+              </div>
+              <div class="flex justify-between gap-4 border-b border-zinc-100 py-2">
                 <span class="text-zinc-500">Teléfono</span>
-                <span class="text-right">{{ fmtTexto(row.telefono_apoderado) }}</span>
+                <span class="text-right">{{
+                  fmtTexto(row.telefono_apoder ?? row.telefono_apoderado)
+                }}</span>
+              </div>
+              <div class="flex justify-between gap-4 py-2">
+                <span class="text-zinc-500">Email</span>
+                <span class="text-right">{{ fmtTexto(row.mail_apoder) }}</span>
               </div>
             </CardContent>
           </Card>

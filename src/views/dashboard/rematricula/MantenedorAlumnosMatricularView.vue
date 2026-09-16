@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { toast } from 'vue-sonner'
-import { CloudDownload, Eye, RefreshCw, Search } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, CloudDownload, Eye, RefreshCw, Search } from 'lucide-vue-next'
 
 import PlanPagosAlumnoDetalleDialog from '@/components/rematricula/PlanPagosAlumnoDetalleDialog.vue'
 import { Badge } from '@/components/ui/badge'
@@ -17,22 +17,24 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { filaFueraCarteraOficial } from '@/constants/carteraOficial'
+import { useTablaPaginada } from '@/composables/useTablaPaginada'
 import { syncAlumnosPeriodoFromErp } from '@/services/alumnosPeriodoSyncApi'
-import { fetchPlanPagosMv } from '@/services/fetchPlanPagosMv'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
+import { usePlanPagosMvStore } from '@/stores/planPagosMv'
 import type { PlanPagosMvRow } from '@/types/supabase'
 
 const periodoStore = usePeriodoActivoStore()
+const planPagos = usePlanPagosMvStore()
 const { label: periodoActivoLabel, anio, semestre } = storeToRefs(periodoStore)
+const { rows, loading, error: loadError } = storeToRefs(planPagos)
 
-const rows = ref<PlanPagosMvRow[]>([])
-const loading = ref(false)
-const loadError = ref<string | null>(null)
 const syncing = ref(false)
 
 const filtroRut = ref('')
 const filtroNombre = ref('')
 const filtroCodcli = ref('')
+const soloFueraCartera = ref(false)
 
 const detalleOpen = ref(false)
 const detalleRow = ref<PlanPagosMvRow | null>(null)
@@ -94,29 +96,32 @@ const rowsFiltradas = computed(() => {
     if (qRut && !rutNorm(r.rut).includes(rutNorm(qRut))) return false
     if (qNombre && !nombreCompleto(r).toLowerCase().includes(qNombre)) return false
     if (qCodcli && !(r.codcli ?? '').toLowerCase().includes(qCodcli)) return false
+    if (soloFueraCartera.value && !filaFueraCarteraOficial(r)) return false
     return true
   })
 })
 
-async function cargarDatos() {
-  loading.value = true
-  loadError.value = null
-  try {
-    const anioVal = anio.value ?? undefined
-    const semVal = semestre.value ?? undefined
-    const { data, error } = await fetchPlanPagosMv({
-      anioMatricula: anioVal,
-      periodoMatricula: semVal,
-    })
-    if (error) {
-      loadError.value = error
-      rows.value = []
-      return
-    }
-    rows.value = data
-  } finally {
-    loading.value = false
+const {
+  page,
+  totalPages,
+  pageItems: rowsPagina,
+  rangoDesde,
+  rangoHasta,
+  resetPage,
+  irAPaginaAnterior,
+  irAPaginaSiguiente,
+} = useTablaPaginada(rowsFiltradas)
+
+watch([filtroRut, filtroNombre, filtroCodcli, soloFueraCartera], resetPage)
+
+const totalFueraCartera = computed(() => rows.value.filter((r) => filaFueraCarteraOficial(r)).length)
+
+async function cargarDatos(force = false) {
+  if (force) {
+    await planPagos.fetchAll(anio.value, semestre.value)
+    return
   }
+  await planPagos.ensureLoaded(anio.value, semestre.value)
 }
 
 async function sincronizarDesdeErp() {
@@ -130,7 +135,7 @@ async function sincronizarDesdeErp() {
     toast.success(
       `Sync completada: ${result.filasCargadas ?? 0} alumnos (${result.periodo ?? periodoActivoLabel.value ?? '—'})`,
     )
-    await cargarDatos()
+    await cargarDatos(true)
   } finally {
     syncing.value = false
   }
@@ -161,7 +166,7 @@ onMounted(() => {
             variant="outline"
             class="gap-1.5"
             :disabled="loading || syncing"
-            @click="cargarDatos"
+            @click="cargarDatos(true)"
           >
             <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loading }" />
             Actualizar
@@ -214,6 +219,12 @@ onMounted(() => {
           </div>
         </div>
 
+        <label class="flex w-fit cursor-pointer items-center gap-2 text-sm text-zinc-700">
+          <input v-model="soloFueraCartera" type="checkbox" class="h-4 w-4 accent-red-600" />
+          Solo fuera de cartera oficial
+          <Badge class="bg-red-600 hover:bg-red-600/90">{{ totalFueraCartera }}</Badge>
+        </label>
+
         <div class="rounded-md border border-zinc-200">
           <Table>
             <TableHeader>
@@ -240,9 +251,19 @@ onMounted(() => {
                   Sin registros para mostrar.
                 </TableCell>
               </TableRow>
-              <TableRow v-for="row in rowsFiltradas" :key="`${row.codcli}-${row.cod_carrera}`">
+              <TableRow v-for="row in rowsPagina" :key="`${row.codcli}-${row.cod_carrera}`">
                 <TableCell class="font-mono text-xs">{{ row.codcli ?? '—' }}</TableCell>
-                <TableCell>{{ row.rut ?? '—' }}</TableCell>
+                <TableCell>
+                  <div class="flex flex-col gap-1">
+                    <span>{{ row.rut ?? '—' }}</span>
+                    <Badge
+                      v-if="filaFueraCarteraOficial(row)"
+                      class="w-fit bg-red-600 hover:bg-red-600/90"
+                    >
+                      Fuera de cartera
+                    </Badge>
+                  </div>
+                </TableCell>
                 <TableCell>{{ nombreCompleto(row) || '—' }}</TableCell>
                 <TableCell class="max-w-[200px] truncate" :title="row.carrera ?? undefined">
                   {{ row.carrera ?? '—' }}
@@ -278,9 +299,49 @@ onMounted(() => {
           </Table>
         </div>
 
-        <p class="text-xs text-zinc-500">
-          Mostrando {{ rowsFiltradas.length }} de {{ rows.length }} registros.
-        </p>
+        <div
+          v-if="rowsFiltradas.length > 0"
+          class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border bg-muted/30 px-4 py-3"
+        >
+          <p class="text-xs text-zinc-600">
+            Mostrando
+            <span class="font-semibold text-zinc-900">{{ rangoDesde }}</span>
+            –
+            <span class="font-semibold text-zinc-900">{{ rangoHasta }}</span>
+            de
+            <span class="font-semibold text-zinc-900">{{ rowsFiltradas.length }}</span>
+            filtrados
+            <span class="text-zinc-500">
+              ({{ rows.length }} en total, {{ totalFueraCartera }} fuera de cartera)
+            </span>
+          </p>
+          <div class="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              :disabled="page === 1"
+              @click="irAPaginaAnterior"
+            >
+              <ChevronLeft class="mr-1 h-4 w-4" />
+              Anterior
+            </Button>
+            <div class="rounded-md border bg-background px-3 py-1.5 text-sm">
+              <span class="font-semibold">{{ page }}</span>
+              <span class="text-muted-foreground"> / {{ totalPages }}</span>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              :disabled="page >= totalPages"
+              @click="irAPaginaSiguiente"
+            >
+              Siguiente
+              <ChevronRight class="ml-1 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
 

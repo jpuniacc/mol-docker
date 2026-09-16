@@ -8,7 +8,7 @@ export const CONVENIO_DOC_ACCEPT = '.pdf,.png,.jpg,.jpeg'
 
 export type SubirDocumentoConvenioPayload = ContextoMolAuditoriaOpciones & {
   file: File
-  convenioId: string
+  convenioId?: string | null
   codigoBeneficio?: string | null
   codBeneficioAlumno?: string | null
   estadoConvenio?: string | null
@@ -37,6 +37,13 @@ export async function subirDocumentoConvenio(
   payload: SubirDocumentoConvenioPayload,
 ): Promise<SubirDocumentoConvenioResult> {
   const { file, convenioId } = payload
+  const folderId = sanitizarNombreArchivo(
+    (convenioId && /^[0-9a-f-]{36}$/i.test(convenioId)
+      ? convenioId
+      : payload.codigoBeneficio) || 'certificado',
+  )
+  const convenioUuid =
+    convenioId && /^[0-9a-f-]{36}$/i.test(convenioId) ? convenioId : null
 
   if (!file) {
     return { id: null, storagePath: null, error: 'No se seleccionó ningún archivo.' }
@@ -55,7 +62,7 @@ export async function subirDocumentoConvenio(
   const ctx = contextoMolAuditoria(payload)
   const codcliSegmento = sanitizarNombreArchivo((ctx.codcli ?? 'sin-codcli').toString())
   const nombreArchivo = sanitizarNombreArchivo(file.name)
-  const storagePath = `mock/${codcliSegmento}/${convenioId}/${Date.now()}_${nombreArchivo}`
+  const storagePath = `mock/${codcliSegmento}/${folderId}/${Date.now()}_${nombreArchivo}`
 
   const { error: uploadError } = await supabase.storage
     .from(CONVENIO_DOC_BUCKET)
@@ -71,7 +78,7 @@ export async function subirDocumentoConvenio(
 
   const { data, error } = await supabase.rpc('registrar_mnp_convenio_documento', {
     p_storage_path: storagePath,
-    p_convenio_id: convenioId,
+    p_convenio_id: convenioUuid,
     p_codigo_beneficio: payload.codigoBeneficio ?? null,
     p_cod_beneficio_alumno: payload.codBeneficioAlumno ?? null,
     p_estado_convenio: payload.estadoConvenio ?? null,

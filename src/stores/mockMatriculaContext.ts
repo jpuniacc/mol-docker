@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 
+import { useMatriculaFlujoPreflightStore } from '@/stores/datos_erp/matricula_flujo_preflight'
 import { usePa08MtArancelSelMatriculaNetStore } from '@/stores/datos_erp/pa08_MT_ARANCEL_sel_MATRICULA_NET'
 import { useSpAlumnoDeudaNetStore } from '@/stores/datos_erp/sp_alumno_deuda_net'
 import { useSpListaDocpagMatriculaCajaArancelStore } from '@/stores/datos_erp/sp_lista_docpag_matricula_caja_arancel'
@@ -29,10 +30,13 @@ export type MockCuotaPagareDetalle = {
   vencimiento: string
   monto: number
   totalAcumulado: number
-  items: 'MATRICULA'
+  items: 'MATRICULA' | 'ARANCEL'
+  item: 1 | 2
   cuota: number
-  totalCuotas: 10
+  totalCuotas: 10 | 12
   idDocumento: 5
+  ctapagnum: string
+  ctadocnum: string
 }
 
 export type MockPagoMatricula = {
@@ -40,7 +44,7 @@ export type MockPagoMatricula = {
   /** Solo camino pagaré: tipodoc ERP. */
   tipodoc?: '5'
   nombre: string
-  cuotas?: 10
+  cuotas?: 10 | 12
   diaVencimiento?: 5 | 15 | 25
   fechaInicio?: string
   monto: number
@@ -48,6 +52,9 @@ export type MockPagoMatricula = {
   /** true para toku/webpay (simulación). */
   simulado?: boolean
   cuotasDetalle?: MockCuotaPagareDetalle[]
+  numOperacion?: string
+  contrato?: string
+  stagingCounts?: { docitem: number; ctadoc: number; ctapag: number; ctadep: number }
 }
 
 const MOCK_CTX_STORAGE_KEY = 'rematricula-mock-matricula'
@@ -63,6 +70,9 @@ type StoredMockMatriculaContext = {
   pagoMatricula: MockPagoMatricula | null
   apoderadoConfirmado: boolean | null
   apoderadoBloqueo: boolean
+  convenioCertificadoBloqueo: boolean
+  estatalBloqueo: boolean
+  promedioBloqueo: boolean
 }
 
 function sanitizeConveniosDocumentos(v: unknown): Record<string, MockConvenioDocumento> {
@@ -98,47 +108,6 @@ function isFormaPago(v: unknown): v is 'webpay' | 'pagare' | 'toku' {
   return v === 'webpay' || v === 'pagare' || v === 'toku'
 }
 
-function isDiaVencimiento(v: unknown): v is 5 | 15 | 25 {
-  return v === 5 || v === 15 || v === 25
-}
-
-function sanitizePagoMatricula(v: unknown): MockPagoMatricula | null {
-  if (typeof v !== 'object' || v === null) return null
-  const o = v as Partial<MockPagoMatricula>
-  if (!isFormaPago(o.medio)) return null
-  if (typeof o.nombre !== 'string' || !o.nombre.trim()) return null
-  const monto = Number(o.monto)
-  if (!Number.isFinite(monto) || monto < 0) return null
-
-  const base: MockPagoMatricula = {
-    medio: o.medio,
-    nombre: o.nombre.trim(),
-    monto,
-    simulado: o.simulado === true,
-  }
-
-  if (o.medio === 'pagare') {
-    if (o.tipodoc !== '5') return null
-    if (o.cuotas !== 10) return null
-    if (!isDiaVencimiento(o.diaVencimiento)) return null
-    if (typeof o.fechaInicio !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(o.fechaInicio)) {
-      return null
-    }
-    base.tipodoc = '5'
-    base.cuotas = 10
-    base.diaVencimiento = o.diaVencimiento
-    base.fechaInicio = o.fechaInicio
-    const vc = Number(o.valorCuota)
-    base.valorCuota = Number.isFinite(vc) ? vc : Math.round(monto / 10)
-    base.simulado = false
-    if (Array.isArray(o.cuotasDetalle) && o.cuotasDetalle.length === 10) {
-      base.cuotasDetalle = o.cuotasDetalle as MockCuotaPagareDetalle[]
-    }
-  }
-
-  return base
-}
-
 export const useMockMatriculaContextStore = defineStore('mockMatriculaContext', {
   state: () => ({
     selectedPlanPagos: null as PlanPagosMvRow | null,
@@ -151,6 +120,9 @@ export const useMockMatriculaContextStore = defineStore('mockMatriculaContext', 
     pagoMatricula: null as MockPagoMatricula | null,
     apoderadoConfirmado: null as boolean | null,
     apoderadoBloqueo: false,
+    convenioCertificadoBloqueo: false,
+    estatalBloqueo: false,
+    promedioBloqueo: false,
   }),
   getters: {
     tieneAlumnoSeleccionado: (s) => s.selectedPlanPagos != null,
@@ -179,6 +151,9 @@ export const useMockMatriculaContextStore = defineStore('mockMatriculaContext', 
         pagoMatricula: this.pagoMatricula,
         apoderadoConfirmado: this.apoderadoConfirmado,
         apoderadoBloqueo: this.apoderadoBloqueo,
+        convenioCertificadoBloqueo: this.convenioCertificadoBloqueo,
+        estatalBloqueo: this.estatalBloqueo,
+        promedioBloqueo: this.promedioBloqueo,
       }
       sessionStorage.setItem(MOCK_CTX_STORAGE_KEY, JSON.stringify(payload))
     },
@@ -206,12 +181,18 @@ export const useMockMatriculaContextStore = defineStore('mockMatriculaContext', 
           : null
         this.firmaCompletada = parsed.firmaCompletada === true
         this.conveniosDocumentos = sanitizeConveniosDocumentos(parsed.conveniosDocumentos)
-        this.pagoMatricula = sanitizePagoMatricula(parsed.pagoMatricula)
+        this.pagoMatricula =
+          parsed.pagoMatricula && typeof parsed.pagoMatricula === 'object'
+            ? parsed.pagoMatricula
+            : null
         this.apoderadoConfirmado =
           parsed.apoderadoConfirmado === true || parsed.apoderadoConfirmado === false
             ? parsed.apoderadoConfirmado
             : null
         this.apoderadoBloqueo = parsed.apoderadoBloqueo === true
+        this.convenioCertificadoBloqueo = parsed.convenioCertificadoBloqueo === true
+        this.estatalBloqueo = parsed.estatalBloqueo === true
+        this.promedioBloqueo = parsed.promedioBloqueo === true
       } catch {
         sessionStorage.removeItem(MOCK_CTX_STORAGE_KEY)
       }
@@ -219,6 +200,14 @@ export const useMockMatriculaContextStore = defineStore('mockMatriculaContext', 
 
     clearSessionStorage() {
       sessionStorage.removeItem(MOCK_CTX_STORAGE_KEY)
+    },
+
+    resetStoresErp() {
+      usePa08MtArancelSelMatriculaNetStore().reset()
+      useSpListaDocpagMatriculaCajaMatriculaStore().reset()
+      useSpListaDocpagMatriculaCajaArancelStore().reset()
+      useSpAlumnoDeudaNetStore().reset()
+      useMatriculaFlujoPreflightStore().reset()
     },
 
     setAlumno(planRow: PlanPagosMvRow) {
@@ -232,10 +221,10 @@ export const useMockMatriculaContextStore = defineStore('mockMatriculaContext', 
       this.pagoMatricula = null
       this.apoderadoConfirmado = null
       this.apoderadoBloqueo = false
-      usePa08MtArancelSelMatriculaNetStore().reset()
-      useSpListaDocpagMatriculaCajaMatriculaStore().reset()
-      useSpListaDocpagMatriculaCajaArancelStore().reset()
-      useSpAlumnoDeudaNetStore().reset()
+      this.convenioCertificadoBloqueo = false
+      this.estatalBloqueo = false
+      this.promedioBloqueo = false
+      this.resetStoresErp()
       this.persistToSessionStorage()
     },
 
@@ -256,10 +245,10 @@ export const useMockMatriculaContextStore = defineStore('mockMatriculaContext', 
       this.pagoMatricula = null
       this.apoderadoConfirmado = null
       this.apoderadoBloqueo = false
-      usePa08MtArancelSelMatriculaNetStore().reset()
-      useSpListaDocpagMatriculaCajaMatriculaStore().reset()
-      useSpListaDocpagMatriculaCajaArancelStore().reset()
-      useSpAlumnoDeudaNetStore().reset()
+      this.convenioCertificadoBloqueo = false
+      this.estatalBloqueo = false
+      this.promedioBloqueo = false
+      this.resetStoresErp()
       this.clearSessionStorage()
     },
 
@@ -328,6 +317,21 @@ export const useMockMatriculaContextStore = defineStore('mockMatriculaContext', 
     marcarApoderadoDesactualizado() {
       this.apoderadoConfirmado = false
       this.apoderadoBloqueo = true
+      this.persistToSessionStorage()
+    },
+
+    setConvenioCertificadoBloqueo(bloqueado: boolean) {
+      this.convenioCertificadoBloqueo = bloqueado
+      this.persistToSessionStorage()
+    },
+
+    setEstatalBloqueo(bloqueado: boolean) {
+      this.estatalBloqueo = bloqueado
+      this.persistToSessionStorage()
+    },
+
+    setPromedioBloqueo(bloqueado: boolean) {
+      this.promedioBloqueo = bloqueado
       this.persistToSessionStorage()
     },
   },

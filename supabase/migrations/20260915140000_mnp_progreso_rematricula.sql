@@ -496,12 +496,12 @@ GRANT EXECUTE ON FUNCTION public.listar_timeline_mol_alumno(text, integer, integ
 INSERT INTO public.bo_menu_item (id, parent_id, tipo, label, route_name, icon_key, orden, activo)
 VALUES (
   'b0000001-0001-4000-8000-000000000041',
-  'b0000001-0001-4000-8000-000000000024',
+  'b0000001-0001-4000-8000-000000000020',
   'link',
   'KPI rematrícula',
   'dashboard-rematricula-kpi',
   'LayoutDashboard',
-  28,
+  26,
   true
 )
 ON CONFLICT (id) DO UPDATE SET
@@ -517,12 +517,12 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO public.bo_menu_item (id, parent_id, tipo, label, route_name, icon_key, orden, activo)
 VALUES (
   'b0000001-0001-4000-8000-000000000042',
-  'b0000001-0001-4000-8000-000000000024',
+  'b0000001-0001-4000-8000-000000000020',
   'link',
   'Seguimiento alumnos',
   'dashboard-rematricula-seguimiento',
   'ListOrdered',
-  29,
+  27,
   true
 )
 ON CONFLICT (id) DO UPDATE SET

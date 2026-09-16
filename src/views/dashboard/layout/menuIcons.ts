@@ -11,6 +11,8 @@ import {
   GraduationCap,
   Handshake,
   Home,
+  LayoutDashboard,
+  ListOrdered,
   Menu,
   PenLine,
   Percent,
@@ -38,6 +40,8 @@ const ICON_MAP: Record<string, Component> = {
   FileCheck,
   Percent,
   PenLine,
+  LayoutDashboard,
+  ListOrdered,
 }
 
 export function menuIconFromKey(iconKey: string | null | undefined): Component {
