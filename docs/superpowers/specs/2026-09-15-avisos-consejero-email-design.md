@@ -74,7 +74,7 @@ Una fila = un mail inmediato.
 | `payload` | jsonb (detalle apoderado, firmantes, etc.) |
 | `estado` | `pendiente` → `enviado` \| `error` \| `omitido` |
 | `intentos`, `ultimo_error`, `enviado_en` | Worker |
-| `es_mock` | Si true, no se inserta / se marca omitido |
+| `es_mock` | Marca de origen mock; **sí se encola y se envía** (To ejecutivo cartera, CC mol@). No va al alumno. |
 
 **Unicidad:**
 
