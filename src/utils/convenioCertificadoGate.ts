@@ -37,11 +37,11 @@ export function matchCasoConvenioCertificado(
   const payload = (caso.payload ?? {}) as Record<string, unknown>
   const convId = payloadStr(payload, 'convenio_id')
   if (convId && convId === convenio.id) return true
-  const cod = payloadStr(payload, 'codigo_beneficio')
-  if (cod && norm(cod) === norm(convenio.codigoBeneficio)) return true
   const ref = (caso.ref_id ?? '').trim()
   const path = (storagePathDoc ?? '').trim()
   if (ref && path && ref === path) return true
+  const cod = payloadStr(payload, 'codigo_beneficio')
+  if (cod && norm(cod) === norm(convenio.codigoBeneficio)) return true
   return false
 }
 
@@ -54,9 +54,8 @@ export function estadoCertificadoConvenio(
     matchCasoConvenioCertificado(c, convenio, storagePathDoc),
   )
   if (matches.length === 0) return null
-  // Preferir el más reciente por updated_at
-  matches.sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
-  return matches[0]!.estado
+  const sorted = [...matches].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
+  return sorted[0]!.estado
 }
 
 export function casoCertificadoConvenio(
@@ -68,8 +67,8 @@ export function casoCertificadoConvenio(
     matchCasoConvenioCertificado(c, convenio, storagePathDoc),
   )
   if (matches.length === 0) return null
-  matches.sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
-  return matches[0] ?? null
+  const sorted = [...matches].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
+  return sorted[0] ?? null
 }
 
 export function evaluarGateMatriculaConvenios(input: {
@@ -96,7 +95,8 @@ export function evaluarGateMatriculaConvenios(input: {
       return {
         puedePagarPorConvenio: false,
         motivo: 'sin_caso',
-        mensaje: 'Documento en revisión por tu consejero. Podrás pagar cuando lo aprueben.',
+        mensaje:
+          'No encontramos el caso de revisión del documento. Contacta a tu consejero o vuelve a subir el archivo.',
         motivoRechazo: null,
       }
     }

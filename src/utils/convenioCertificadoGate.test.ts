@@ -40,7 +40,17 @@ describe('matchCasoConvenioCertificado', () => {
     ).toBe(true)
   })
 
-  it('usa codigo_beneficio si no hay convenio_id', () => {
+  it('usa ref_id vs storagePath antes que codigo_beneficio', () => {
+    expect(
+      matchCasoConvenioCertificado(
+        caso({ ref_id: 'path/a.pdf', payload: { codigo_beneficio: '9999' } }),
+        { id: 'conv-1', codigoBeneficio: '1552' },
+        'path/a.pdf',
+      ),
+    ).toBe(true)
+  })
+
+  it('usa codigo_beneficio si no hay convenio_id ni ref_id coincidente', () => {
     expect(
       matchCasoConvenioCertificado(
         caso({ payload: { codigo_beneficio: '1552' } }),
@@ -57,6 +67,43 @@ describe('matchCasoConvenioCertificado', () => {
         'path/a.pdf',
       ),
     ).toBe(true)
+  })
+})
+
+describe('estadoCertificadoConvenio', () => {
+  const convenio = { id: 'conv-1', codigoBeneficio: '1552' }
+
+  it('devuelve null sin match', () => {
+    expect(
+      estadoCertificadoConvenio(
+        [caso({ estado: 'APROBADO', payload: { convenio_id: 'otro' } })],
+        convenio,
+        'p',
+      ),
+    ).toBeNull()
+  })
+
+  it('elige el caso más reciente por updated_at', () => {
+    expect(
+      estadoCertificadoConvenio(
+        [
+          caso({
+            id: 'old',
+            estado: 'EN_REVISION',
+            updated_at: '2026-01-01T00:00:00Z',
+            payload: { convenio_id: 'conv-1' },
+          }),
+          caso({
+            id: 'new',
+            estado: 'APROBADO',
+            updated_at: '2026-06-01T00:00:00Z',
+            payload: { convenio_id: 'conv-1' },
+          }),
+        ],
+        convenio,
+        'p',
+      ),
+    ).toBe('APROBADO')
   })
 })
 
@@ -88,6 +135,29 @@ describe('evaluarGateMatriculaConvenios', () => {
     })
     expect(r.puedePagarPorConvenio).toBe(false)
     expect(r.motivo).toBe('sin_caso')
+    expect(r.mensaje).toContain('No encontramos el caso de revisión')
+    expect(r.mensaje).not.toContain('en revisión')
+  })
+
+  it('ABIERTO → bloquea como en_revision', () => {
+    const r = evaluarGateMatriculaConvenios({
+      vigentes: [vigente],
+      casos: [caso({ estado: 'ABIERTO', payload: { convenio_id: 'conv-1' } })],
+      docsByConvenioId: { 'conv-1': { storagePath: 'p', nombreArchivo: 'a.pdf' } },
+    })
+    expect(r.puedePagarPorConvenio).toBe(false)
+    expect(r.motivo).toBe('en_revision')
+    expect(r.mensaje).toContain('en revisión')
+  })
+
+  it('CERRADO → bloquea (fail closed)', () => {
+    const r = evaluarGateMatriculaConvenios({
+      vigentes: [vigente],
+      casos: [caso({ estado: 'CERRADO', payload: { convenio_id: 'conv-1' } })],
+      docsByConvenioId: { 'conv-1': { storagePath: 'p', nombreArchivo: 'a.pdf' } },
+    })
+    expect(r.puedePagarPorConvenio).toBe(false)
+    expect(r.motivo).toBe('en_revision')
   })
 
   it('EN_REVISION → bloquea', () => {
