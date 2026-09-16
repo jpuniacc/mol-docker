@@ -355,6 +355,10 @@ export function allowedRouteNamesFromMenu(
   if (names.has('matricula-mock-seleccion-alumno') || names.has('matricula-mock-datos')) {
     for (const m of MOCK_CHILD_ROUTE_NAMES) names.add(m)
   }
+  // Gestión de firmas se usa desde Casos; el ítem de menú 041 fue reutilizado por KPI.
+  if (names.has('dashboard-casos-rematricula')) {
+    names.add('dashboard-gestion-firmas')
+  }
   boMenuJson('allowedRouteNamesFromMenu() Set como array', [...names])
   return names
 }
