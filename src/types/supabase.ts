@@ -799,6 +799,22 @@ export type MnpCarteraOficialRow = {
   email_ejecutivo?: string | null;
 };
 
+/** Cartera de beneficios (becas) vigentes por periodo (Excel). */
+export type MnpCarteraBeneficiosRow = {
+  periodo: string;
+  rut_norm: string;
+  codcli_excel: string;
+  codcarpr: string | null;
+  beca_1: string | null;
+  pct_1: number | null;
+  beca_2: string | null;
+  pct_2: number | null;
+  consolidado: string | null;
+  cod_beneficio_1: string | null;
+  cod_beneficio_2: string | null;
+  loaded_at: string;
+};
+
 /** Ítem del menú lateral del backoffice (`bo_menu_item`). */
 export type BoMenuItemRow = {
   id: string;
@@ -866,6 +882,16 @@ export type Database = {
         Row: MnpCarteraOficialRow;
         Insert: Partial<MnpCarteraOficialRow> & { rut_norm: string };
         Update: Partial<MnpCarteraOficialRow>;
+        Relationships: [];
+      };
+      mnp_cartera_beneficios: {
+        Row: MnpCarteraBeneficiosRow;
+        Insert: Partial<MnpCarteraBeneficiosRow> & {
+          periodo: string;
+          rut_norm: string;
+          codcli_excel: string;
+        };
+        Update: Partial<MnpCarteraBeneficiosRow>;
         Relationships: [];
       };
       mnp_informacion_finanzas: {
@@ -1134,6 +1160,14 @@ export type Database = {
       activar_tp_mnp_erp_sp_ambiente: {
         Args: { p_ambiente: string };
         Returns: undefined;
+      };
+      consultar_cartera_beneficios: {
+        Args: {
+          p_periodo: string;
+          p_codcli_excel?: string | null;
+          p_rut_norm?: string | null;
+        };
+        Returns: MnpCarteraBeneficiosRow[];
       };
       actualizar_estado_alumno: {
         Args: {
