@@ -1263,6 +1263,7 @@ export type Database = {
           p_detalle?: string | null;
           p_ref_tipo?: string | null;
           p_ref_id?: string | null;
+          p_es_mock?: boolean | null;
           p_payload?: Record<string, unknown> | null;
         };
         Returns: string;

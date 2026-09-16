@@ -13,7 +13,13 @@ import {
   TYC_RECHAZO_SONNER_MENSAJE,
 } from '@/constants/terminosCondicionesMol'
 import { useMockAlumnoFuente } from '@/composables/useMockAlumnoFuente'
+import {
+  abrirCasoRematricula,
+  consultarCasosAlumno,
+  resolverCasoRematricula,
+} from '@/services/casoRematriculaApi'
 import { contextoMolAuditoria } from '@/services/molAuditContext'
+import { periodoCatalogoLabel } from '@/utils/periodoCatalogo'
 import { registrarLogTyCRespuesta, type TyCAccionLog } from '@/services/tycAuditLog'
 import { useAuthStore } from '@/stores/auth'
 import { useMockMatriculaContextStore } from '@/stores/mockMatriculaContext'
@@ -88,11 +94,37 @@ async function registrarAccionTyC(accion: TyCAccionLog): Promise<boolean> {
   return true
 }
 
+async function cerrarCasoTycSiAbierto(): Promise<void> {
+  const ctx = contextoMolAuditoria({
+    rutAlumno: pickCampoAlumno(fuente.rutMostrado.value),
+    codcli: pickCampoAlumno(fuente.codcliMostrado.value),
+    nombreAlumno: pickCampoAlumno(fuente.nombreMostrado.value),
+    anioPeriodo: periodoActivo.anio,
+    semestrePeriodo: periodoActivo.semestre,
+    esMock: mockCtx.tieneAlumnoSeleccionado,
+  })
+  const anio = ctx.anioPeriodo
+  const sem = ctx.semestrePeriodo
+  if (!ctx.codcli || anio == null || sem == null) return
+  const { data } = await consultarCasosAlumno(ctx.codcli, periodoCatalogoLabel(anio, sem))
+  const abierto = data.find(
+    (c) => c.tipo === 'TYC_RECHAZO' && (c.estado === 'EN_REVISION' || c.estado === 'ABIERTO'),
+  )
+  if (!abierto) return
+  await resolverCasoRematricula({
+    id: abierto.id,
+    estado: 'CERRADO',
+    resueltoPor: ctx.codcli,
+    motivo: 'El alumno aceptó los TyC en un reingreso.',
+  })
+}
+
 async function aceptar() {
   if (!puedeAceptar.value) return
   registrando.value = true
   try {
     await registrarAccionTyC('acepta')
+    await cerrarCasoTycSiAbierto()
     mockCtx.acceptTyc()
     emit('aceptado')
   } finally {
@@ -105,6 +137,33 @@ async function confirmarRechazo() {
   registrando.value = true
   try {
     await registrarAccionTyC('rechaza')
+    const ctx = contextoMolAuditoria({
+      rutAlumno: pickCampoAlumno(fuente.rutMostrado.value),
+      codcli: pickCampoAlumno(fuente.codcliMostrado.value),
+      nombreAlumno: pickCampoAlumno(fuente.nombreMostrado.value),
+      anioPeriodo: periodoActivo.anio,
+      semestrePeriodo: periodoActivo.semestre,
+      esMock: mockCtx.tieneAlumnoSeleccionado,
+    })
+    const plan = mockCtx.selectedPlanPagos
+    const anio = ctx.anioPeriodo
+    const sem = ctx.semestrePeriodo
+    if (ctx.codcli && anio != null && sem != null) {
+      await abrirCasoRematricula({
+        periodo: periodoCatalogoLabel(anio, sem),
+        tipo: 'TYC_RECHAZO',
+        estado: 'EN_REVISION',
+        codcli: ctx.codcli,
+        rutAlumno: ctx.rutAlumno,
+        nombreAlumno: ctx.nombreAlumno,
+        carrera: (plan?.carrera ?? plan?.nombre_carrera ?? '').trim() || undefined,
+        jornada: (plan?.jornada_carrera ?? '').trim() || undefined,
+        titulo: 'No aceptó términos y condiciones',
+        detalle: 'El alumno rechazó los TyC y la sesión se cerró.',
+        refTipo: 'log_evento',
+        esMock: ctx.esMock,
+      })
+    }
     mockCtx.rejectTyc()
     mockCtx.clearAlumno()
     auth.logout()

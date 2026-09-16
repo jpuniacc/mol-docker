@@ -45,11 +45,13 @@ import {
 import ConvenioVigenteUpload from '@/components/rematricula/ConvenioVigenteUpload.vue'
 import { useMockAlumnoFuente } from '@/composables/useMockAlumnoFuente'
 import { tieneCae } from '@/constants/verificacionCae'
+import { abrirCasoRematricula } from '@/services/casoRematriculaApi'
 import { detectarConveniosAlumno } from '@/services/convenioAlumno'
 import { fmtMontoClp, fetchPlanPagosMvByCodcli } from '@/services/fetchPlanPagosMv'
 import { contextoMolAuditoria, type ContextoMolAuditoriaOpciones } from '@/services/molAuditContext'
 import { ejecutarVerificacionCae } from '@/services/verificacionCae'
 import { registrarFormaPagoAudit } from '@/services/formaPagoAuditLog'
+import { periodoCatalogoLabel } from '@/utils/periodoCatalogo'
 import { useConvenioInstitucionalStore } from '@/stores/convenioInstitucional'
 import { usePa08MtArancelSelMatriculaNetStore } from '@/stores/datos_erp/pa08_MT_ARANCEL_sel_MATRICULA_NET'
 import { useSpAlumnoDeudaNetStore } from '@/stores/datos_erp/sp_alumno_deuda_net'
@@ -325,8 +327,44 @@ const contextoConvenio = computed<ContextoMolAuditoriaOpciones>(() => ({
   esMock: mockCtx.tieneAlumnoSeleccionado,
 }))
 
-function onConvenioSubido(payload: { convenioId: string; doc: MockConvenioDocumento }) {
+async function onConvenioSubido(payload: {
+  convenioId: string
+  doc: MockConvenioDocumento
+  documentoId?: string | null
+}) {
   mockCtx.setConvenioDocumento(payload.convenioId, payload.doc)
+  const ctx = contextoMolAuditoria({
+    rutAlumno: pickCampoAlumno(fuente.rutMostrado.value),
+    codcli: pickCampoAlumno(fuente.codcliMostrado.value),
+    nombreAlumno: pickCampoAlumno(fuente.nombreMostrado.value),
+    anioPeriodo: periodoActivo.anio,
+    semestrePeriodo: periodoActivo.semestre,
+    esMock: mockCtx.tieneAlumnoSeleccionado,
+  })
+  const anio = ctx.anioPeriodo
+  const sem = ctx.semestrePeriodo
+  if (!ctx.codcli || anio == null || sem == null) return
+  const match = conveniosDetectados.value.find((m) => m.convenio.id === payload.convenioId)
+  await abrirCasoRematricula({
+    periodo: periodoCatalogoLabel(anio, sem),
+    tipo: 'CONVENIO_CERTIFICADO',
+    estado: 'EN_REVISION',
+    codcli: ctx.codcli,
+    rutAlumno: ctx.rutAlumno,
+    nombreAlumno: ctx.nombreAlumno,
+    carrera: (plan.value?.carrera ?? plan.value?.nombre_carrera ?? '').trim() || undefined,
+    jornada: (plan.value?.jornada_carrera ?? '').trim() || undefined,
+    titulo: 'Certificado de convenio en revisión',
+    detalle: 'El alumno subió el documento de vigencia del convenio.',
+    refTipo: 'convenio_documento',
+    refId: payload.documentoId ?? payload.doc.storagePath,
+    esMock: ctx.esMock,
+    payload: {
+      convenio_id: payload.convenioId,
+      storage_path: payload.doc.storagePath,
+      codigo_beneficio: match?.convenio.codigo_beneficio ?? null,
+    },
+  })
 }
 
 function onConvenioEliminado(payload: { convenioId: string }) {

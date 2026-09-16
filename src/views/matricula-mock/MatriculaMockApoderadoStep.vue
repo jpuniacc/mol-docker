@@ -6,8 +6,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useMockAlumnoFuente } from '@/composables/useMockAlumnoFuente'
+import { abrirCasoRematricula } from '@/services/casoRematriculaApi'
 import { registrarApoderadoAudit } from '@/services/apoderadoAuditLog'
-import { avisarApoderadoDesactualizado } from '@/services/apoderadoDesactualizadoApi'
+import { periodoCatalogoLabel } from '@/utils/periodoCatalogo'
 import { contextoMolAuditoria } from '@/services/molAuditContext'
 import { useMockMatriculaContextStore } from '@/stores/mockMatriculaContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
@@ -96,6 +97,37 @@ async function marcarDesactualizado(): Promise<void> {
   try {
     mockCtx.marcarApoderadoDesactualizado()
     const ctx = contextoAudit()
+    const carrera =
+      pickCampoAlumno(fuente.carreraMostrada.value) ||
+      (plan.value?.carrera ?? plan.value?.nombre_carrera ?? '').trim() ||
+      'Sin información'
+    const jornada =
+      pickCampoAlumno(fuente.jornadaMostrada.value) ||
+      (plan.value?.jornada_carrera ?? '').trim() ||
+      'Sin información'
+    const anio = ctx.anioPeriodo
+    const sem = ctx.semestrePeriodo
+    if (ctx.codcli && anio != null && sem != null) {
+      await abrirCasoRematricula({
+        periodo: periodoCatalogoLabel(anio, sem),
+        tipo: 'APODERADO_DATOS',
+        estado: 'EN_REVISION',
+        codcli: ctx.codcli,
+        rutAlumno: ctx.rutAlumno,
+        nombreAlumno: ctx.nombreAlumno,
+        carrera,
+        jornada,
+        titulo: 'Datos de apoderado desactualizados',
+        detalle: 'El alumno indicó que nombre, teléfono o email del apoderado no están vigentes.',
+        refTipo: 'log_evento',
+        esMock: ctx.esMock,
+        payload: {
+          apoderadoNombre: nombreApoderado.value,
+          apoderadoTelefono: telefonoApoderado.value,
+          apoderadoEmail: emailApoderado.value,
+        },
+      })
+    }
     await registrarApoderadoAudit({
       accion: 'confirma_desactualizado',
       rutAlumno: ctx.rutAlumno,
@@ -110,42 +142,6 @@ async function marcarDesactualizado(): Promise<void> {
         apoderadoTelefono: telefonoApoderado.value,
         apoderadoEmail: emailApoderado.value,
       },
-    })
-
-    const carrera =
-      pickCampoAlumno(fuente.carreraMostrada.value) ||
-      (plan.value?.carrera ?? plan.value?.nombre_carrera ?? '').trim() ||
-      'Sin información'
-    const jornada =
-      pickCampoAlumno(fuente.jornadaMostrada.value) ||
-      (plan.value?.jornada_carrera ?? '').trim() ||
-      'Sin información'
-
-    const resultado = await avisarApoderadoDesactualizado({
-      rutAlumno: ctx.rutAlumno ?? '',
-      codcli: ctx.codcli ?? '',
-      nombreAlumno: ctx.nombreAlumno ?? '',
-      periodoLabel: ctx.periodoLabel ?? '',
-      carrera,
-      jornada,
-      apoderadoNombre: nombreApoderado.value,
-      apoderadoTelefono: telefonoApoderado.value,
-      apoderadoEmail: emailApoderado.value,
-      urlOrigen: ctx.urlOrigen,
-    })
-
-    await registrarApoderadoAudit({
-      accion: resultado.ok ? 'correo_ok' : 'correo_error',
-      rutAlumno: ctx.rutAlumno,
-      codcli: ctx.codcli,
-      nombreAlumno: ctx.nombreAlumno,
-      anioPeriodo: ctx.anioPeriodo,
-      semestrePeriodo: ctx.semestrePeriodo,
-      esMock: ctx.esMock,
-      urlOrigen: ctx.urlOrigen,
-      payload: resultado.ok
-        ? { ok: true }
-        : { ok: false, message: resultado.message },
     })
   } finally {
     procesando.value = false

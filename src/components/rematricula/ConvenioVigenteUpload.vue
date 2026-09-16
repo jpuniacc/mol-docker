@@ -21,7 +21,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  subido: [payload: { convenioId: string; doc: MockConvenioDocumento }]
+  subido: [payload: { convenioId: string; doc: MockConvenioDocumento; documentoId?: string | null }]
   eliminado: [payload: { convenioId: string }]
 }>()
 
@@ -64,7 +64,11 @@ async function subir() {
       storagePath: res.storagePath,
       nombreArchivo: archivoSeleccionado.value.name,
     }
-    emit('subido', { convenioId: props.match.convenio.id, doc })
+    emit('subido', {
+      convenioId: props.match.convenio.id,
+      doc,
+      documentoId: res.id,
+    })
     toast.success('Documento de vigencia subido correctamente.')
     archivoSeleccionado.value = null
     if (inputEl.value) inputEl.value.value = ''
