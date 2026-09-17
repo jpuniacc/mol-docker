@@ -6,8 +6,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useMockAlumnoFuente } from '@/composables/useMockAlumnoFuente'
-import { abrirCasoRematricula } from '@/services/casoRematriculaApi'
+import { abrirCasoRematricula, consultarCasosAlumno } from '@/services/casoRematriculaApi'
 import { registrarApoderadoAudit } from '@/services/apoderadoAuditLog'
+import { fetchPlanPagosMvByCodcli } from '@/services/fetchPlanPagosMv'
 import { periodoCatalogoLabel } from '@/utils/periodoCatalogo'
 import { contextoMolAuditoria } from '@/services/molAuditContext'
 import { useMockMatriculaContextStore } from '@/stores/mockMatriculaContext'
@@ -27,6 +28,7 @@ const periodoActivo = usePeriodoActivoStore()
 const fuente = useMockAlumnoFuente()
 
 const procesando = ref(false)
+const rehidratando = ref(false)
 
 const plan = computed(() => mockCtx.selectedPlanPagos)
 
@@ -43,8 +45,41 @@ const emailApoderado = computed(() =>
 const bloqueado = computed(() => mockCtx.apoderadoBloqueo === true)
 const mostrarFichaAcciones = computed(() => !bloqueado.value)
 
+async function rehidratarSiCasoResuelto(): Promise<void> {
+  if (!mockCtx.apoderadoBloqueo || rehidratando.value) return
+  const codcli = pickCampoAlumno(fuente.codcliMostrado.value)
+  const anio = periodoActivo.anio
+  const sem = periodoActivo.semestre
+  if (!codcli || anio == null || sem == null) return
+
+  rehidratando.value = true
+  try {
+    const periodo = periodoCatalogoLabel(anio, sem)
+    const { data, error } = await consultarCasosAlumno(codcli, periodo)
+    if (error) return
+    const abierto = data.some(
+      (c) =>
+        c.tipo === 'APODERADO_DATOS' &&
+        (c.estado === 'EN_REVISION' || c.estado === 'ABIERTO'),
+    )
+    if (abierto) return
+
+    const { data: planRow } = await fetchPlanPagosMvByCodcli({
+      codcli,
+      anioMatricula: anio,
+      periodoMatricula: sem,
+    })
+    if (planRow) mockCtx.patchSelectedPlanPagos(planRow)
+    mockCtx.confirmarApoderadoOk()
+  } finally {
+    rehidratando.value = false
+  }
+}
+
 onMounted(() => {
-  void periodoActivo.ensureLoaded()
+  void periodoActivo.ensureLoaded().then(() => {
+    void rehidratarSiCasoResuelto()
+  })
 })
 
 function pickCampoAlumno(val: string): string | null {
@@ -161,6 +196,7 @@ async function marcarDesactualizado(): Promise<void> {
       <AlertDescription class="mt-2 text-sm leading-relaxed">
         Debes comunicarte con tu consejero para actualizar los datos de tu apoderado. También
         informamos al área para gestionar la actualización.
+        <span v-if="rehidratando" class="mt-2 block text-amber-800">Comprobando estado…</span>
       </AlertDescription>
     </Alert>
 

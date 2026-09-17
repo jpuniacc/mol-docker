@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { listarCasosRematricula, resolverCasoRematricula } from '@/services/casoRematriculaApi'
+import { refreshApoderadoFromErp } from '@/services/apoderadoRefreshFromErpApi'
 import {
   listContratoFirmas,
   type ContratoFirmaFirmanteEstado,
@@ -49,7 +50,13 @@ const busqueda = ref('')
 const seleccionado = ref<MnpCasoRematriculaRow | null>(null)
 const motivo = ref('')
 const resolviendo = ref(false)
+const actualizandoApoderado = ref(false)
 const urlArchivo = ref<string | null>(null)
+const apoderadoRefrescado = ref<{
+  nombre: string
+  telefono: string
+  email: string
+} | null>(null)
 
 type FiltroFirmaEstado = 'todos' | 'pendiente' | 'finalizada'
 const firmas = ref<ContratoFirmaListRow[]>([])
@@ -111,6 +118,17 @@ function payloadTexto(row: MnpCasoRematriculaRow, key: string): string | null {
   return typeof v === 'string' && v.trim() ? v : null
 }
 
+function nombreApoderadoDesdeErp(apo: {
+  nombreApoderado: string | null
+  apellidoPaternoApoderado: string | null
+  apellidoMaternoApoderado: string | null
+}): string {
+  return [apo.nombreApoderado, apo.apellidoPaternoApoderado, apo.apellidoMaternoApoderado]
+    .filter((p): p is string => Boolean(p && p.trim()))
+    .join(' ')
+    .trim()
+}
+
 function quienFaltaFirma(firmantes: ContratoFirmaFirmanteEstado[]): string {
   return firmantes.filter((f) => !f.ready).map((f) => f.rol).join(', ') || '—'
 }
@@ -158,6 +176,7 @@ async function abrirDetalle(row: MnpCasoRematriculaRow) {
   seleccionado.value = row
   motivo.value = ''
   urlArchivo.value = null
+  apoderadoRefrescado.value = null
   const path = payloadTexto(row, 'storage_path')
   if (row.tipo === 'CONVENIO_CERTIFICADO' && path) {
     const { data, error } = await supabase.storage
@@ -169,6 +188,56 @@ async function abrirDetalle(row: MnpCasoRematriculaRow) {
 
 function irAGestionFirmas() {
   void router.push({ name: 'dashboard-gestion-firmas' })
+}
+
+async function actualizarDatosApoderado(rowOrigen?: MnpCasoRematriculaRow | null) {
+  const row = rowOrigen ?? seleccionado.value
+  if (!row || row.tipo !== 'APODERADO_DATOS' || row.estado !== 'EN_REVISION') return
+  if (!row.codcli?.trim()) {
+    toast.error('El caso no tiene codcli.')
+    return
+  }
+  actualizandoApoderado.value = true
+  try {
+    if (seleccionado.value?.id !== row.id) {
+      seleccionado.value = row
+      apoderadoRefrescado.value = null
+    }
+    const refreshed = await refreshApoderadoFromErp({
+      codcli: row.codcli,
+      casoId: row.id,
+      rutAlumno: row.rut_alumno,
+      nombreAlumno: row.nombre_alumno,
+      carrera: row.carrera,
+      jornada: row.jornada,
+    })
+    if (!refreshed.ok || !refreshed.apoderado) {
+      toast.error(refreshed.error || 'No se pudo actualizar desde el ERP.')
+      return
+    }
+    const apo = refreshed.apoderado
+    const nombre = nombreApoderadoDesdeErp(apo) || '—'
+    const telefono = apo.telefonoApoder || apo.telefonoApoderado || '—'
+    const email = apo.mailApoder || '—'
+    apoderadoRefrescado.value = { nombre, telefono, email }
+
+    const quien = auth.email?.trim() || auth.displayNombreCompleto?.trim() || 'consejero'
+    const { error } = await resolverCasoRematricula({
+      id: row.id,
+      estado: 'APROBADO',
+      resueltoPor: quien,
+      motivo: 'Datos de apoderado actualizados desde ERP',
+    })
+    if (error) {
+      toast.error(`Datos actualizados en MOL, pero no se pudo cerrar el caso: ${error}`)
+      return
+    }
+    toast.success(`Datos actualizados: ${nombre}. Caso cerrado.`)
+    seleccionado.value = null
+    await cargarCasos()
+  } finally {
+    actualizandoApoderado.value = false
+  }
 }
 
 async function resolver(estado: 'APROBADO' | 'RECHAZADO') {
@@ -287,9 +356,21 @@ onMounted(() => {
               </TableCell>
               <TableCell>{{ row.titulo }}</TableCell>
               <TableCell>
-                <Button type="button" size="sm" variant="outline" @click="abrirDetalle(row)">
-                  Ver
-                </Button>
+                <div class="flex flex-wrap justify-end gap-2">
+                  <Button
+                    v-if="row.tipo === 'APODERADO_DATOS' && row.estado === 'EN_REVISION'"
+                    type="button"
+                    size="sm"
+                    class="bg-uniacc-orange hover:bg-uniacc-orange/90"
+                    :disabled="actualizandoApoderado"
+                    @click="actualizarDatosApoderado(row)"
+                  >
+                    {{ actualizandoApoderado ? '…' : 'Datos actualizados' }}
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" @click="abrirDetalle(row)">
+                    Ver
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
             <TableRow v-if="!loading && filasVisibles.length === 0">
@@ -378,6 +459,36 @@ onMounted(() => {
       <CardContent class="space-y-3">
         <p class="text-sm">{{ seleccionado.detalle }}</p>
         <p v-if="seleccionado.motivo" class="text-sm text-red-700">Motivo: {{ seleccionado.motivo }}</p>
+        <dl
+          v-if="seleccionado.tipo === 'APODERADO_DATOS'"
+          class="space-y-2 rounded-md border bg-muted/40 p-3 text-sm"
+        >
+          <div class="flex justify-between gap-3">
+            <dt class="text-muted-foreground">Apoderado (al abrir)</dt>
+            <dd class="text-right font-medium">
+              {{ payloadTexto(seleccionado, 'apoderadoNombre') || '—' }}
+            </dd>
+          </div>
+          <div class="flex justify-between gap-3">
+            <dt class="text-muted-foreground">Teléfono</dt>
+            <dd class="text-right font-medium">
+              {{ payloadTexto(seleccionado, 'apoderadoTelefono') || '—' }}
+            </dd>
+          </div>
+          <div class="flex justify-between gap-3">
+            <dt class="text-muted-foreground">Email</dt>
+            <dd class="text-right font-medium">
+              {{ payloadTexto(seleccionado, 'apoderadoEmail') || '—' }}
+            </dd>
+          </div>
+          <template v-if="apoderadoRefrescado">
+            <div class="border-t pt-2 text-emerald-700">
+              <p class="font-medium">Datos desde ERP</p>
+              <p>{{ apoderadoRefrescado.nombre }}</p>
+              <p>{{ apoderadoRefrescado.telefono }} · {{ apoderadoRefrescado.email }}</p>
+            </div>
+          </template>
+        </dl>
         <a
           v-if="urlArchivo"
           :href="urlArchivo"
@@ -409,13 +520,37 @@ onMounted(() => {
             >
               Rechazar
             </Button>
+            <Button type="button" variant="ghost" @click="seleccionado = null">Cerrar</Button>
           </div>
         </template>
-        <p v-else class="text-sm text-muted-foreground">
-          Este tipo se lista para seguimiento. La resolución detallada se suma en una siguiente
-          iteración.
-        </p>
-        <Button type="button" variant="ghost" @click="seleccionado = null">Cerrar</Button>
+        <template
+          v-else-if="
+            seleccionado.tipo === 'APODERADO_DATOS' && seleccionado.estado === 'EN_REVISION'
+          "
+        >
+          <p class="text-sm text-muted-foreground">
+            Cuando el apoderado ya esté corregido en el ERP, confirma aquí. Traemos los datos a MOL,
+            cerramos el caso y avisamos por correo.
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              class="bg-uniacc-orange hover:bg-uniacc-orange/90"
+              :disabled="actualizandoApoderado || resolviendo"
+              @click="actualizarDatosApoderado()"
+            >
+              {{ actualizandoApoderado ? 'Actualizando…' : 'Datos actualizados' }}
+            </Button>
+            <Button type="button" variant="ghost" @click="seleccionado = null">Cerrar</Button>
+          </div>
+        </template>
+        <template v-else>
+          <p class="text-sm text-muted-foreground">
+            Este tipo se lista para seguimiento. La resolución detallada se suma en una siguiente
+            iteración.
+          </p>
+          <Button type="button" variant="ghost" @click="seleccionado = null">Cerrar</Button>
+        </template>
       </CardContent>
     </Card>
   </div>
