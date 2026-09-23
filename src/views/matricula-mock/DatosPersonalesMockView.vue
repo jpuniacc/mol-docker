@@ -53,6 +53,10 @@ import {
   CONTACTO_OTP_SIN_VALIDAR_MENSAJE_CORREO,
   CONTACTO_OTP_SIN_VALIDAR_MENSAJE_TELEFONO,
 } from '@/constants/contactoOtpConfig'
+import {
+  actualizarDatosMolErp,
+  fonoactParaSp,
+} from '@/services/actualizarDatosMolApi'
 
 const auth = useAuthStore()
 const otpConfig = useContactoOtpConfigStore()
@@ -111,6 +115,12 @@ const telefonoTocado = ref(false)
 /** 8 dígitos del abonado (sin +569). */
 const telefonoDigitosLocal = ref('')
 
+/** Evita doble POST a SP_ACTUALIZA_DATOS_MOL en la misma sesión de contacto. */
+const erpSyncIntentado = ref(false)
+/** Baseline ERP al cargar/resetear el paso (comparación “¿cambió?”). */
+const baselineMailErp = ref('')
+const baselineFonoDigitsErp = ref('')
+
 /** Código fijo solo en mock; en QA usar OTP real vía API. */
 const MOCK_OTP_CODE = '123456'
 const MOCK_OTP_MAX_INTENTOS = 3
@@ -151,6 +161,13 @@ function sincronizarTelefonoDraftDesdeDigitos() {
   telefonoDraft.value = normalizarTelefonoChile(telefonoDigitosLocal.value)
 }
 
+function capturarBaselineContactoErp(): void {
+  baselineMailErp.value = valorInicialCorreoPersonal().trim().toLowerCase()
+  const tel = telefonoMostrado.value
+  baselineFonoDigitsErp.value = tel === '—' || !tel ? '' : tel.replace(/\D/g, '')
+  erpSyncIntentado.value = false
+}
+
 function sincronizarDraftsContactoDesdeFuente(opciones?: { forzarResetValidacion?: boolean }) {
   if (paso.value !== 'contacto' || datosCargando.value) return
 
@@ -159,6 +176,7 @@ function sincronizarDraftsContactoDesdeFuente(opciones?: { forzarResetValidacion
     emailDraft.value = valorInicialCorreoPersonal()
     telefonoDigitosLocal.value = valorInicialTelefonoDigitos()
     sincronizarTelefonoDraftDesdeDigitos()
+    capturarBaselineContactoErp()
     return
   }
 
@@ -952,10 +970,58 @@ function irPostContacto(): void {
 
 const puedeContinuarDesdeContacto = computed(() => correoValidadoOk.value && telefonoValidadoOk.value)
 
+function contactoCambioRespectoErp(): boolean {
+  const mail = emailDraft.value.trim().toLowerCase()
+  const fonoDigits = fonoactParaSp(telefonoDraft.value)
+  return mail !== baselineMailErp.value || fonoDigits !== baselineFonoDigitsErp.value
+}
+
+async function maybeActualizarDatosErp(): Promise<void> {
+  if (erpSyncIntentado.value) return
+  if (!correoValidadoOk.value || !telefonoValidadoOk.value) return
+  if (!contactoCambioRespectoErp()) return
+
+  const codcli = pickCampoAlumno(fuente.codcliMostrado.value)
+  if (!codcli) {
+    console.warn('[actualiza-datos-mol] sin codcli; se omite SP')
+    return
+  }
+
+  const mail = emailDraft.value.trim()
+  const fonoact = fonoactParaSp(telefonoDraft.value)
+  if (!mail || !fonoact) {
+    console.warn('[actualiza-datos-mol] mail/fono incompletos; se omite SP')
+    return
+  }
+
+  erpSyncIntentado.value = true
+  try {
+    const res = await actualizarDatosMolErp({ codcli, fonoact, mail })
+    if (!res.ok) {
+      console.warn('[actualiza-datos-mol] SP no OK (alumno avanza igual):', {
+        code: res.code,
+        message: res.message,
+        error: res.error,
+        syncStatus: res.syncStatus,
+      })
+    } else {
+      logMockContactoOtp('erp.actualizaDatosMol.ok', {
+        codcli,
+        ambiente: res.params?.ambiente,
+        syncStatus: res.syncStatus,
+        duracionMs: res.duracionMs,
+      })
+    }
+  } catch (e) {
+    console.warn('[actualiza-datos-mol] error de red (alumno avanza igual):', e)
+  }
+}
+
 watch(
   () => correoValidadoOk.value && telefonoValidadoOk.value,
   (listo) => {
     if (listo && paso.value === 'contacto' && !datosCargando.value) {
+      void maybeActualizarDatosErp()
       irPostContacto()
     }
   },
