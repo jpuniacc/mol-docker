@@ -52,16 +52,22 @@ import {
   PERIODO_CARTERA_BENEFICIOS,
 } from '@/services/carteraBeneficiosApi'
 import { detectarConveniosAlumno } from '@/services/convenioAlumno'
+import { fetchBeneficioPeriodo } from '@/services/fetchBeneficioPeriodo'
 import { fmtMontoClp, fetchPlanPagosMvByCodcli } from '@/services/fetchPlanPagosMv'
 import { contextoMolAuditoria, type ContextoMolAuditoriaOpciones } from '@/services/molAuditContext'
 import { ejecutarVerificacionCae } from '@/services/verificacionCae'
 import { registrarFormaPagoAudit } from '@/services/formaPagoAuditLog'
 import {
+  beneficioSeleccionable,
+  etiquetaNoAplica,
   flagsConsolidado,
   itemsBeneficioDesdeCartera,
+  montoUplusTrasCatalogo,
   type BeneficioExcelUiItem,
   type CarteraBeneficioRow,
+  type CatalogoBeneficioAplica,
 } from '@/utils/carteraBeneficiosUi'
+import type { MnpMvBeneficioPeriodoRow } from '@/types/supabase'
 import {
   casoCertificadoConvenio,
   evaluarGateMatriculaConvenios,
@@ -395,8 +401,18 @@ const carteraBeneficiosRow = ref<CarteraBeneficioRow | null>(null)
 const cargandoCarteraBeneficios = ref(false)
 const errorCarteraBeneficios = ref<string | null>(null)
 
+const catalogoPeriodo = ref<MnpMvBeneficioPeriodoRow[]>([])
+
+const catalogoAplica = computed((): CatalogoBeneficioAplica[] =>
+  catalogoPeriodo.value.map((c) => ({
+    codigo_beneficio: c.codigo_beneficio,
+    flujo: c.flujo,
+    aplica: c.aplica,
+  })),
+)
+
 const beneficios = computed((): BeneficioExcelUiItem[] =>
-  itemsBeneficioDesdeCartera(carteraBeneficiosRow.value),
+  itemsBeneficioDesdeCartera(carteraBeneficiosRow.value, catalogoAplica.value),
 )
 
 const flagsConsolidadoUi = computed(() =>
@@ -415,8 +431,18 @@ function pickCampoAlumno(val: string): string | null {
   return t
 }
 
+const codigosNoAplican = computed(() => {
+  const set = new Set<string>()
+  for (const c of catalogoAplica.value) {
+    if (!c.aplica) set.add(c.codigo_beneficio.trim())
+  }
+  return set
+})
+
 const conveniosDetectados = computed(() =>
-  detectarConveniosAlumno(plan.value, convenioStore.rows),
+  detectarConveniosAlumno(plan.value, convenioStore.rows).filter(
+    (m) => !codigosNoAplican.value.has((m.convenio.codigo_beneficio ?? '').trim()),
+  ),
 )
 
 const conveniosVigentes = computed(() =>
@@ -569,9 +595,18 @@ function onConvenioEliminado(payload: { convenioId: string }) {
 function initBeneficiosSeleccionados() {
   const sel: Record<number, boolean> = {}
   beneficios.value.forEach((b) => {
-    if (!b.sinMapear) sel[b.slot] = true
+    if (beneficioSeleccionable(b)) sel[b.slot] = true
   })
   beneficiosSeleccionados.value = sel
+}
+
+async function cargarCatalogoPeriodo() {
+  const { data, error } = await fetchBeneficioPeriodo(PERIODO_CARTERA_BENEFICIOS)
+  if (error) {
+    console.warn('[forma-pago] catálogo beneficio periodo', error)
+    return
+  }
+  catalogoPeriodo.value = data
 }
 
 async function cargarCarteraBeneficios() {
@@ -606,6 +641,10 @@ async function cargarCarteraBeneficios() {
 
 watch([codcliMostrado, rutMostrado], () => {
   void cargarCarteraBeneficios()
+})
+
+watch(catalogoAplica, () => {
+  initBeneficiosSeleccionados()
 })
 
 async function correrVerificacionCae(reintento = false) {
@@ -682,6 +721,7 @@ onMounted(async () => {
     docpagMatricula.ensureLoaded(),
     docpagArancel.ensureLoaded(),
     cargarCarteraBeneficios(),
+    cargarCatalogoPeriodo(),
   ])
   await refrescarCasosConvenio()
 
@@ -803,7 +843,12 @@ function montoBecaArancel(): number {
 // arancel, nunca sobre la matrícula. Por eso consolidamos beca_matricula +
 // beca_arancel y los descontamos del arancel; la matrícula queda a valor pleno.
 function montoBeneficiosArancel(): number {
-  return montoBecaMatricula() + montoBecaArancel()
+  const detalle = Array.isArray(plan.value?.beneficios_detalle) ? plan.value.beneficios_detalle : []
+  return montoUplusTrasCatalogo(
+    montoBecaMatricula() + montoBecaArancel(),
+    detalle,
+    catalogoAplica.value,
+  )
 }
 
 function montoNetoMatricula(): number {
@@ -989,7 +1034,7 @@ async function confirmarPagareMatricula() {
 
 function calcularBecasMock() {
   const items = beneficios.value.filter(
-    (b) => b.cod_beneficio && beneficiosSeleccionados.value[b.slot],
+    (b) => beneficioSeleccionable(b) && beneficiosSeleccionados.value[b.slot],
   )
   if (items.length === 0) {
     toast.message('Sin beneficios mapeados seleccionados desde Excel.')
@@ -1180,9 +1225,12 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
                   </TableCell>
                   <TableCell class="text-center">
                     <Checkbox
-                      v-if="!b.sinMapear"
+                      v-if="beneficioSeleccionable(b)"
                       v-model:checked="beneficiosSeleccionados[b.slot]"
                     />
+                    <Badge v-else-if="b.aplica === false" variant="outline" class="text-[10px]">
+                      {{ etiquetaNoAplica(b.flujo) }}
+                    </Badge>
                     <span v-else class="text-xs text-muted-foreground">—</span>
                   </TableCell>
                 </TableRow>

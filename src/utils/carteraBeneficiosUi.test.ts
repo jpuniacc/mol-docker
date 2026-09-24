@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  beneficioSeleccionable,
+  etiquetaNoAplica,
   flagsConsolidado,
   itemsBeneficioDesdeCartera,
+  montoUplusTrasCatalogo,
   type CarteraBeneficioRow,
+  type CatalogoBeneficioAplica,
 } from './carteraBeneficiosUi'
 
 const VANESSA: CarteraBeneficioRow = {
@@ -69,6 +73,59 @@ describe('itemsBeneficioDesdeCartera', () => {
     })
     expect(items).toHaveLength(2)
     expect(items[1]).toMatchObject({ slot: 2, cod_beneficio: '1791', pct: 15 })
+  })
+})
+
+const CATALOGO: CatalogoBeneficioAplica[] = [
+  { codigo_beneficio: '1756', flujo: 'MOL_DVU', aplica: true },
+  { codigo_beneficio: '1773', flujo: 'NO_VIGENTE', aplica: false },
+  { codigo_beneficio: '2026', flujo: 'EN_REVISION', aplica: false },
+]
+
+describe('catálogo 2027-01 manda sobre U+', () => {
+  it('ENAC 1773 queda no vigente y no se puede seleccionar', () => {
+    const items = itemsBeneficioDesdeCartera(
+      {
+        ...VANESSA,
+        beca_1: 'ENAC Centro de Formacion Tecnica',
+        pct_1: 30,
+        cod_beneficio_1: '1773',
+      },
+      CATALOGO,
+    )
+    expect(items[0]).toMatchObject({
+      cod_beneficio: '1773',
+      aplica: false,
+      flujo: 'NO_VIGENTE',
+    })
+    expect(beneficioSeleccionable(items[0])).toBe(false)
+    expect(etiquetaNoAplica(items[0].flujo)).toBe('No vigente')
+  })
+
+  it('Apoyo 1756 sigue seleccionable', () => {
+    const items = itemsBeneficioDesdeCartera(VANESSA, CATALOGO)
+    expect(items[0].aplica).toBe(true)
+    expect(beneficioSeleccionable(items[0])).toBe(true)
+  })
+
+  it('resta del monto U+ el convenio que el catálogo no aplica', () => {
+    expect(
+      montoUplusTrasCatalogo(
+        848_000,
+        [{ cod_beneficio: '1773', monto: 848_000 }],
+        CATALOGO,
+      ),
+    ).toBe(0)
+    expect(
+      montoUplusTrasCatalogo(
+        848_000,
+        [
+          { cod_beneficio: '1773', monto: 200_000 },
+          { cod_beneficio: '1756', monto: 648_000 },
+        ],
+        CATALOGO,
+      ),
+    ).toBe(648_000)
   })
 })
 
