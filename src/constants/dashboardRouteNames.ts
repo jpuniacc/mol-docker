@@ -21,6 +21,7 @@ export const DASHBOARD_MENU_ROUTE_NAMES = [
   'dashboard-vista-estado-cae-alumnos',
   'dashboard-vista-cae-arancel-referencia',
   'dashboard-mantenedor-convenios',
+  'dashboard-mantenedor-convenios-excel',
   'dashboard-casos-rematricula',
   'dashboard-rematricula-kpi',
   'dashboard-rematricula-seguimiento',

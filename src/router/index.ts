@@ -221,6 +221,17 @@ const routes = [
           import('../views/dashboard/rematricula/MantenedorConveniosView.vue'),
       },
       {
+        path: '/dashboard/mantenedor-convenios-excel',
+        name: 'dashboard-mantenedor-convenios-excel',
+        meta: {
+          requiresAdminAdmision: true,
+          requiresSoloGrupoDvU: true,
+          requiresPerfilUsuarioIn: [1, 2, 3],
+        },
+        component: () =>
+          import('../views/dashboard/rematricula/MantenedorConveniosExcelView.vue'),
+      },
+      {
         path: '/dashboard/casos-rematricula',
         name: 'dashboard-casos-rematricula',
         meta: {
