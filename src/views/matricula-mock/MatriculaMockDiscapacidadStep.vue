@@ -125,7 +125,10 @@ async function omitir() {
   if (guardando.value) return
   guardando.value = true
   try {
-    await persistirEncuesta({ contesta: false, tipo: null, afirmaciones: [] })
+    if (!(await persistirEncuesta({ contesta: false, tipo: null, afirmaciones: [] }))) {
+      toast.error('No se pudo guardar la encuesta. Intenta de nuevo.')
+      return
+    }
     mockCtx.setDiscapacidad({ contesta: false, tipo: null, afirmaciones: [] })
     void router.push({ name: 'matricula-mock-forma-pago' })
   } finally {
@@ -155,7 +158,10 @@ async function guardar() {
       tipo: tipoDiscapacidad.value,
       afirmaciones: [...afirmaciones.value],
     }
-    await persistirEncuesta(respuesta)
+    if (!(await persistirEncuesta(respuesta))) {
+      toast.error('No se pudo guardar la encuesta. Intenta de nuevo.')
+      return
+    }
     mockCtx.setDiscapacidad(respuesta)
     toast.message('Encuesta guardada (mock). En producción se alertaría al CRM institucional.')
     const ctx = contextoEncuesta()
