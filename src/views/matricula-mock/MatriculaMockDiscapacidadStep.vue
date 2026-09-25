@@ -26,6 +26,7 @@ import {
   DISCAPACIDAD_ENCUESTA_UI,
   DISCAPACIDAD_TIPOS,
 } from '@/constants/discapacidadEncuesta'
+import { actualizarDiscapacidadMolErp } from '@/services/actualizarDiscapacidadMolApi'
 import { contextoMolAuditoria } from '@/services/molAuditContext'
 import { guardarDiscapacidadEncuesta } from '@/services/discapacidadEncuesta'
 import { useMockMatriculaContextStore } from '@/stores/mockMatriculaContext'
@@ -157,6 +158,16 @@ async function guardar() {
     await persistirEncuesta(respuesta)
     mockCtx.setDiscapacidad(respuesta)
     toast.message('Encuesta guardada (mock). En producción se alertaría al CRM institucional.')
+    const ctx = contextoEncuesta()
+    const codcli = (ctx.codcli ?? '').trim()
+    if (codcli && respuesta.tipo) {
+      void actualizarDiscapacidadMolErp({
+        codcli,
+        discapacidad: respuesta.tipo,
+      }).then((r) => {
+        if (!r.ok) console.warn('[discapacidadErp]', r.error ?? r.message)
+      })
+    }
     void router.push({ name: 'matricula-mock-forma-pago' })
   } finally {
     guardando.value = false
