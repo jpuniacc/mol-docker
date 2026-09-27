@@ -2,7 +2,9 @@ import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 
 import clausulasFixture from '@/assets/contrato/clausulas.json'
+import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
 import { useMockAlumnoFuente } from '@/composables/useMockAlumnoFuente'
+import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import { useMockMatriculaContextStore } from '@/stores/mockMatriculaContext'
 import { useMatriculaFlujoPreflightStore } from '@/stores/datos_erp/matricula_flujo_preflight'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
@@ -48,9 +50,12 @@ function domiciliadoPorGenero(genero: string): string {
   return 'domiciliado'
 }
 
-export function useContratoMatriculaViewModel() {
-  const mockCtx = useMockMatriculaContextStore()
-  const fuente = useMockAlumnoFuente()
+export type ContratoMatriculaFlow = 'mock' | 'alumno'
+
+export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'mock') {
+  const mockCtx =
+    flow === 'alumno' ? useMatriculaAlumnoContextStore() : useMockMatriculaContextStore()
+  const fuente = flow === 'alumno' ? useAlumnoRematriculaFuente() : useMockAlumnoFuente()
   const preflight = useMatriculaFlujoPreflightStore()
   const periodoActivo = usePeriodoActivoStore()
   const { pagoMatricula } = storeToRefs(mockCtx)

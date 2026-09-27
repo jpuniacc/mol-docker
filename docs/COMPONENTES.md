@@ -248,7 +248,9 @@ Nota: `/dashboard/admin/menu` redirige a `/dashboard/backoffice/menu`.
 
 ---
 
-## 6. Matrícula mock (flujo alumno)
+## 6. Matrícula mock (flujo staff / simulación)
+
+> El flujo real del alumno Pixarron está en §6b (`matricula-alumno`).
 
 ### `MatriculaMockLayout`
 
@@ -328,6 +330,25 @@ Nota: `/dashboard/admin/menu` redirige a `/dashboard/backoffice/menu`.
 - **Ruta:** `src/views/matricula-mock/ResumenMockView.vue`
 - **Dependencias:** mock context, `useMockAlumnoFuente`, `fmtMontoClp`.
 - **Funcionamiento:** Resumen de montos/forma pago/discapacidad; toasts de descarga mock; Anterior → firma; Volver inicio → home. No limpia el store.
+
+---
+
+## 6b. Matrícula alumno (Pixarron / MNP)
+
+Flujo paralelo al mock para sesión `authSource === 'pixarron'` con filas en `mnp_datos_alumnos`. Sin picker `plan_pagos`; datos desde MNP (+ `fetchPlanPagosMvByCodcli` donde el ERP lo requiere). `esMock` siempre `false`.
+
+| Ruta name | Path | Vista |
+|-----------|------|-------|
+| `matricula-alumno-datos` | `/dashboard/matricula-alumno/datos-personales` | `DatosPersonalesAlumnoView.vue` |
+| `matricula-alumno-forma-pago` | `…/forma-pago` | `FormaPagoAlumnoView.vue` |
+| `matricula-alumno-firma` | `…/firma` | `FirmaAlumnoView.vue` |
+| `matricula-alumno-resumen` | `…/resumen` | `ResumenAlumnoView.vue` |
+
+- **Layout:** `src/views/matricula-alumno/MatriculaAlumnoLayout.vue` (sin barra Mock; Reiniciar → `resetFlujo`).
+- **Store:** `src/stores/matriculaAlumnoContext.ts` (`rematricula-alumno-matricula` en sessionStorage).
+- **Fuente:** `src/composables/useAlumnoRematriculaFuente.ts`.
+- **Menú Pixarron:** ítem «Rematrícula» → `matricula-alumno-datos`.
+- **Guards:** Pixarron con MNP no entra a `matricula-mock-*`; staff no entra a `matricula-alumno-*`.
 
 ---
 

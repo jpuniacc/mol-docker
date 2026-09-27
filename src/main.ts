@@ -7,6 +7,7 @@ import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/auth'
 import { useMockContactoOtpUiStore } from './stores/mockContactoOtpUi'
+import { useMatriculaAlumnoContextStore } from './stores/matriculaAlumnoContext'
 import { useMockMatriculaContextStore } from './stores/mockMatriculaContext'
 import { logMockContactoOtp } from './utils/mockContactoOtpDebug'
 
@@ -20,6 +21,7 @@ void (async () => {
   useMockContactoOtpUiStore().resetAll()
   await useAuthStore().hydrateFromStorage()
   useMockMatriculaContextStore().hydrateFromSessionStorage()
+  useMatriculaAlumnoContextStore().hydrateFromSessionStorage()
   logMockContactoOtp('boot.listo')
   app.use(router)
   app.mount('#app')

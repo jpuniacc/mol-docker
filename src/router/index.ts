@@ -12,6 +12,7 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import { useDashboardMenuStore } from '@/stores/dashboardMenu'
 import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
+import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import { useMockMatriculaContextStore } from '@/stores/mockMatriculaContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import { useContactoOtpConfigStore } from '@/stores/contactoOtpConfig'
@@ -19,10 +20,27 @@ import { useContactoOtpConfigStore } from '@/stores/contactoOtpConfig'
 const MOCK_SELECCION_ROUTE = 'matricula-mock-seleccion-alumno'
 const MOCK_DATOS_ROUTE = 'matricula-mock-datos'
 const MOCK_FORMA_PAGO_ROUTE = 'matricula-mock-forma-pago'
+const ALUMNO_DATOS_ROUTE = 'matricula-alumno-datos'
+const ALUMNO_FORMA_PAGO_ROUTE = 'matricula-alumno-forma-pago'
 
 function isMockFlowRoute(name: string | symbol | null | undefined): boolean {
   if (typeof name !== 'string') return false
   return name.startsWith('matricula-mock-') && name !== MOCK_SELECCION_ROUTE
+}
+
+function isAlumnoFlowRoute(name: string | symbol | null | undefined): boolean {
+  return typeof name === 'string' && name.startsWith('matricula-alumno-')
+}
+
+function isSesionAlumnoRematricula(
+  auth: ReturnType<typeof useAuthStore>,
+  datosMnp: ReturnType<typeof useDatosAlumnoMnpStore>,
+): boolean {
+  return (
+    auth.authSource === 'pixarron' &&
+    datosMnp.cantidadRegistros > 0 &&
+    !datosMnp.fueraCarteraOficial
+  )
 }
 
 function routeRequiresAdminAdmision(to: RouteLocationNormalized): boolean {
@@ -99,6 +117,33 @@ const routes = [
             path: 'resumen',
             name: 'matricula-mock-resumen',
             component: () => import('../views/matricula-mock/ResumenMockView.vue'),
+          },
+        ],
+      },
+      {
+        path: 'matricula-alumno',
+        component: () => import('../views/matricula-alumno/MatriculaAlumnoLayout.vue'),
+        redirect: { name: ALUMNO_DATOS_ROUTE },
+        children: [
+          {
+            path: 'datos-personales',
+            name: ALUMNO_DATOS_ROUTE,
+            component: () => import('../views/matricula-alumno/DatosPersonalesAlumnoView.vue'),
+          },
+          {
+            path: 'forma-pago',
+            name: 'matricula-alumno-forma-pago',
+            component: () => import('../views/matricula-alumno/FormaPagoAlumnoView.vue'),
+          },
+          {
+            path: 'firma',
+            name: 'matricula-alumno-firma',
+            component: () => import('../views/matricula-alumno/FirmaAlumnoView.vue'),
+          },
+          {
+            path: 'resumen',
+            name: 'matricula-alumno-resumen',
+            component: () => import('../views/matricula-alumno/ResumenAlumnoView.vue'),
           },
         ],
       },
@@ -358,7 +403,9 @@ router.beforeEach(async (to) => {
     await Promise.all([
       useDashboardMenuStore().ensureLoaded(),
       usePeriodoActivoStore().ensureLoaded(),
-      useContactoOtpConfigStore().ensureLoaded(isMockFlowRoute(to.name)),
+      useContactoOtpConfigStore().ensureLoaded(
+        isMockFlowRoute(to.name) || isAlumnoFlowRoute(to.name),
+      ),
     ])
   }
 
@@ -412,13 +459,29 @@ router.beforeEach(async (to) => {
     auth.isAuthenticated &&
     auth.authSource === 'pixarron' &&
     datosMnp.fueraCarteraOficial &&
-    (isMockFlowRoute(to.name) || to.name === MOCK_SELECCION_ROUTE)
+    (isMockFlowRoute(to.name) ||
+      to.name === MOCK_SELECCION_ROUTE ||
+      isAlumnoFlowRoute(to.name))
   ) {
     return { name: 'dashboard-home', replace: true }
   }
 
   if (to.name === 'login' && auth.isAuthenticated) {
     return { name: 'dashboard-home', replace: true }
+  }
+
+  // Pixarron → flujo alumno; bloquear mock. Staff → flujo mock; bloquear alumno.
+  if (needsAuth && auth.isAuthenticated) {
+    const alumnoOk = isSesionAlumnoRematricula(auth, datosMnp)
+    if (alumnoOk && (isMockFlowRoute(to.name) || to.name === MOCK_SELECCION_ROUTE)) {
+      return { name: ALUMNO_DATOS_ROUTE, replace: true }
+    }
+    if (!alumnoOk && isAlumnoFlowRoute(to.name)) {
+      return {
+        name: auth.authSource === 'pixarron' ? 'dashboard-home' : MOCK_SELECCION_ROUTE,
+        replace: true,
+      }
+    }
   }
 
   if (needsAuth && auth.isAuthenticated && isMockFlowRoute(to.name)) {
@@ -440,6 +503,25 @@ router.beforeEach(async (to) => {
     }
     if (to.name === 'matricula-mock-resumen' && !mockCtx.firmaCompletada) {
       return { name: 'matricula-mock-firma', replace: true }
+    }
+  }
+
+  if (needsAuth && auth.isAuthenticated && isAlumnoFlowRoute(to.name)) {
+    const alumnoCtx = useMatriculaAlumnoContextStore()
+    if (alumnoCtx.apoderadoBloqueo && to.name !== ALUMNO_DATOS_ROUTE) {
+      return { name: ALUMNO_DATOS_ROUTE, replace: true }
+    }
+    if (
+      (alumnoCtx.convenioCertificadoBloqueo ||
+        alumnoCtx.estatalBloqueo ||
+        alumnoCtx.promedioBloqueo) &&
+      to.name !== ALUMNO_DATOS_ROUTE &&
+      to.name !== ALUMNO_FORMA_PAGO_ROUTE
+    ) {
+      return { name: ALUMNO_FORMA_PAGO_ROUTE, replace: true }
+    }
+    if (to.name === 'matricula-alumno-resumen' && !alumnoCtx.firmaCompletada) {
+      return { name: 'matricula-alumno-firma', replace: true }
     }
   }
 

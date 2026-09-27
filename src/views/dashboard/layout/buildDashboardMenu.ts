@@ -35,6 +35,7 @@ export type DashboardNavPlanResolved = {
 }
 
 const MOCK_ROUTE_PREFIX = 'matricula-mock'
+const ALUMNO_ROUTE_PREFIX = 'matricula-alumno'
 
 /** Rutas hijas del flujo mock cuando el usuario ve el ítem «Mock rematrícula». */
 const MOCK_CHILD_ROUTE_NAMES = [
@@ -43,6 +44,14 @@ const MOCK_CHILD_ROUTE_NAMES = [
   'matricula-mock-forma-pago',
   'matricula-mock-firma',
   'matricula-mock-resumen',
+] as const
+
+/** Rutas hijas del flujo rematrícula alumno (Pixarron). */
+const ALUMNO_CHILD_ROUTE_NAMES = [
+  'matricula-alumno-datos',
+  'matricula-alumno-forma-pago',
+  'matricula-alumno-firma',
+  'matricula-alumno-resumen',
 ] as const
 
 function itemVisibleForGrupo(
@@ -68,8 +77,8 @@ function pixarronDefaultPlan(): DashboardNavPlanResolved {
       },
       {
         kind: 'link',
-        routeName: 'matricula-mock-seleccion-alumno',
-        label: 'Mock rematrícula',
+        routeName: 'matricula-alumno-datos',
+        label: 'Rematrícula',
         icon: menuIconFromKey('GraduationCap'),
       },
     ],
@@ -355,6 +364,9 @@ export function allowedRouteNamesFromMenu(
   if (names.has('matricula-mock-seleccion-alumno') || names.has('matricula-mock-datos')) {
     for (const m of MOCK_CHILD_ROUTE_NAMES) names.add(m)
   }
+  if (names.has('matricula-alumno-datos')) {
+    for (const a of ALUMNO_CHILD_ROUTE_NAMES) names.add(a)
+  }
   // Gestión de firmas se usa desde Casos; el ítem de menú 041 fue reutilizado por KPI.
   if (names.has('dashboard-casos-rematricula')) {
     names.add('dashboard-gestion-firmas')
@@ -373,6 +385,9 @@ export function routeNameAllowedByMenu(
     return true
   }
   if (routeName.startsWith(MOCK_ROUTE_PREFIX) && allowed.has('matricula-mock-datos')) return true
+  if (routeName.startsWith(ALUMNO_ROUTE_PREFIX) && allowed.has('matricula-alumno-datos')) {
+    return true
+  }
   return false
 }
 
@@ -382,6 +397,9 @@ export function esLinkActivoDashboard(
 ): boolean {
   if (routeName === 'matricula-mock-seleccion-alumno' || routeName === 'matricula-mock-datos') {
     return typeof nombreRutaActual === 'string' && nombreRutaActual.startsWith('matricula-mock')
+  }
+  if (routeName === 'matricula-alumno-datos') {
+    return typeof nombreRutaActual === 'string' && nombreRutaActual.startsWith('matricula-alumno')
   }
   return nombreRutaActual === routeName
 }

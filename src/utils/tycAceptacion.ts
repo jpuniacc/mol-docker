@@ -18,6 +18,7 @@ export function debeSaltarPasoTyc(input: {
   if (input.aceptadoEnSesion) return true
   if (input.ultimaRespuesta?.accion !== 'acepta') return false
   const actual = input.tycUpdatedAtActual?.trim() ?? ''
-  if (!actual) return true
+  // Sin versión vigente cargada no podemos confirmar que la aceptación siga válida.
+  if (!actual) return false
   return mismoInstante(input.ultimaRespuesta.tycUpdatedAt, actual)
 }

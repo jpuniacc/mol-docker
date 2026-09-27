@@ -19,7 +19,10 @@ const periodoActivo = usePeriodoActivoStore()
 
 useSessionCloseBeacon()
 
-const isMatriculaMock = computed(() => route.path.includes('/matricula-mock'))
+const isMatriculaWizard = computed(
+  () =>
+    route.path.includes('/matricula-mock') || route.path.includes('/matricula-alumno'),
+)
 
 const tituloRematriculaCabecera = computed(() => periodoActivo.tituloRematricula)
 
@@ -31,7 +34,7 @@ function logout() {
 </script>
 
 <template>
-  <RouterView v-if="isMatriculaMock" />
+  <RouterView v-if="isMatriculaWizard" />
 
   <SidebarProvider v-else class="min-h-svh">
     <DashboardSidebarNav />

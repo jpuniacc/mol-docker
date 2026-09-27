@@ -62,4 +62,14 @@ describe('debeSaltarPasoTyc', () => {
       }),
     ).toBe(true)
   })
+
+  it('no salta si hay aceptación persistida pero no hay versión vigente cargada', () => {
+    expect(
+      debeSaltarPasoTyc({
+        aceptadoEnSesion: false,
+        ultimaRespuesta: { accion: 'acepta', tycUpdatedAt: '2026-09-01T00:00:00.000Z' },
+        tycUpdatedAtActual: null,
+      }),
+    ).toBe(false)
+  })
 })

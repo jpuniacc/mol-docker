@@ -10,6 +10,7 @@ import { useDatosAlumnoMnpStore } from './datosAlumnoMnp'
 import { useContactoOtpConfigStore } from './contactoOtpConfig'
 import { useMockContactoOtpUiStore } from './mockContactoOtpUi'
 import { useMockMatriculaContextStore } from './mockMatriculaContext'
+import { useMatriculaAlumnoContextStore } from './matriculaAlumnoContext'
 
 const STORAGE_KEY = 'rematricula-auth-session'
 
@@ -267,6 +268,7 @@ export const useAuthStore = defineStore('auth', {
       useContactoOtpConfigStore().reset()
       useMockContactoOtpUiStore().resetAll()
       useMockMatriculaContextStore().clearAlumno()
+      useMatriculaAlumnoContextStore().resetFlujo()
     },
   },
 })
