@@ -5,7 +5,10 @@ import {
   etiquetaNoAplica,
   flagsConsolidado,
   itemsBeneficioDesdeCartera,
+  lineasDescuentoSeleccion,
   montoUplusTrasCatalogo,
+  tieneBeneficioAplicable,
+  type BeneficioExcelUiItem,
   type CarteraBeneficioRow,
   type CatalogoBeneficioAplica,
 } from './carteraBeneficiosUi'
@@ -126,6 +129,71 @@ describe('catálogo 2027-01 manda sobre U+', () => {
         CATALOGO,
       ),
     ).toBe(648_000)
+  })
+
+  it('el 2025 solo no cuenta como beneficio aplicable', () => {
+    const catalogo: CatalogoBeneficioAplica[] = [
+      ...CATALOGO,
+      { codigo_beneficio: '2025', flujo: 'NO_RENOVABLE', aplica: false },
+    ]
+    expect(tieneBeneficioAplicable([{ cod_beneficio: '2025', monto: 50_000 }], catalogo)).toBe(
+      false,
+    )
+    expect(
+      tieneBeneficioAplicable(
+        [
+          { cod_beneficio: '2025', monto: 50_000 },
+          { cod_beneficio: '1756', monto: 100_000 },
+        ],
+        catalogo,
+      ),
+    ).toBe(true)
+  })
+})
+
+describe('lineasDescuentoSeleccion', () => {
+  const items: BeneficioExcelUiItem[] = [
+    {
+      slot: 1,
+      descripcion: 'Beca A',
+      cod_beneficio: '1795',
+      pct: 30,
+      sinMapear: false,
+      aplica: true,
+      flujo: 'APLICA',
+    },
+    {
+      slot: 2,
+      descripcion: 'Beca B',
+      cod_beneficio: '1756',
+      pct: 10,
+      sinMapear: false,
+      aplica: true,
+      flujo: 'APLICA',
+    },
+  ]
+
+  it('suma solo los marcados usando el monto del detalle ERP', () => {
+    const lineas = lineasDescuentoSeleccion({
+      items,
+      seleccionados: { 1: true, 2: false },
+      detalle: [
+        { cod_beneficio: '1795', monto: 1_200_000 },
+        { cod_beneficio: '1756', monto: 400_000 },
+      ],
+      arancelBruto: 4_990_000,
+    })
+    expect(lineas).toEqual([{ slot: 1, descripcion: 'Beca A', monto: 1_200_000 }])
+  })
+
+  it('usa el porcentaje del arancel si el detalle no trae monto', () => {
+    const lineas = lineasDescuentoSeleccion({
+      items,
+      seleccionados: { 1: true, 2: true },
+      detalle: [],
+      arancelBruto: 1_000_000,
+    })
+    expect(lineas.map((l) => l.monto)).toEqual([300_000, 100_000])
   })
 })
 

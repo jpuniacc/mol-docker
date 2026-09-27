@@ -34,18 +34,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import ConvenioVigenteUpload from '@/components/rematricula/ConvenioVigenteUpload.vue'
 import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
 import { tieneCae } from '@/constants/verificacionCae'
-import { Check, FileText } from 'lucide-vue-next'
+import { Check, FileText, GraduationCap } from 'lucide-vue-next'
 import { abrirCasoRematricula, consultarCasosAlumno } from '@/services/casoRematriculaApi'
 import {
   consultarCarteraBeneficios,
@@ -60,13 +52,21 @@ import { registrarFormaPagoAudit } from '@/services/formaPagoAuditLog'
 import {
   beneficioSeleccionable,
   etiquetaNoAplica,
-  flagsConsolidado,
   itemsBeneficioDesdeCartera,
-  montoUplusTrasCatalogo,
   type BeneficioExcelUiItem,
   type CarteraBeneficioRow,
   type CatalogoBeneficioAplica,
 } from '@/utils/carteraBeneficiosUi'
+import {
+  anioNotasRematricula,
+  filasBeneficioConPromedio,
+  textoEfectoPromedio,
+  textoFuentePromedio,
+  textoNotaPromedio,
+  textoPorcentajeFila,
+  type FilaBeneficioPromedio,
+} from '@/utils/beneficioPromedioVista'
+import { elegirPromedio } from '@/utils/resolucionBecaPromedio'
 import type { MnpMvBeneficioPeriodoRow } from '@/types/supabase'
 import {
   casoCertificadoConvenio,
@@ -106,10 +106,16 @@ const alumnoCtx = useMatriculaAlumnoContextStore()
 const periodoActivo = usePeriodoActivoStore()
 const erpSpAmbiente = useErpSpAmbienteStore()
 const { label: periodoActivoLabel } = storeToRefs(periodoActivo)
-const { badgeText: erpSpBadgeText, isTest: erpSpIsTest } = storeToRefs(erpSpAmbiente)
 const { pagoMatricula } = storeToRefs(alumnoCtx)
 const fuente = useAlumnoRematriculaFuente()
-const { nombreMostrado, codcliMostrado, rutMostrado } = fuente
+const {
+  nombreMostrado,
+  codcliMostrado,
+  rutMostrado,
+  carreraMostrada,
+  jornadaMostrada,
+  tipoCarreraMostrada,
+} = fuente
 const convenioStore = useConvenioInstitucionalStore()
 const arancelSp = usePa08MtArancelSelMatriculaNetStore()
 const docpagMatricula = useSpListaDocpagMatriculaCajaMatriculaStore()
@@ -316,71 +322,6 @@ const resumenPagoMatricula = computed(() => {
   return `${p.nombre} (simulado)`
 })
 
-/** Badge ERP SP: prioriza echo del API; si no, flag del mantenedor. */
-const erpSpBadge = computed(() => {
-  const amb = paramsUsadosSp.value?.ambiente
-  if (amb === 'test') return 'ERP SP: TEST'
-  if (amb === 'prod') return 'ERP SP: PROD'
-  return erpSpBadgeText.value
-})
-const erpSpBadgeEsTest = computed(() => {
-  const amb = paramsUsadosSp.value?.ambiente
-  if (amb === 'test') return true
-  if (amb === 'prod') return false
-  return erpSpIsTest.value
-})
-
-/** Params que se envían / se enviaron al SP (para depuración en pantalla). */
-const paramsErpPantalla = computed(() => {
-  const usados = paramsUsadosSp.value
-  if (usados) {
-    return [
-      { sp: '@CODCARR', valor: usados.codCarr, origen: 'cod_carrera' },
-      { sp: '@ANO', valor: String(usados.ano), origen: 'anio_matricula' },
-      { sp: '@ANOINI', valor: String(usados.anoIni), origen: 'ano_ingreso' },
-      {
-        sp: '@FECMOD',
-        valor: usados.fecMod ?? '—',
-        origen: "servidor (YYYY-MM-DDTHH:mm:ss)",
-      },
-      { sp: '@PERIODO', valor: String(usados.periodo), origen: 'periodo_matricula' },
-      { sp: '@CATALUMNO', valor: usados.catAlumno, origen: 'categoria_alumno' },
-      { sp: '@JORNADA', valor: usados.jornada, origen: 'jornada_carrera' },
-    ]
-  }
-  const p = plan.value
-  if (!p) return []
-  return [
-    { sp: '@CODCARR', valor: (p.cod_carrera ?? '—').trim() || '—', origen: 'cod_carrera' },
-    {
-      sp: '@ANO',
-      valor: p.anio_matricula != null ? String(p.anio_matricula) : '—',
-      origen: 'anio_matricula',
-    },
-    {
-      sp: '@ANOINI',
-      valor: p.ano_ingreso != null ? String(p.ano_ingreso) : '—',
-      origen: 'ano_ingreso',
-    },
-    { sp: '@FECMOD', valor: '(lo define la API)', origen: 'servidor' },
-    {
-      sp: '@PERIODO',
-      valor: p.periodo_matricula != null ? String(p.periodo_matricula) : '—',
-      origen: 'periodo_matricula',
-    },
-    {
-      sp: '@CATALUMNO',
-      valor: p.categoria_alumno != null ? String(p.categoria_alumno) : '—',
-      origen: 'categoria_alumno',
-    },
-    {
-      sp: '@JORNADA',
-      valor: (p.jornada_carrera ?? '—').trim().toUpperCase() || '—',
-      origen: 'jornada_carrera',
-    },
-  ]
-})
-
 type SubPaso = 'verificacion-cae' | 'becas' | 'pago'
 const subPaso = ref<SubPaso>('becas')
 
@@ -394,6 +335,26 @@ function fmtFechaCuota(iso: string): string {
 }
 const planPagosRow = ref<PlanPagosMvRow | null>(null)
 const plan = computed(() => planPagosRow.value)
+
+function etiquetaJornada(raw: string): string {
+  const code = raw.trim().toUpperCase()
+  if (code === 'D') return 'Diurna'
+  if (code === 'V') return 'Vespertina'
+  if (code === 'AD') return 'A distancia'
+  if (code === 'S') return 'Semipresencial'
+  return raw.trim() || '—'
+}
+
+const carreraRematricula = computed(() => {
+  const desdePlan = (plan.value?.nombre_carrera ?? plan.value?.carrera ?? '').trim()
+  if (desdePlan) return desdePlan
+  return carreraMostrada.value
+})
+
+const jornadaRematricula = computed(() => {
+  const desdePlan = (plan.value?.jornada_carrera ?? '').trim()
+  return etiquetaJornada(desdePlan || jornadaMostrada.value)
+})
 
 async function cargarPlanPagosAlumno(): Promise<PlanPagosMvRow | null> {
   const codcli = pickCampoAlumno(fuente.codcliMostrado.value)
@@ -432,10 +393,6 @@ const catalogoAplica = computed((): CatalogoBeneficioAplica[] =>
 
 const beneficios = computed((): BeneficioExcelUiItem[] =>
   itemsBeneficioDesdeCartera(carteraBeneficiosRow.value, catalogoAplica.value),
-)
-
-const flagsConsolidadoUi = computed(() =>
-  flagsConsolidado(carteraBeneficiosRow.value?.consolidado ?? null),
 )
 
 const periodoBeneficioLabel = computed(
@@ -609,6 +566,13 @@ async function onConvenioSubido(payload: {
 
 function onConvenioEliminado(payload: { convenioId: string }) {
   alumnoCtx.removeConvenioDocumento(payload.convenioId)
+}
+
+function setBeneficioSeleccionado(slot: number, checked: boolean) {
+  beneficiosSeleccionados.value = {
+    ...beneficiosSeleccionados.value,
+    [slot]: checked,
+  }
 }
 
 function initBeneficiosSeleccionados() {
@@ -850,24 +814,61 @@ function montoBrutoArancel(): number {
   return arancelSp.montoArancel
 }
 
-function montoBecaMatricula(): number {
-  return Number(plan.value?.beca_matricula ?? 0)
+const promedioElegido = computed(() =>
+  elegirPromedio({
+    promAnio: plan.value?.prom_anio,
+    promUltimoPeriodo: plan.value?.prom_ultimo_periodo,
+    promediosCerrados: periodoActivo.promediosCerrados,
+  }),
+)
+
+const anioNotas = computed(() => anioNotasRematricula(periodoActivo.anio))
+
+const notaPromedioMostrada = computed(() =>
+  textoNotaPromedio(promedioElegido.value?.promedio ?? null),
+)
+
+const etiquetaFuentePromedio = computed(() =>
+  textoFuentePromedio(promedioElegido.value?.fuente ?? null, anioNotas.value),
+)
+
+const efectoPromedio = computed(() => textoEfectoPromedio(promedioElegido.value?.promedio ?? null))
+
+const filasPromedio = computed(() =>
+  filasBeneficioConPromedio({
+    items: beneficios.value,
+    catalogo: catalogoPeriodo.value.map((c) => ({
+      codigo_beneficio: c.codigo_beneficio,
+      flujo: c.flujo,
+      renovable: c.renovable,
+    })),
+    seleccionados: beneficiosSeleccionados.value,
+    arancelBruto: montoBrutoArancel(),
+    promedio: promedioElegido.value?.promedio ?? null,
+  }),
+)
+
+const filaPorSlot = computed(() => {
+  const map = new Map<number, FilaBeneficioPromedio>()
+  for (const fila of filasPromedio.value) map.set(fila.slot, fila)
+  return map
+})
+
+function filaDe(slot: number): FilaBeneficioPromedio | undefined {
+  return filaPorSlot.value.get(slot)
 }
 
-function montoBecaArancel(): number {
-  return Number(plan.value?.beca_arancel ?? 0)
+const lineasDescuento = computed(() =>
+  filasPromedio.value.filter((fila) => fila.marcado && fila.monto > 0),
+)
+
+function beneficioMarcado(slot: number): boolean {
+  return beneficiosSeleccionados.value[slot] === true
 }
 
-// Regla de negocio: los beneficios/convenios SIEMPRE se aplican sobre el
-// arancel, nunca sobre la matrícula. Por eso consolidamos beca_matricula +
-// beca_arancel y los descontamos del arancel; la matrícula queda a valor pleno.
+// Los beneficios se descuentan del arancel según lo que el alumno deja marcado.
 function montoBeneficiosArancel(): number {
-  const detalle = Array.isArray(plan.value?.beneficios_detalle) ? plan.value.beneficios_detalle : []
-  return montoUplusTrasCatalogo(
-    montoBecaMatricula() + montoBecaArancel(),
-    detalle,
-    catalogoAplica.value,
-  )
+  return lineasDescuento.value.reduce((sum, linea) => sum + linea.monto, 0)
 }
 
 function montoNetoMatricula(): number {
@@ -1051,19 +1052,6 @@ async function confirmarPagareMatricula() {
   void router.push({ name: 'matricula-alumno-firma' })
 }
 
-function calcularBecasMock() {
-  const items = beneficios.value.filter(
-    (b) => beneficioSeleccionable(b) && beneficiosSeleccionados.value[b.slot],
-  )
-  if (items.length === 0) {
-    toast.message('Sin beneficios mapeados seleccionados desde Excel.')
-    return
-  }
-  console.log('[forma-pago] becas mock desde Excel', items)
-  const lista = items.map((b) => `${b.cod_beneficio} (${b.pct ?? 0}%)`).join(', ')
-  toast.success(`Beneficios aplicados (mock): ${lista}`)
-}
-
 watch(
   [docsPagoMatricula, docsPagoArancel],
   ([mat, ara]) => {
@@ -1140,56 +1128,68 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
 
     <!-- V06 Becas y plan -->
     <template v-else-if="subPaso === 'becas'">
-      <div
-        class="rounded-lg border border-uniacc-orange/30 bg-uniacc-orange/10 px-4 py-3 text-sm text-zinc-800"
+      <section
+        class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
+        aria-labelledby="rematricula-contexto"
       >
-        <strong class="text-uniacc-orange">Plan de pagos.</strong>
-        Montos de matrícula/arancel desde el SP
-        <code class="text-xs">pa08_MT_ARANCEL_sel_MATRICULA_NET</code>
-        (on-demand ERP).
-      </div>
-
-      <div
-        v-if="paramsErpPantalla.length > 0"
-        class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-800"
-      >
-        <div class="mb-2 flex flex-wrap items-center gap-2">
-          <p class="font-medium text-zinc-700">Parámetros enviados al SP</p>
-          <Badge
-            :class="
-              erpSpBadgeEsTest
-                ? 'bg-amber-600 hover:bg-amber-600'
-                : 'bg-emerald-700 hover:bg-emerald-700'
-            "
-          >
-            {{ erpSpBadge }}
-          </Badge>
+        <div
+          class="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white"
+          style="background: linear-gradient(90deg, #ff5b00 0%, #ee2183 50%, #4d98c5 100%)"
+        >
+          <GraduationCap class="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{{ periodoActivo.tituloRematricula }}</span>
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead class="w-[140px]">Param SP</TableHead>
-              <TableHead>Valor</TableHead>
-              <TableHead class="hidden sm:table-cell">Origen consolidado</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in paramsErpPantalla" :key="row.sp">
-              <TableCell class="font-mono text-xs">{{ row.sp }}</TableCell>
-              <TableCell class="font-mono text-xs font-semibold">{{ row.valor }}</TableCell>
-              <TableCell class="hidden font-mono text-xs text-muted-foreground sm:table-cell">
-                {{ row.origen }}
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      </div>
+        <div class="grid gap-4 px-4 py-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div class="sm:col-span-2">
+            <p id="rematricula-contexto" class="text-xs font-medium uppercase tracking-wide text-zinc-500">
+              Carrera
+            </p>
+            <p class="mt-1 text-base font-semibold text-zinc-900">{{ carreraRematricula }}</p>
+            <p v-if="tipoCarreraMostrada !== '—'" class="mt-0.5 text-sm text-zinc-600">
+              {{ tipoCarreraMostrada }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500">Jornada</p>
+            <p class="mt-1 text-sm font-semibold text-zinc-900">{{ jornadaRematricula }}</p>
+          </div>
+          <div>
+            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500">Periodo</p>
+            <p class="mt-1 text-sm font-semibold text-zinc-900">{{ periodoActivoLabel ?? '—' }}</p>
+          </div>
+          <div class="sm:col-span-2 lg:col-span-4">
+            <p class="text-sm text-zinc-600">
+              <span class="font-semibold text-zinc-900">{{ nombreMostrado }}</span>
+              <span class="mx-2 text-zinc-300" aria-hidden="true">·</span>
+              RUT {{ rutMostrado }}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
+        aria-labelledby="promedio-titulo"
+      >
+        <div class="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:gap-8">
+          <p class="text-4xl font-semibold tabular-nums tracking-tight text-zinc-900">
+            {{ notaPromedioMostrada }}
+          </p>
+          <div class="min-w-0 border-zinc-200 sm:border-l sm:pl-8">
+            <p id="promedio-titulo" class="text-xs font-medium uppercase tracking-wide text-zinc-500">
+              Tu promedio
+            </p>
+            <p class="mt-1 text-base font-semibold text-zinc-900">{{ etiquetaFuentePromedio }}</p>
+            <p class="mt-1 text-sm text-zinc-600">{{ efectoPromedio }}</p>
+          </div>
+        </div>
+      </section>
 
       <div
         v-if="cargandoArancelSp"
         class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700"
       >
-        Consultando matrícula y arancel en el ERP…
+        Consultando matrícula y arancel…
       </div>
       <div
         v-else-if="errorArancelSp"
@@ -1199,7 +1199,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
         <Button
           variant="outline"
           size="sm"
-          class="mt-3"
+          class="mt-3 cursor-pointer"
           type="button"
           :disabled="!plan"
           @click="plan && cargarArancelDesdeErp(plan)"
@@ -1208,81 +1208,86 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
         </Button>
       </div>
 
-      <div class="grid gap-6 lg:grid-cols-2">
-        <Card class="shadow-md">
+      <div class="grid gap-6 lg:grid-cols-5">
+        <Card class="shadow-md lg:col-span-3">
           <CardHeader>
-            <CardTitle class="text-lg text-uniacc-orange">Beneficios del alumno</CardTitle>
-            <CardDescription>Periodo beneficio: {{ periodoBeneficioLabel }}</CardDescription>
+            <CardTitle class="text-lg text-zinc-900">Tus beneficios</CardTitle>
+            <CardDescription>
+              Periodo {{ periodoBeneficioLabel }}. El porcentaje de cada beca ya considera tu promedio.
+            </CardDescription>
           </CardHeader>
-          <CardContent class="space-y-4">
-            <p v-if="cargandoCarteraBeneficios" class="text-sm text-muted-foreground">
-              Consultando cartera de beneficios (Excel)…
+          <CardContent class="space-y-3">
+            <p v-if="cargandoCarteraBeneficios" class="text-sm text-zinc-600">
+              Consultando tus beneficios…
             </p>
             <p v-else-if="errorCarteraBeneficios" class="text-sm text-red-700">
               {{ errorCarteraBeneficios }}
             </p>
-            <Table v-else-if="beneficios.length > 0">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead class="hidden sm:table-cell">Código</TableHead>
-                  <TableHead class="w-[56px] text-right">%</TableHead>
-                  <TableHead class="w-[72px] text-center">Sel.</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="b in beneficios" :key="b.slot">
-                  <TableCell class="text-xs sm:text-sm">
+            <ul v-else-if="beneficios.length > 0" class="space-y-2">
+              <li v-for="b in beneficios" :key="b.slot">
+                <label
+                  v-if="beneficioSeleccionable(b) && filaDe(b.slot)?.resultado !== 'PIERDE'"
+                  class="flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-3 transition-colors duration-200"
+                  :class="
+                    beneficioMarcado(b.slot)
+                      ? 'border-uniacc-orange/40 bg-uniacc-orange/5'
+                      : 'border-zinc-200 bg-white hover:border-zinc-300'
+                  "
+                >
+                  <Checkbox
+                    :checked="beneficioMarcado(b.slot)"
+                    class="cursor-pointer"
+                    @update:checked="(v: boolean) => setBeneficioSeleccionado(b.slot, v === true)"
+                  />
+                  <span class="min-w-0 flex-1">
+                    <span class="block text-sm font-medium text-zinc-900">
+                      {{ b.descripcion || 'Beneficio' }}
+                    </span>
+                    <span class="mt-0.5 block text-xs text-zinc-500">
+                      {{ filaDe(b.slot) ? textoPorcentajeFila(filaDe(b.slot)!) : 'Sin porcentaje' }}
+                    </span>
+                  </span>
+                  <span
+                    v-if="beneficioMarcado(b.slot)"
+                    class="shrink-0 text-sm font-semibold tabular-nums text-emerald-700"
+                  >
+                    − {{ fmt(filaDe(b.slot)?.monto ?? 0) }}
+                  </span>
+                </label>
+                <div
+                  v-else-if="filaDe(b.slot)?.resultado === 'PIERDE'"
+                  class="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3"
+                >
+                  <span class="min-w-0 flex-1">
+                    <span class="block text-sm font-medium text-zinc-700">
+                      {{ b.descripcion || 'Beneficio' }}
+                    </span>
+                    <span class="mt-0.5 block text-xs text-zinc-500">
+                      {{ textoPorcentajeFila(filaDe(b.slot)!) }}
+                    </span>
+                  </span>
+                </div>
+                <div
+                  v-else
+                  class="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3"
+                >
+                  <span class="min-w-0 flex-1 text-sm text-zinc-700">
                     {{ b.descripcion || 'Beneficio' }}
-                  </TableCell>
-                  <TableCell class="hidden sm:table-cell">
-                    <span v-if="b.cod_beneficio" class="font-mono text-xs">{{ b.cod_beneficio }}</span>
-                    <Badge v-else variant="outline" class="text-[10px]">sin mapear</Badge>
-                  </TableCell>
-                  <TableCell class="text-right tabular-nums text-xs">
-                    {{ b.pct != null ? `${b.pct}%` : '—' }}
-                  </TableCell>
-                  <TableCell class="text-center">
-                    <Checkbox
-                      v-if="beneficioSeleccionable(b)"
-                      v-model:checked="beneficiosSeleccionados[b.slot]"
-                    />
-                    <Badge v-else-if="b.aplica === false" variant="outline" class="text-[10px]">
-                      {{ etiquetaNoAplica(b.flujo) }}
-                    </Badge>
-                    <span v-else class="text-xs text-muted-foreground">—</span>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-            <p v-else class="text-sm text-muted-foreground">
-              Sin beneficios en cartera Excel para este alumno.
+                  </span>
+                  <Badge v-if="b.aplica === false" variant="outline" class="text-[10px]">
+                    {{ etiquetaNoAplica(b.flujo) }}
+                  </Badge>
+                  <span v-else class="text-xs text-zinc-500">No disponible</span>
+                </div>
+              </li>
+            </ul>
+            <p v-else class="text-sm text-zinc-600">
+              No hay beneficios asociados para este periodo.
             </p>
-            <p
-              v-if="
-                !cargandoCarteraBeneficios &&
-                (flagsConsolidadoUi.cae ||
-                  flagsConsolidadoUi.ministerial ||
-                  flagsConsolidadoUi.subdere)
-              "
-              class="text-xs text-muted-foreground"
-            >
-              Consolidado:
-              <span v-if="flagsConsolidadoUi.cae">CAE</span>
-              <span v-if="flagsConsolidadoUi.ministerial">
-                {{ flagsConsolidadoUi.cae ? ' · ' : '' }}Ministerial
-              </span>
-              <span v-if="flagsConsolidadoUi.subdere">
-                {{ flagsConsolidadoUi.cae || flagsConsolidadoUi.ministerial ? ' · ' : '' }}SUBDERE
-              </span>
-            </p>
-            <Button variant="secondary" class="w-full" type="button" @click="calcularBecasMock">
-              Calcular becas / descuentos
-            </Button>
           </CardContent>
         </Card>
 
-        <div class="space-y-4">
+        <div class="space-y-4 lg:col-span-2">
           <Card class="border-orange-100 shadow-md">
             <CardHeader class="pb-2">
               <CardTitle class="text-base text-uniacc-orange">Arancel</CardTitle>
@@ -1290,12 +1295,19 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
             <CardContent class="space-y-2 text-sm">
               <div class="flex justify-between gap-2">
                 <span>Valor arancel</span>
-                <span>{{ fmt(montoBrutoArancel()) }}</span>
+                <span class="tabular-nums">{{ fmt(montoBrutoArancel()) }}</span>
               </div>
-              <div v-if="montoBeneficiosArancel() > 0" class="flex justify-between gap-2 text-green-700">
-                <span>Beneficios arancel</span>
-                <span>− {{ fmt(montoBeneficiosArancel()) }}</span>
+              <div
+                v-for="linea in lineasDescuento"
+                :key="linea.slot"
+                class="flex justify-between gap-3 text-emerald-700"
+              >
+                <span class="min-w-0 truncate">{{ linea.descripcion }}</span>
+                <span class="shrink-0 tabular-nums">− {{ fmt(linea.monto) }}</span>
               </div>
+              <p v-if="lineasDescuento.length === 0" class="text-xs text-zinc-500">
+                Sin descuentos aplicados.
+              </p>
               <div
                 class="mt-3 flex justify-between border-t border-uniacc-orange/30 pt-3 text-base font-bold text-uniacc-orange"
               >

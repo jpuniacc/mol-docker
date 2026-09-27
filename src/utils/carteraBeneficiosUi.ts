@@ -117,6 +117,73 @@ export function montoUplusTrasCatalogo(
   return Math.max(0, montoUplus - resta)
 }
 
+/** Monto a descontar del arancel por un beneficio seleccionable (detalle ERP o % del bruto). */
+export function montoDescuentoBeneficio(input: {
+  item: BeneficioExcelUiItem
+  detalle: BeneficioDetalleMonto[]
+  arancelBruto: number
+}): number {
+  if (!beneficioSeleccionable(input.item)) return 0
+  const cod = (input.item.cod_beneficio ?? '').trim()
+  const det = input.detalle.find((d) => (d.cod_beneficio ?? '').trim() === cod)
+  if (det) {
+    const raw = Number(det.monto ?? det.monto_aprobado ?? Number.NaN)
+    if (Number.isFinite(raw) && raw > 0) return Math.round(raw)
+  }
+  if (input.item.pct != null && input.arancelBruto > 0) {
+    return Math.round((input.arancelBruto * input.item.pct) / 100)
+  }
+  return 0
+}
+
+export type LineaDescuentoBeneficio = {
+  slot: 1 | 2
+  descripcion: string
+  monto: number
+}
+
+/** Solo los beneficios marcados. El total no supera el arancel bruto. */
+export function lineasDescuentoSeleccion(input: {
+  items: BeneficioExcelUiItem[]
+  seleccionados: Record<number, boolean>
+  detalle: BeneficioDetalleMonto[]
+  arancelBruto: number
+}): LineaDescuentoBeneficio[] {
+  const bruto = Math.max(0, input.arancelBruto)
+  let restante = bruto
+  const lineas: LineaDescuentoBeneficio[] = []
+  for (const item of input.items) {
+    if (!beneficioSeleccionable(item) || input.seleccionados[item.slot] !== true) continue
+    const pedido = montoDescuentoBeneficio({
+      item,
+      detalle: input.detalle,
+      arancelBruto: bruto,
+    })
+    const monto = Math.min(pedido, restante)
+    restante -= monto
+    lineas.push({
+      slot: item.slot,
+      descripcion: item.descripcion || 'Beneficio',
+      monto,
+    })
+  }
+  return lineas
+}
+
+/** Sí solo si queda un código que el catálogo no marcó como no aplicable. */
+export function tieneBeneficioAplicable(
+  detalle: BeneficioDetalleMonto[],
+  catalogo: CatalogoBeneficioAplica[],
+): boolean {
+  const caidos = new Set(
+    catalogo.filter((c) => c.aplica === false).map((c) => c.codigo_beneficio.trim()),
+  )
+  return detalle.some((b) => {
+    const cod = (b.cod_beneficio ?? '').trim()
+    return cod.length > 0 && !caidos.has(cod)
+  })
+}
+
 export function flagsConsolidado(consolidado: string | null): FlagsConsolidado {
   const text = (consolidado ?? '').trim().toUpperCase()
   if (!text) return { cae: false, ministerial: false, subdere: false }
