@@ -2,7 +2,9 @@ import { incrementPeek } from '@/utils/pagareCuotasDraft'
 
 /** Tipo de documento de pago, como en la cuenta corriente. */
 export const TIPO_DOC_BECAS_INTERNAS = 'BECAS INTERNAS ASIGNADAS'
+export const TIPO_DOC_BECAS_ESTATALES = 'BECAS ESTATALES ASIGNADAS'
 export const TIPO_DOC_CONVENIOS = 'DESCTO. CONVENIOS ASIGNADOS'
+export const TIPO_DOC_CAE = 'PAGARÉ CAE'
 
 export type LineaParaDocumentoDescuento = {
   concepto: 'matricula' | 'arancel'
@@ -23,12 +25,15 @@ export type DocumentoDescuentoAsignado = {
 }
 
 export function tipoDocumentoDescuento(flujo: string | null): string {
-  return flujo === 'CONVENIO' ? TIPO_DOC_CONVENIOS : TIPO_DOC_BECAS_INTERNAS
+  if (flujo === 'CONVENIO') return TIPO_DOC_CONVENIOS
+  if (flujo === 'ESTATAL') return TIPO_DOC_BECAS_ESTATALES
+  if (flujo === 'CAE') return TIPO_DOC_CAE
+  return TIPO_DOC_BECAS_INTERNAS
 }
 
 /**
- * Reserva un correlativo por descuento, después de los dos pagarés
- * (matrícula = peek, arancel = peek+1). Primero matrícula, luego arancel.
+ * Un solo peek CORRPAGNUM. Matrícula = peek, pagaré de arancel = peek+1,
+ * y cada convenio, beca, estatal o CAE toma el correlativo siguiente.
  */
 export function asignarDocumentosDescuento(input: {
   peek: string
@@ -42,7 +47,7 @@ export function asignarDocumentosDescuento(input: {
     return a.concepto === 'matricula' ? -1 : 1
   })
   return ordenadas
-    .filter((linea) => linea.monto > 0)
+    .filter((linea) => linea.monto > 0 || linea.flujo === 'CAE')
     .map((linea, index) => {
       const tipoDocumento = tipoDocumentoDescuento(linea.flujo)
       return {

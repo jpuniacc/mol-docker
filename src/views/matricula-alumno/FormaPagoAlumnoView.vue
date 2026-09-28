@@ -46,6 +46,7 @@ import {
 import { detectarConveniosAlumno } from '@/services/convenioAlumno'
 import { fetchBeneficioPeriodo } from '@/services/fetchBeneficioPeriodo'
 import { fmtMontoClp, fetchPlanPagosMvByCodcli } from '@/services/fetchPlanPagosMv'
+import { fetchMontoCaeAprobadoAlumno } from '@/services/fetchMnpEstadoCaeAlumnos'
 import { contextoMolAuditoria, type ContextoMolAuditoriaOpciones } from '@/services/molAuditContext'
 import { ejecutarVerificacionCae } from '@/services/verificacionCae'
 import { registrarFormaPagoAudit } from '@/services/formaPagoAuditLog'
@@ -373,7 +374,25 @@ async function cargarPlanPagosAlumno(): Promise<PlanPagosMvRow | null> {
     return null
   }
   planPagosRow.value = data
+  await cargarMontoCaeDocumento(data)
   return data
+}
+
+const montoCaeAprobado = ref(0)
+
+async function cargarMontoCaeDocumento(fila: PlanPagosMvRow | null): Promise<void> {
+  const codcli = pickCampoAlumno(fuente.codcliMostrado.value)
+  const anio = periodoActivo.anio
+  const sem = periodoActivo.semestre
+  if (!tieneCae(fila) || !codcli || anio == null || sem == null) {
+    montoCaeAprobado.value = 0
+    return
+  }
+  montoCaeAprobado.value = await fetchMontoCaeAprobadoAlumno({
+    codcli,
+    anio,
+    semestre: sem,
+  })
 }
 
 const verificandoCae = ref(false)
@@ -984,15 +1003,24 @@ function descuentosParaContrato(): MockDescuentoPagare[] {
   if (!/^\d+$/.test(peek)) return []
   const anio = anioNotas.value
   const vencimiento = anio != null ? `29/12/${anio}` : '—'
+  const lineas = lineasDescuento.value.map((fila) => ({
+    concepto: 'arancel' as const,
+    flujo: fila.flujo,
+    descripcion: fila.descripcion,
+    monto: fila.monto,
+  }))
+  if (tieneCae(plan.value)) {
+    lineas.push({
+      concepto: 'arancel',
+      flujo: 'CAE',
+      descripcion: 'Crédito Aval del Estado',
+      monto: montoCaeAprobado.value,
+    })
+  }
   return asignarDocumentosDescuento({
     peek,
     vencimiento,
-    lineas: lineasDescuento.value.map((fila) => ({
-      concepto: 'arancel' as const,
-      flujo: fila.flujo,
-      descripcion: fila.descripcion,
-      monto: fila.monto,
-    })),
+    lineas,
   })
 }
 

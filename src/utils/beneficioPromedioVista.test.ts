@@ -72,6 +72,32 @@ describe('filasBeneficioConPromedio', () => {
     expect(apoyo).toMatchObject({ monto: 200_000, recortadoTope: true })
   })
 
+  it('aplica la beca estatal sobre el arancel antes que la interna', () => {
+    const filas = filasBeneficioConPromedio({
+      items: [
+        {
+          slot: 1,
+          descripcion: 'Beca ministerial',
+          cod_beneficio: 'BJGM',
+          pct: 50,
+          sinMapear: false,
+          aplica: true,
+          flujo: 'ESTATAL',
+        },
+        ITEMS[0]!,
+      ],
+      catalogo: [
+        ...CATALOGO,
+        { codigo_beneficio: 'BJGM', flujo: 'ESTATAL', renovable: 'BECA ESTATAL' },
+      ],
+      seleccionados: { 1: true, 2: true },
+      arancelBruto: 4_000_000,
+      promedio: 6,
+    })
+    expect(filas.find((f) => f.codigo === 'BJGM')).toMatchObject({ monto: 2_000_000 })
+    expect(filas.find((f) => f.codigo === '1795')).toMatchObject({ monto: 600_000 })
+  })
+
   it('si se desmarca Talento, Apoyo usa el arancel completo', () => {
     const filas = filasBeneficioConPromedio({
       items: ITEMS,

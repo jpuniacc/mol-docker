@@ -71,18 +71,19 @@ function esApoyo(fila: FilaBeneficioPromedio): boolean {
   return (fila.codigo ?? '').trim() === CODIGO_APOYO_UNIACC
 }
 
-/** Ganadora interna (mayor % ya ajustado), luego Apoyo 1756 sobre el saldo, luego convenios. */
+/** Estatal sobre el saldo, luego ganadora interna, Apoyo 1756 y convenios. */
 function ordenCascade(filas: FilaBeneficioPromedio[]): FilaBeneficioPromedio[] {
   const vigentes = filas.filter(
     (f) => f.marcado && f.resultado !== 'PIERDE' && (f.porcAplica ?? 0) > 0,
   )
   const apoyo = vigentes.filter((f) => esApoyo(f))
   const resto = vigentes.filter((f) => !esApoyo(f))
+  const estatales = resto.filter((f) => f.flujo === 'ESTATAL')
   const internas = resto.filter((f) => (f.flujo ?? 'MOL_DVU') === 'MOL_DVU')
   const convenios = resto.filter((f) => f.flujo === 'CONVENIO')
   internas.sort((a, b) => (b.porcAplica ?? 0) - (a.porcAplica ?? 0))
   const ganadora = internas[0]
-  return [...(ganadora ? [ganadora] : []), ...apoyo, ...convenios]
+  return [...estatales, ...(ganadora ? [ganadora] : []), ...apoyo, ...convenios]
 }
 
 export function filasBeneficioConPromedio(input: {
@@ -101,7 +102,7 @@ export function filasBeneficioConPromedio(input: {
   const filas: FilaBeneficioPromedio[] = input.items.map((item) => {
     const cod = (item.cod_beneficio ?? '').trim() || null
     const cat = cod ? porCodigo.get(cod) : undefined
-    const flujo = cat?.flujo ?? null
+    const flujo = cat?.flujo ?? item.flujo ?? null
     const exige = flujo === 'MOL_DVU' && exigeMedicionPromedio(cat?.renovable)
     const ajuste = ajusteDePorcentaje(item.pct, exige, input.promedio)
     return {
@@ -120,9 +121,15 @@ export function filasBeneficioConPromedio(input: {
   })
 
   const orden = ordenCascade(filas)
-  const internas = orden.filter((fila) => fila.flujo !== 'CONVENIO')
+  const estatales = orden.filter((fila) => fila.flujo === 'ESTATAL')
+  const internas = orden.filter((fila) => fila.flujo !== 'CONVENIO' && fila.flujo !== 'ESTATAL')
   const convenios = orden.filter((fila) => fila.flujo === 'CONVENIO')
   let saldo = Math.max(0, input.arancelBruto)
+  for (const fila of estatales) {
+    const monto = descuentoSobreSaldo(saldo, fila.porcAplica)
+    fila.monto = monto
+    saldo -= monto
+  }
   for (const fila of internas) {
     const monto = descuentoSobreSaldo(saldo, fila.porcAplica)
     fila.monto = monto

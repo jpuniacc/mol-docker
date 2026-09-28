@@ -38,6 +38,27 @@ export function fmtCell(v: string | number | null | undefined): string {
   return String(v)
 }
 
+/** Monto CAE aprobado del alumno, para numerar el pagaré CAE del plan. */
+export async function fetchMontoCaeAprobadoAlumno(options: {
+  codcli: string
+  anio: number
+  semestre: number
+}): Promise<number> {
+  const { data, error } = await supabase
+    .from('mnp_estado_cae_alumnos')
+    .select('monto_cae_aprobado, monto_apr, monto')
+    .eq('codcli', options.codcli)
+    .eq('anio_matricula', options.anio)
+    .eq('periodo_matricula', options.semestre)
+    .eq('cod_beneficio_cargado', 4)
+    .limit(1)
+
+  if (error || !data?.[0]) return 0
+  const row = data[0]
+  const monto = Number(row.monto_cae_aprobado ?? row.monto_apr ?? row.monto ?? 0)
+  return Number.isFinite(monto) && monto > 0 ? Math.round(monto) : 0
+}
+
 export async function fetchMnpEstadoCaeAlumnos(options: {
   anio: number
   semestre: number
