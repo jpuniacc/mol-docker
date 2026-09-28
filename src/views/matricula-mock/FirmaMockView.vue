@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onUnmounted, ref, watch } from 'vue'
+import { onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Download, Loader2, Mail } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
@@ -8,6 +8,7 @@ import ContratoPrestacionServiciosPreview from '@/components/rematricula/Contrat
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useContratoMatriculaViewModel } from '@/composables/useContratoMatriculaViewModel'
 import { useMockAlumnoFuente } from '@/composables/useMockAlumnoFuente'
@@ -29,6 +30,7 @@ const fuente = useMockAlumnoFuente()
 const { viewModel, tienePlanConfirmado } = useContratoMatriculaViewModel()
 
 const descargando = ref(false)
+const aceptado = ref(false)
 const enviando = ref(false)
 const errorFirma = ref<string | null>(null)
 const firmantes = ref<ContratoFirmaFirmanteEstado[]>([])
@@ -110,18 +112,6 @@ async function enviarAFirmar(): Promise<void> {
   }
 }
 
-watch(
-  tienePlanConfirmado,
-  (ok: boolean) => {
-    if (ok) {
-      void enviarAFirmar()
-    } else {
-      clearPoll()
-    }
-  },
-  { immediate: true },
-)
-
 onUnmounted(() => {
   unmounted = true
   clearPoll()
@@ -156,7 +146,7 @@ async function descargaBorrador(): Promise<void> {
 <template>
   <div class="space-y-6">
     <p class="text-muted-foreground">
-      Vista 08 — Firma del contrato: revisa el contrato y espera a que firmen todos por correo.
+      Revisa el contrato. Cuando lo aceptes, se envía a firmar por correo.
     </p>
 
     <Card v-if="!tienePlanConfirmado" class="shadow-md border-amber-200 bg-amber-50">
@@ -208,7 +198,37 @@ async function descargaBorrador(): Promise<void> {
         </CardContent>
       </Card>
 
-      <Card class="shadow-md">
+      <Card v-if="firmantes.length === 0 && !enviando && !errorFirma" class="shadow-md">
+        <CardHeader>
+          <CardTitle>2. Acepta y envía a firmar</CardTitle>
+          <CardDescription>
+            El contrato queda en pantalla para que lo revises. Recién al aceptarlo se envía a
+            TuFirma.
+          </CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-4">
+          <label class="flex cursor-pointer items-start gap-3 text-sm text-zinc-800">
+            <Checkbox
+              :checked="aceptado"
+              class="mt-0.5 cursor-pointer"
+              @update:checked="(v: boolean) => (aceptado = v === true)"
+            />
+            <span>Acepto el contrato de prestación de servicios y quiero enviarlo a firmar.</span>
+          </label>
+          <div class="flex justify-end">
+            <Button
+              type="button"
+              class="cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90"
+              :disabled="!aceptado"
+              @click="enviarAFirmar"
+            >
+              Enviar a firmar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card v-else class="shadow-md">
         <CardHeader>
           <CardTitle>Firma del contrato</CardTitle>
           <CardDescription>
