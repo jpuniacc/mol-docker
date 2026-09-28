@@ -122,10 +122,7 @@ async function descargarContrato(): Promise<void> {
       </CardContent>
     </Card>
 
-    <div class="flex flex-wrap justify-between gap-3">
-      <Button variant="outline" class="cursor-pointer" @click="router.push({ name: 'matricula-alumno-firma' })">
-        Anterior
-      </Button>
+    <div class="flex justify-end">
       <Button variant="secondary" class="cursor-pointer" @click="router.push({ name: 'dashboard-home' })">
         Volver al inicio
       </Button>
