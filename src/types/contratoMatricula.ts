@@ -2,6 +2,9 @@
 
 export type ContratoDescuentoLinea = {
   concepto: 'matricula' | 'arancel'
+  /** Correlativo del documento de pago. */
+  documento: string
+  tipoDocumento: string
   descripcion: string
   detalle: string
   monto: number
@@ -16,6 +19,8 @@ export type ContratoCuotaLinea = {
   cuota?: number
   totalCuotas?: number
   item?: 1 | 2
+  /** Header del pagaré (CORRPAGNUM), distinto del folio de cada cuota. */
+  ctapagnum?: string
 }
 
 export type ContratoPersonaBloque = {

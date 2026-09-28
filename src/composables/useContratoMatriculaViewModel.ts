@@ -135,6 +135,8 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
       valorArancel,
       descuentos: (pago.descuentos ?? []).map((d) => ({
         concepto: d.concepto,
+        documento: d.documento,
+        tipoDocumento: d.tipoDocumento,
         descripcion: d.descripcion,
         detalle: d.detalle,
         monto: d.monto,
@@ -148,6 +150,7 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
         cuota: c.cuota,
         totalCuotas: c.totalCuotas,
         item: c.item,
+        ctapagnum: c.ctapagnum,
       })),
       representante: {
         nombre: '',

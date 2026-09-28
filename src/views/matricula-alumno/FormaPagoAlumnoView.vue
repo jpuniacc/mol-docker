@@ -89,6 +89,7 @@ import type {
   MockPagoMatricula,
 } from '@/stores/mockMatriculaContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
+import { asignarDocumentosDescuento } from '@/utils/documentosDescuentoContrato'
 import {
   buildPagareCuotasDraft,
   incrementPeek,
@@ -978,30 +979,20 @@ async function continuarSelectorMedios() {
   sincronizarFechaInicioConDiaVencimiento()
 }
 
-function fmtPorcContrato(valor: number | null): string {
-  if (valor == null || !Number.isFinite(valor)) return ''
-  const texto = (Math.round(valor * 10) / 10).toFixed(1).replace('.', ',')
-  return texto.endsWith(',0') ? texto.slice(0, -2) : texto
-}
-
 function descuentosParaContrato(): MockDescuentoPagare[] {
+  const peek = (corrpagnumPreview.value ?? '').trim()
+  if (!/^\d+$/.test(peek)) return []
   const anio = anioNotas.value
   const vencimiento = anio != null ? `29/12/${anio}` : '—'
-  return lineasDescuento.value.map((fila) => {
-    const porc = fmtPorcContrato(fila.porcAplica)
-    const esApoyo = (fila.codigo ?? '').trim() === '1756'
-    const base = esApoyo
-      ? `${porc} % de lo que queda`
-      : fila.flujo === 'CONVENIO'
-        ? `${porc} % del saldo`
-        : `${porc} % del arancel`
-    return {
-      concepto: 'arancel',
+  return asignarDocumentosDescuento({
+    peek,
+    vencimiento,
+    lineas: lineasDescuento.value.map((fila) => ({
+      concepto: 'arancel' as const,
+      flujo: fila.flujo,
       descripcion: fila.descripcion,
-      detalle: fila.recortadoTope ? `${base} · recortada al tope 70 %` : base,
       monto: fila.monto,
-      vencimiento,
-    }
+    })),
   })
 }
 

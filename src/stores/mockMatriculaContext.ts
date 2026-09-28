@@ -41,6 +41,10 @@ export type MockCuotaPagareDetalle = {
 
 export type MockDescuentoPagare = {
   concepto: 'matricula' | 'arancel'
+  /** Correlativo del documento de pago (cuenta corriente). */
+  documento: string
+  /** BECAS INTERNAS ASIGNADAS | DESCTO. CONVENIOS ASIGNADOS */
+  tipoDocumento: string
   descripcion: string
   detalle: string
   monto: number

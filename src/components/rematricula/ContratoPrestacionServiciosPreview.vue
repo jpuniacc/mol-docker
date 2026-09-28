@@ -37,11 +37,26 @@ const preambulo = computed(() => fill(clausulasFixture.preambuloIntro))
 
 const cuotasMat = computed(() => props.model.cuotas.filter((c) => c.item === 1))
 const cuotasAra = computed(() => props.model.cuotas.filter((c) => c.item === 2))
+const descuentosMatricula = computed(() =>
+  props.model.descuentos.filter((d) => d.concepto === 'matricula' && d.monto > 0),
+)
 const descuentosArancel = computed(() =>
   props.model.descuentos.filter((d) => d.concepto === 'arancel' && d.monto > 0),
 )
+const saldoPagareMatricula = computed(() =>
+  cuotasMat.value.reduce((sum, c) => sum + (Number(c.valor) || 0), 0),
+)
 const saldoPagareArancel = computed(() =>
   cuotasAra.value.reduce((sum, c) => sum + (Number(c.valor) || 0), 0),
+)
+const documentoPagareMatricula = computed(
+  () => cuotasMat.value.find((c) => c.ctapagnum)?.ctapagnum ?? '—',
+)
+const documentoPagareArancel = computed(
+  () => cuotasAra.value.find((c) => c.ctapagnum)?.ctapagnum ?? '—',
+)
+const vencimientoPagareMatricula = computed(
+  () => cuotasMat.value[cuotasMat.value.length - 1]?.fechaVencimiento ?? '—',
 )
 const vencimientoPagareArancel = computed(
   () => cuotasAra.value[cuotasAra.value.length - 1]?.fechaVencimiento ?? '—',
@@ -133,6 +148,37 @@ const vencimientoPagareArancel = computed(
             <span>valor matrícula {{ formatClp(model.valorMatricula) }}</span>
             <span>valor arancel {{ formatClp(model.valorArancel) }}</span>
           </div>
+          <div v-if="descuentosMatricula.length" class="overflow-x-auto">
+            <p class="mb-1 font-semibold">Matrícula — Descuentos</p>
+            <table class="w-full border-collapse text-left">
+              <thead>
+                <tr class="border-b border-zinc-300">
+                  <th class="py-1 pr-2">Documento</th>
+                  <th class="py-1 pr-2">Tipo de documento</th>
+                  <th class="py-1 pr-2">Valor</th>
+                  <th class="py-1">Fecha de vencimiento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(d, i) in descuentosMatricula"
+                  :key="'dm-' + i"
+                  class="border-b border-zinc-200"
+                >
+                  <td class="py-1 pr-2 font-mono text-[10px]">{{ d.documento }}</td>
+                  <td class="py-1 pr-2">{{ d.tipoDocumento }}</td>
+                  <td class="py-1 pr-2">{{ formatClp(d.monto) }}</td>
+                  <td class="py-1">{{ d.vencimiento }}</td>
+                </tr>
+                <tr v-if="saldoPagareMatricula > 0" class="border-b border-zinc-200 font-semibold">
+                  <td class="py-1 pr-2 font-mono text-[10px]">{{ documentoPagareMatricula }}</td>
+                  <td class="py-1 pr-2">PAGARÉ</td>
+                  <td class="py-1 pr-2">{{ formatClp(saldoPagareMatricula) }}</td>
+                  <td class="py-1">{{ vencimientoPagareMatricula }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           <div v-if="cuotasMat.length" class="overflow-x-auto">
             <p class="mb-1 font-semibold">Matrícula — Plan de pago</p>
             <table class="w-full border-collapse text-left">
@@ -160,9 +206,9 @@ const vencimientoPagareArancel = computed(
               <thead>
                 <tr class="border-b border-zinc-300">
                   <th class="py-1 pr-2">Documento</th>
-                  <th class="py-1 pr-2">Tipo</th>
+                  <th class="py-1 pr-2">Tipo de documento</th>
                   <th class="py-1 pr-2">Valor</th>
-                  <th class="py-1">Vencimiento</th>
+                  <th class="py-1">Fecha de vencimiento</th>
                 </tr>
               </thead>
               <tbody>
@@ -171,14 +217,14 @@ const vencimientoPagareArancel = computed(
                   :key="'d-' + i"
                   class="border-b border-zinc-200"
                 >
-                  <td class="py-1 pr-2">{{ d.descripcion }}</td>
-                  <td class="py-1 pr-2">{{ d.detalle }}</td>
+                  <td class="py-1 pr-2 font-mono text-[10px]">{{ d.documento }}</td>
+                  <td class="py-1 pr-2">{{ d.tipoDocumento }}</td>
                   <td class="py-1 pr-2">{{ formatClp(d.monto) }}</td>
                   <td class="py-1">{{ d.vencimiento }}</td>
                 </tr>
                 <tr v-if="saldoPagareArancel > 0" class="border-b border-zinc-200 font-semibold">
+                  <td class="py-1 pr-2 font-mono text-[10px]">{{ documentoPagareArancel }}</td>
                   <td class="py-1 pr-2">PAGARÉ</td>
-                  <td class="py-1 pr-2">Saldo en cuotas</td>
                   <td class="py-1 pr-2">{{ formatClp(saldoPagareArancel) }}</td>
                   <td class="py-1">{{ vencimientoPagareArancel }}</td>
                 </tr>
