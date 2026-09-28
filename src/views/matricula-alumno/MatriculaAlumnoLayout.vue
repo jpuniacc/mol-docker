@@ -34,10 +34,12 @@ function routeNameToStep(name: string | symbol | null | undefined): number {
   return idx >= 0 ? idx + 1 : 1
 }
 
+const matriculaCerrada = computed(() => alumnoCtx.firmaCompletada)
+
 const stepModel = computed({
   get: () => routeNameToStep(route.name),
   set: (v: number | undefined) => {
-    if (v === undefined) return
+    if (v === undefined || matriculaCerrada.value) return
     const n = STEP_NAMES[v - 1]
     if (n) void router.push({ name: n })
   },
@@ -116,6 +118,7 @@ function reiniciarFlujo() {
           </div>
           <div class="flex flex-wrap items-center gap-2 md:justify-end">
             <Button
+              v-if="!matriculaCerrada"
               type="button"
               variant="outline"
               size="sm"
@@ -175,7 +178,11 @@ function reiniciarFlujo() {
           :linear="false"
           class="flex w-full min-w-[520px] items-start gap-0 md:min-w-0"
         >
-        <StepperItem :step="1" class="flex min-w-0 flex-1 flex-row items-start">
+        <StepperItem
+          :step="1"
+          :disabled="matriculaCerrada"
+          class="flex min-w-0 flex-1 flex-row items-start"
+        >
           <StepperTrigger class="flex min-w-0 flex-1 flex-col items-center gap-1">
             <StepperIndicator class="h-9 w-9 text-sm">1</StepperIndicator>
             <div class="text-center">
@@ -185,7 +192,11 @@ function reiniciarFlujo() {
           </StepperTrigger>
           <StepperSeparator class="mx-1 mt-4 h-0.5 min-w-[1rem] flex-1 self-start bg-border md:mx-2" />
         </StepperItem>
-        <StepperItem :step="2" class="flex min-w-0 flex-1 flex-row items-start">
+        <StepperItem
+          :step="2"
+          :disabled="matriculaCerrada"
+          class="flex min-w-0 flex-1 flex-row items-start"
+        >
           <StepperTrigger class="flex min-w-0 flex-1 flex-col items-center gap-1">
             <StepperIndicator class="h-9 w-9 text-sm">2</StepperIndicator>
             <div class="text-center">
@@ -195,7 +206,11 @@ function reiniciarFlujo() {
           </StepperTrigger>
           <StepperSeparator class="mx-1 mt-4 h-0.5 min-w-[1rem] flex-1 self-start bg-border md:mx-2" />
         </StepperItem>
-        <StepperItem :step="3" class="flex min-w-0 flex-1 flex-row items-start">
+        <StepperItem
+          :step="3"
+          :disabled="matriculaCerrada"
+          class="flex min-w-0 flex-1 flex-row items-start"
+        >
           <StepperTrigger class="flex min-w-0 flex-1 flex-col items-center gap-1">
             <StepperIndicator class="h-9 w-9 text-sm">3</StepperIndicator>
             <div class="text-center">

@@ -508,6 +508,9 @@ router.beforeEach(async (to) => {
 
   if (needsAuth && auth.isAuthenticated && isAlumnoFlowRoute(to.name)) {
     const alumnoCtx = useMatriculaAlumnoContextStore()
+    if (alumnoCtx.firmaCompletada && to.name !== 'matricula-alumno-resumen') {
+      return { name: 'matricula-alumno-resumen', replace: true }
+    }
     if (alumnoCtx.apoderadoBloqueo && to.name !== ALUMNO_DATOS_ROUTE) {
       return { name: ALUMNO_DATOS_ROUTE, replace: true }
     }
