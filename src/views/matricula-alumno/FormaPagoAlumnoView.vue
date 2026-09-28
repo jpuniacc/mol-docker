@@ -996,6 +996,23 @@ function descuentosParaContrato(): MockDescuentoPagare[] {
   })
 }
 
+const documentosPlanPago = computed(() => descuentosParaContrato())
+
+const bloquesPlanPago = computed(() => [
+  {
+    titulo: 'Matrícula',
+    monto: montoNetoMatricula(),
+    descuentos: documentosPlanPago.value.filter((d) => d.concepto === 'matricula'),
+    rows: pagareCuotasMat.value,
+  },
+  {
+    titulo: 'Arancel',
+    monto: montoNetoArancel(),
+    descuentos: documentosPlanPago.value.filter((d) => d.concepto === 'arancel'),
+    rows: pagareCuotasAra.value,
+  },
+])
+
 async function confirmarPagareMatricula() {
   const hoy = hoyIsoLocal()
   const fecha = pagareFechaInicio.value
@@ -1500,18 +1517,13 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
       >
         <DialogHeader class="shrink-0 space-y-3 text-left">
           <DialogTitle class="text-xl text-zinc-900">
-            {{
-              pagoMatriculaPaso === 'selector'
-                ? 'Forma de pago'
-                : 'Configurar pagaré'
-            }}
+            {{ pagoMatriculaPaso === 'selector' ? 'Forma de pago' : 'Plan de pagos' }}
           </DialogTitle>
           <DialogDescription v-if="pagoMatriculaPaso === 'selector'" class="text-sm text-muted-foreground">
             Confirma el medio para matrícula y arancel. Luego definirás cuotas y vencimientos.
           </DialogDescription>
-          <DialogDescription v-else>
-            Monto total:
-            <strong class="text-zinc-900">{{ fmt(montoNetoMatricula() + montoNetoArancel()) }}</strong>
+          <DialogDescription v-else class="text-sm text-muted-foreground">
+            Revisa las cuotas y el documento de cada beca, en matrícula o en arancel.
           </DialogDescription>
         </DialogHeader>
 
@@ -1600,181 +1612,166 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
 
         <div v-else class="flex min-h-0 flex-1 flex-col gap-4 py-2">
           <div class="shrink-0 space-y-4">
-            <div class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm">
-              <p>
-                Forma:
-                <strong>Pagaré</strong>
-              </p>
-              <p class="mt-1">
-                Cuotas:
-                <strong>{{ pagareTotalCuotas }} matrícula + {{ pagareTotalCuotas }} arancel</strong>
-                · Valor cuota mat:
-                <strong>{{ fmt(valorCuotaPagareMat) }}</strong>
-                · arancel:
-                <strong>{{ fmt(valorCuotaPagareAra) }}</strong>
-              </p>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
+                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Matrícula
+                </p>
+                <p class="mt-1 text-lg font-semibold tabular-nums text-zinc-900">
+                  {{ fmt(montoNetoMatricula()) }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ pagareTotalCuotas }} cuotas de {{ fmt(valorCuotaPagareMat) }}
+                </p>
+              </div>
+              <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
+                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Arancel
+                </p>
+                <p class="mt-1 text-lg font-semibold tabular-nums text-zinc-900">
+                  {{ fmt(montoNetoArancel()) }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ pagareTotalCuotas }} cuotas de {{ fmt(valorCuotaPagareAra) }}
+                </p>
+              </div>
             </div>
 
-            <div class="space-y-2">
-              <Label>Cantidad de cuotas</Label>
-              <Select v-model="pagareTotalCuotas">
-                <SelectTrigger>
-                  <SelectValue placeholder="Cuotas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10 cuotas</SelectItem>
-                  <SelectItem value="12">12 cuotas</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <div class="grid gap-3 sm:grid-cols-3">
+              <div class="space-y-2">
+                <Label>Cantidad de cuotas</Label>
+                <Select v-model="pagareTotalCuotas">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Cuotas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10 cuotas</SelectItem>
+                    <SelectItem value="12">12 cuotas</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div class="space-y-2">
-              <Label>Día de vencimiento</Label>
-              <Select v-model="pagareDiaVencimiento">
-                <SelectTrigger>
-                  <SelectValue placeholder="Día" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">Día 5</SelectItem>
-                  <SelectItem value="15">Día 15</SelectItem>
-                  <SelectItem value="25">Día 25</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              <div class="space-y-2">
+                <Label>Día de vencimiento</Label>
+                <Select v-model="pagareDiaVencimiento">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Día" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">Día 5</SelectItem>
+                    <SelectItem value="15">Día 15</SelectItem>
+                    <SelectItem value="25">Día 25</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div class="space-y-2">
-              <Label for="pagare-fecha-inicio">Fecha de inicio</Label>
-              <Input
-                id="pagare-fecha-inicio"
-                v-model="pagareFechaInicio"
-                type="date"
-                :min="pagareFechaInicioMin"
-              />
-              <p class="text-xs text-muted-foreground">
-                <template v-if="etiquetaPrimeraCuota">
-                  Primera cuota del periodo: {{ etiquetaPrimeraCuota }} (día
-                  {{ pagareDiaVencimiento }}).
-                </template>
-                <template v-else>
-                  Día {{ pagareDiaVencimiento }} del mes siguiente a hoy.
-                </template>
-              </p>
+              <div class="space-y-2">
+                <Label for="pagare-fecha-inicio">Fecha de inicio</Label>
+                <Input
+                  id="pagare-fecha-inicio"
+                  v-model="pagareFechaInicio"
+                  type="date"
+                  :min="pagareFechaInicioMin"
+                />
+              </div>
             </div>
+            <p class="text-xs text-muted-foreground">
+              <template v-if="etiquetaPrimeraCuota">
+                Primera cuota del periodo: {{ etiquetaPrimeraCuota }} (día
+                {{ pagareDiaVencimiento }}).
+              </template>
+              <template v-else>
+                Día {{ pagareDiaVencimiento }} del mes siguiente a hoy.
+              </template>
+            </p>
 
-            <div class="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                :disabled="!pagareFechaInicio || !pagareDiaVencimiento || cargandoPreflight"
-                @click="generarCuotasPagare"
-              >
-                {{ cargandoPreflight ? 'Consultando ERP…' : 'Generar cuotas' }}
-              </Button>
-              <Badge v-if="pagareCuotasPreview.length" variant="outline" class="text-[10px]">
-                {{
-                  corrpagnumPreview
-                    ? 'Correlativo preview ERP (no consumido)'
-                    : 'Correlativo provisional (sin preview ERP)'
-                }}
-              </Badge>
-            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              class="cursor-pointer"
+              :disabled="!pagareFechaInicio || !pagareDiaVencimiento || cargandoPreflight"
+              @click="generarCuotasPagare"
+            >
+              {{ cargandoPreflight ? 'Consultando…' : 'Generar cuotas' }}
+            </Button>
           </div>
 
           <div
-            v-if="pagareCuotasPreview.length"
-            class="min-h-0 flex-1 space-y-3 overflow-y-auto pr-0.5"
+            v-if="bloquesPlanPago.some((b) => b.descuentos.length || b.rows.length)"
+            class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-0.5"
           >
-            <div
-              v-for="bloque in [
-                { titulo: 'Matrícula', rows: pagareCuotasMat },
-                { titulo: 'Arancel', rows: pagareCuotasAra },
-              ]"
+            <section
+              v-for="bloque in bloquesPlanPago"
               :key="bloque.titulo"
-              class="overflow-auto rounded-md border border-zinc-200"
+              class="overflow-hidden rounded-lg border border-zinc-200"
             >
-              <p class="sticky top-0 z-10 border-b border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs font-medium">
-                {{ bloque.titulo }}
-                <span class="font-normal text-muted-foreground">
-                  ({{ bloque.rows.length }} cuotas)
-                </span>
-              </p>
-              <table class="w-max min-w-full border-collapse text-left text-[11px] leading-tight">
-                <thead class="bg-zinc-50/80">
-                  <tr class="border-b border-zinc-200">
-                    <th class="w-8 px-2 py-2" />
-                    <th class="whitespace-nowrap px-2 py-2 font-medium text-muted-foreground">
-                      DOCUMENTO
-                    </th>
-                    <th class="whitespace-nowrap px-2 py-2 font-medium text-muted-foreground">
-                      CORRELATIVO
-                    </th>
-                    <th class="whitespace-nowrap px-2 py-2 font-medium text-muted-foreground">
-                      VENCIMIENTO
-                    </th>
-                    <th
-                      class="whitespace-nowrap px-2 py-2 text-right font-medium text-muted-foreground"
-                    >
-                      MONTO
-                    </th>
-                    <th class="whitespace-nowrap px-2 py-2 font-medium text-muted-foreground">
-                      GASTOS
-                    </th>
-                    <th
-                      class="whitespace-nowrap px-2 py-2 text-right font-medium text-muted-foreground"
-                    >
-                      TOTAL
-                    </th>
-                    <th class="whitespace-nowrap px-2 py-2 font-medium text-muted-foreground">
-                      ÍTEMS
-                    </th>
-                    <th
-                      class="whitespace-nowrap px-2 py-2 text-center font-medium text-muted-foreground"
-                    >
-                      CUOTA
-                    </th>
-                    <th
-                      class="whitespace-nowrap px-2 py-2 text-center font-medium text-muted-foreground"
-                    >
-                      TOTAL CUOTA
-                    </th>
-                    <th
-                      class="whitespace-nowrap px-2 py-2 text-center font-medium text-muted-foreground"
-                    >
-                      ID DOCUMENTO
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="row in bloque.rows"
-                    :key="row.correlativo"
-                    class="border-b border-zinc-100 last:border-0"
-                  >
-                    <td class="px-2 py-1.5">
-                      <Checkbox :checked="row.seleccionado" aria-label="Seleccionar cuota" />
-                    </td>
-                    <td class="whitespace-nowrap px-2 py-1.5">{{ row.documento }}</td>
-                    <td class="whitespace-nowrap px-2 py-1.5 font-mono text-[10px]">
-                      {{ row.correlativo }}
-                    </td>
-                    <td class="whitespace-nowrap px-2 py-1.5">
-                      {{ fmtFechaCuota(row.vencimiento) }}
-                    </td>
-                    <td class="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
-                      {{ fmt(row.monto) }}
-                    </td>
-                    <td class="whitespace-nowrap px-2 py-1.5 text-muted-foreground">—</td>
-                    <td class="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
-                      {{ fmt(row.totalAcumulado) }}
-                    </td>
-                    <td class="whitespace-nowrap px-2 py-1.5">{{ row.items }}</td>
-                    <td class="whitespace-nowrap px-2 py-1.5 text-center">{{ row.cuota }}</td>
-                    <td class="whitespace-nowrap px-2 py-1.5 text-center">{{ row.totalCuotas }}</td>
-                    <td class="whitespace-nowrap px-2 py-1.5 text-center">{{ row.idDocumento }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+              <div class="flex items-baseline justify-between gap-3 border-b border-zinc-200 bg-zinc-50 px-3 py-2">
+                <h3 class="text-sm font-semibold text-zinc-900">{{ bloque.titulo }}</h3>
+                <p class="text-sm font-medium tabular-nums text-zinc-900">{{ fmt(bloque.monto) }}</p>
+              </div>
+
+              <div v-if="bloque.descuentos.length" class="border-b border-zinc-200 px-3 py-3">
+                <p class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Descuentos
+                </p>
+                <div class="overflow-x-auto">
+                  <table class="w-full min-w-[36rem] border-collapse text-left text-xs">
+                    <thead>
+                      <tr class="border-b border-zinc-200 text-muted-foreground">
+                        <th class="py-1.5 pr-3 font-medium">Documento</th>
+                        <th class="py-1.5 pr-3 font-medium">Tipo de documento</th>
+                        <th class="py-1.5 pr-3 font-medium">Beca</th>
+                        <th class="py-1.5 pr-3 text-right font-medium">Valor</th>
+                        <th class="py-1.5 font-medium">Vencimiento</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="descuento in bloque.descuentos"
+                        :key="descuento.documento"
+                        class="border-b border-zinc-100 last:border-0"
+                      >
+                        <td class="py-2 pr-3 font-mono text-[11px]">{{ descuento.documento }}</td>
+                        <td class="py-2 pr-3">{{ descuento.tipoDocumento }}</td>
+                        <td class="py-2 pr-3">{{ descuento.descripcion }}</td>
+                        <td class="py-2 pr-3 text-right tabular-nums">{{ fmt(descuento.monto) }}</td>
+                        <td class="py-2">{{ descuento.vencimiento }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div v-if="bloque.rows.length" class="px-3 py-3">
+                <p class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Cuotas del pagaré
+                </p>
+                <div class="overflow-x-auto">
+                  <table class="w-full min-w-[28rem] border-collapse text-left text-xs">
+                    <thead>
+                      <tr class="border-b border-zinc-200 text-muted-foreground">
+                        <th class="py-1.5 pr-3 font-medium">Cuota</th>
+                        <th class="py-1.5 pr-3 font-medium">Documento</th>
+                        <th class="py-1.5 pr-3 font-medium">Vencimiento</th>
+                        <th class="py-1.5 text-right font-medium">Monto</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="row in bloque.rows"
+                        :key="row.correlativo"
+                        class="border-b border-zinc-100 last:border-0"
+                      >
+                        <td class="py-2 pr-3">{{ row.cuota }} de {{ row.totalCuotas }}</td>
+                        <td class="py-2 pr-3 font-mono text-[11px]">{{ row.correlativo }}</td>
+                        <td class="py-2 pr-3">{{ fmtFechaCuota(row.vencimiento) }}</td>
+                        <td class="py-2 text-right tabular-nums">{{ fmt(row.monto) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
 
@@ -1806,7 +1803,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
             :disabled="pagareCuotasPreview.length !== totalCuotasActual() * 2"
             @click="confirmarPagareMatricula"
           >
-            Confirmar pagaré
+            Confirmar plan
           </Button>
         </DialogFooter>
       </DialogScrollContent>
