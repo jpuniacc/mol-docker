@@ -1,5 +1,13 @@
 /** View-model del contrato de prestación de servicios (MOL mock v1). */
 
+export type ContratoDescuentoLinea = {
+  concepto: 'matricula' | 'arancel'
+  descripcion: string
+  detalle: string
+  monto: number
+  vencimiento: string
+}
+
 export type ContratoCuotaLinea = {
   documento: string
   tipoDocumento: string
@@ -38,6 +46,7 @@ export type ContratoMatriculaViewModel = {
   emailApoderado: string | null
   valorMatricula: number
   valorArancel: number
+  descuentos: ContratoDescuentoLinea[]
   cuotas: ContratoCuotaLinea[]
   representante: {
     nombre: string

@@ -37,6 +37,15 @@ const preambulo = computed(() => fill(clausulasFixture.preambuloIntro))
 
 const cuotasMat = computed(() => props.model.cuotas.filter((c) => c.item === 1))
 const cuotasAra = computed(() => props.model.cuotas.filter((c) => c.item === 2))
+const descuentosArancel = computed(() =>
+  props.model.descuentos.filter((d) => d.concepto === 'arancel' && d.monto > 0),
+)
+const saldoPagareArancel = computed(() =>
+  cuotasAra.value.reduce((sum, c) => sum + (Number(c.valor) || 0), 0),
+)
+const vencimientoPagareArancel = computed(
+  () => cuotasAra.value[cuotasAra.value.length - 1]?.fechaVencimiento ?? '—',
+)
 </script>
 
 <template>
@@ -141,6 +150,37 @@ const cuotasAra = computed(() => props.model.cuotas.filter((c) => c.item === 2))
                   <td class="py-1 pr-2">{{ c.tipoDocumento }} {{ c.cuota }}/{{ c.totalCuotas }}</td>
                   <td class="py-1 pr-2">{{ formatClp(c.valor) }}</td>
                   <td class="py-1">{{ c.fechaVencimiento }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-if="descuentosArancel.length" class="overflow-x-auto">
+            <p class="mb-1 font-semibold">Arancel — Descuentos</p>
+            <table class="w-full border-collapse text-left">
+              <thead>
+                <tr class="border-b border-zinc-300">
+                  <th class="py-1 pr-2">Documento</th>
+                  <th class="py-1 pr-2">Tipo</th>
+                  <th class="py-1 pr-2">Valor</th>
+                  <th class="py-1">Vencimiento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(d, i) in descuentosArancel"
+                  :key="'d-' + i"
+                  class="border-b border-zinc-200"
+                >
+                  <td class="py-1 pr-2">{{ d.descripcion }}</td>
+                  <td class="py-1 pr-2">{{ d.detalle }}</td>
+                  <td class="py-1 pr-2">{{ formatClp(d.monto) }}</td>
+                  <td class="py-1">{{ d.vencimiento }}</td>
+                </tr>
+                <tr v-if="saldoPagareArancel > 0" class="border-b border-zinc-200 font-semibold">
+                  <td class="py-1 pr-2">PAGARÉ</td>
+                  <td class="py-1 pr-2">Saldo en cuotas</td>
+                  <td class="py-1 pr-2">{{ formatClp(saldoPagareArancel) }}</td>
+                  <td class="py-1">{{ vencimientoPagareArancel }}</td>
                 </tr>
               </tbody>
             </table>

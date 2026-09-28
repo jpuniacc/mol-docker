@@ -1,4 +1,4 @@
-import { CODIGO_APOYO_UNIACC } from '@/utils/prelacionArancel'
+import { CODIGO_APOYO_UNIACC, TOPE_INTERNAS } from '@/utils/prelacionArancel'
 import {
   disminuirArt13,
   exigeMedicionPromedio,
@@ -26,6 +26,8 @@ export type FilaBeneficioPromedio = {
   resultado: ResultadoAjustePromedio
   monto: number
   marcado: boolean
+  /** true si esta fila absorbió el recorte al tope del 70 % de internas. */
+  recortadoTope: boolean
 }
 
 function porcUnaDecimal(valor: number): number {
@@ -113,11 +115,34 @@ export function filasBeneficioConPromedio(input: {
       resultado: ajuste.resultado,
       monto: 0,
       marcado: input.seleccionados[item.slot] === true,
+      recortadoTope: false,
     }
   })
 
+  const orden = ordenCascade(filas)
+  const internas = orden.filter((fila) => fila.flujo !== 'CONVENIO')
+  const convenios = orden.filter((fila) => fila.flujo === 'CONVENIO')
   let saldo = Math.max(0, input.arancelBruto)
-  for (const fila of ordenCascade(filas)) {
+  for (const fila of internas) {
+    const monto = descuentoSobreSaldo(saldo, fila.porcAplica)
+    fila.monto = monto
+    saldo -= monto
+  }
+
+  const tope = Math.round(Math.max(0, input.arancelBruto) * TOPE_INTERNAS)
+  let exceso = internas.reduce((sum, fila) => sum + fila.monto, 0) - tope
+  if (exceso > 0) {
+    for (const fila of [...internas].reverse()) {
+      if (exceso <= 0) break
+      const corte = Math.min(fila.monto, exceso)
+      fila.monto -= corte
+      if (corte > 0) fila.recortadoTope = true
+      exceso -= corte
+      saldo += corte
+    }
+  }
+
+  for (const fila of convenios) {
     const monto = descuentoSobreSaldo(saldo, fila.porcAplica)
     fila.monto = monto
     saldo -= monto

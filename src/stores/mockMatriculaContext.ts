@@ -39,6 +39,15 @@ export type MockCuotaPagareDetalle = {
   ctadocnum: string
 }
 
+export type MockDescuentoPagare = {
+  concepto: 'matricula' | 'arancel'
+  descripcion: string
+  detalle: string
+  monto: number
+  /** dd/mm/aaaa */
+  vencimiento: string
+}
+
 export type MockPagoMatricula = {
   medio: MockPagoMatriculaMedio
   /** Solo camino pagaré: tipodoc ERP. */
@@ -52,6 +61,10 @@ export type MockPagoMatricula = {
   /** true para toku/webpay (simulación). */
   simulado?: boolean
   cuotasDetalle?: MockCuotaPagareDetalle[]
+  /** Brutos del ERP. El pagaré cobra el saldo después de los descuentos. */
+  valorMatriculaBruto?: number
+  valorArancelBruto?: number
+  descuentos?: MockDescuentoPagare[]
   numOperacion?: string
   contrato?: string
   stagingCounts?: { docitem: number; ctadoc: number; ctapag: number; ctadep: number }

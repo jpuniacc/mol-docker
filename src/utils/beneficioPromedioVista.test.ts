@@ -57,6 +57,21 @@ describe('filasBeneficioConPromedio', () => {
     expect(apoyo).toMatchObject({ resultado: 'BAJA', porcAplica: 7.5, monto: 290_044 })
   })
 
+  it('recorta la última interna cuando juntas pasan el 70 % del arancel', () => {
+    const items = ITEMS.map((item) => ({ ...item, pct: 50 }))
+    const filas = filasBeneficioConPromedio({
+      items,
+      catalogo: CATALOGO,
+      seleccionados: { 1: true, 2: true },
+      arancelBruto: 1_000_000,
+      promedio: 6.1,
+    })
+    const talento = filas.find((f) => f.codigo === '1795')
+    const apoyo = filas.find((f) => f.codigo === '1756')
+    expect(talento).toMatchObject({ monto: 500_000, recortadoTope: false })
+    expect(apoyo).toMatchObject({ monto: 200_000, recortadoTope: true })
+  })
+
   it('si se desmarca Talento, Apoyo usa el arancel completo', () => {
     const filas = filasBeneficioConPromedio({
       items: ITEMS,

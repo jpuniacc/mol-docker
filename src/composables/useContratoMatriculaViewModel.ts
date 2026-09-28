@@ -81,10 +81,9 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
       .filter((c) => c.item === 2)
       .reduce((a, c) => a + (Number(c.monto) || 0), 0)
 
-    let valorMatricula = matSum
-    let valorArancel = araSum
+    let valorMatricula = pago.valorMatriculaBruto ?? matSum
+    let valorArancel = pago.valorArancelBruto ?? araSum
     if (valorMatricula <= 0 && valorArancel <= 0 && pago.monto > 0) {
-      // Sin desglose: mostrar total en arancel y 0 matrícula
       valorArancel = pago.monto
     }
 
@@ -134,6 +133,13 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
           : fuente.mailApoderadoMostrado.value,
       valorMatricula,
       valorArancel,
+      descuentos: (pago.descuentos ?? []).map((d) => ({
+        concepto: d.concepto,
+        descripcion: d.descripcion,
+        detalle: d.detalle,
+        monto: d.monto,
+        vencimiento: d.vencimiento,
+      })),
       cuotas: cuotasDetalle.map((c) => ({
         documento: c.correlativo || c.documento,
         tipoDocumento: c.documento,

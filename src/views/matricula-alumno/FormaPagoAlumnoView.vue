@@ -85,6 +85,7 @@ import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import type {
   MockConvenioDocumento,
   MockCuotaPagareDetalle,
+  MockDescuentoPagare,
   MockPagoMatricula,
 } from '@/stores/mockMatriculaContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
@@ -977,6 +978,33 @@ async function continuarSelectorMedios() {
   sincronizarFechaInicioConDiaVencimiento()
 }
 
+function fmtPorcContrato(valor: number | null): string {
+  if (valor == null || !Number.isFinite(valor)) return ''
+  const texto = (Math.round(valor * 10) / 10).toFixed(1).replace('.', ',')
+  return texto.endsWith(',0') ? texto.slice(0, -2) : texto
+}
+
+function descuentosParaContrato(): MockDescuentoPagare[] {
+  const anio = anioNotas.value
+  const vencimiento = anio != null ? `29/12/${anio}` : '—'
+  return lineasDescuento.value.map((fila) => {
+    const porc = fmtPorcContrato(fila.porcAplica)
+    const esApoyo = (fila.codigo ?? '').trim() === '1756'
+    const base = esApoyo
+      ? `${porc} % de lo que queda`
+      : fila.flujo === 'CONVENIO'
+        ? `${porc} % del saldo`
+        : `${porc} % del arancel`
+    return {
+      concepto: 'arancel',
+      descripcion: fila.descripcion,
+      detalle: fila.recortadoTope ? `${base} · recortada al tope 70 %` : base,
+      monto: fila.monto,
+      vencimiento,
+    }
+  })
+}
+
 async function confirmarPagareMatricula() {
   const hoy = hoyIsoLocal()
   const fecha = pagareFechaInicio.value
@@ -1019,6 +1047,9 @@ async function confirmarPagareMatricula() {
     valorCuota: cuotasDetalle[0]?.monto ?? Math.floor(montoMat / nCuotas),
     simulado: false,
     cuotasDetalle,
+    valorMatriculaBruto: montoBrutoMatricula(),
+    valorArancelBruto: montoBrutoArancel(),
+    descuentos: descuentosParaContrato(),
     numOperacion,
     contrato,
   }

@@ -28,6 +28,7 @@ const POLL_MS = 5000
 
 const router = useRouter()
 const alumnoCtx = useMatriculaAlumnoContextStore()
+const periodoActivo = usePeriodoActivoStore()
 const fuente = useAlumnoRematriculaFuente()
 const { viewModel, tienePlanConfirmado } = useContratoMatriculaViewModel('alumno')
 
