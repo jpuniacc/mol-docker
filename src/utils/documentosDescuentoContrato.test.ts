@@ -5,6 +5,7 @@ import {
   TIPO_DOC_BECAS_INTERNAS,
   TIPO_DOC_CAE,
   TIPO_DOC_CONVENIOS,
+  TIPO_DOC_DESCUENTO_MATRICULA,
   asignarDocumentosDescuento,
 } from '@/utils/documentosDescuentoContrato'
 
@@ -55,6 +56,39 @@ describe('asignarDocumentosDescuento', () => {
     expect(docs.map((d) => ({ concepto: d.concepto, documento: d.documento }))).toEqual([
       { concepto: 'matricula', documento: '102' },
       { concepto: 'arancel', documento: '103' },
+    ])
+  })
+
+  it('numera el descuento de matrícula con su tipo y antes que el arancel', () => {
+    const docs = asignarDocumentosDescuento({
+      peek: '90121338251',
+      vencimiento: '29/12/2026',
+      lineas: [
+        {
+          concepto: 'arancel',
+          flujo: 'CONVENIO',
+          descripcion: 'Caja Los Andes',
+          monto: 915000,
+        },
+        {
+          concepto: 'matricula',
+          flujo: 'DESCUENTO_MATRICULA',
+          descripcion: 'Matricula Anticipada Noviembre',
+          monto: 50000,
+        },
+      ],
+    })
+    expect(docs.map((d) => ({ concepto: d.concepto, documento: d.documento, tipoDocumento: d.tipoDocumento }))).toEqual([
+      {
+        concepto: 'matricula',
+        documento: '90121338253',
+        tipoDocumento: TIPO_DOC_DESCUENTO_MATRICULA,
+      },
+      {
+        concepto: 'arancel',
+        documento: '90121338254',
+        tipoDocumento: TIPO_DOC_CONVENIOS,
+      },
     ])
   })
 

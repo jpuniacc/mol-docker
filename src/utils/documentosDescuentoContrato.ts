@@ -5,6 +5,7 @@ export const TIPO_DOC_BECAS_INTERNAS = 'BECAS INTERNAS ASIGNADAS'
 export const TIPO_DOC_BECAS_ESTATALES = 'BECAS ESTATALES ASIGNADAS'
 export const TIPO_DOC_CONVENIOS = 'DESCTO. CONVENIOS ASIGNADOS'
 export const TIPO_DOC_CAE = 'PAGARÉ CAE'
+export const TIPO_DOC_DESCUENTO_MATRICULA = 'DESCUENTO MATRÍCULA'
 
 export type LineaParaDocumentoDescuento = {
   concepto: 'matricula' | 'arancel'
@@ -28,6 +29,7 @@ export function tipoDocumentoDescuento(flujo: string | null): string {
   if (flujo === 'CONVENIO') return TIPO_DOC_CONVENIOS
   if (flujo === 'ESTATAL') return TIPO_DOC_BECAS_ESTATALES
   if (flujo === 'CAE') return TIPO_DOC_CAE
+  if (flujo === 'DESCUENTO_MATRICULA') return TIPO_DOC_DESCUENTO_MATRICULA
   return TIPO_DOC_BECAS_INTERNAS
 }
 

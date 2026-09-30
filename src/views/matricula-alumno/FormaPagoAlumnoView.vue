@@ -46,6 +46,7 @@ import {
 } from '@/services/carteraBeneficiosApi'
 import { detectarConveniosAlumno } from '@/services/convenioAlumno'
 import { fetchBeneficioPeriodo } from '@/services/fetchBeneficioPeriodo'
+import { fetchDescuentosMatriculaAnticipada } from '@/services/descuentoMatriculaAnticipada'
 import { fmtMontoClp, fetchPlanPagosMvByCodcli } from '@/services/fetchPlanPagosMv'
 import { fetchMontoCaeAprobadoAlumno } from '@/services/fetchMnpEstadoCaeAlumnos'
 import { contextoMolAuditoria, type ContextoMolAuditoriaOpciones } from '@/services/molAuditContext'
@@ -92,6 +93,11 @@ import type {
   MockPagoMatricula,
 } from '@/stores/mockMatriculaContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
+import {
+  fechaChileIso,
+  filaDescuentoMatriculaDelMes,
+  FLUJO_DESCUENTO_MATRICULA,
+} from '@/utils/descuentoMatriculaMes'
 import { asignarDocumentosDescuento } from '@/utils/documentosDescuentoContrato'
 import {
   buildPagareCuotasDraft,
@@ -104,7 +110,11 @@ import {
   proximaFechaDiaVencimiento,
 } from '@/utils/pagareFechaInicio'
 import MatriculaAlumnoVerificacionCaeStep from '@/views/matricula-alumno/MatriculaAlumnoVerificacionCaeStep.vue'
-import type { MnpCasoRematriculaRow, PlanPagosMvRow } from '@/types/supabase'
+import type {
+  MnpCasoRematriculaRow,
+  PlanPagosMvRow,
+  TpMnpDescuentoMatriculaAnticipadaRow,
+} from '@/types/supabase'
 
 const router = useRouter()
 const alumnoCtx = useMatriculaAlumnoContextStore()
@@ -427,6 +437,17 @@ const periodoBeneficioLabel = computed(
 )
 
 const beneficiosSeleccionados = ref<Record<number, boolean>>({})
+const descuentosMatriculaCatalogo = ref<TpMnpDescuentoMatriculaAnticipadaRow[]>([])
+
+const descuentoMatriculaMes = computed(() =>
+  filaDescuentoMatriculaDelMes({
+    filas: descuentosMatriculaCatalogo.value,
+    periodo: periodoActivoLabel.value ?? '',
+    hoy: fechaChileIso(),
+    tieneCae: tieneCae(plan.value),
+    tieneBecaEstatal: beneficios.value.some((b) => b.flujo === 'ESTATAL'),
+  }),
+)
 
 function pickCampoAlumno(val: string): string | null {
   const t = val.trim()
@@ -619,6 +640,16 @@ async function cargarCatalogoPeriodo() {
   catalogoPeriodo.value = data
 }
 
+async function cargarDescuentosMatricula() {
+  const { data, error } = await fetchDescuentosMatriculaAnticipada()
+  if (error) {
+    console.warn('[forma-pago] descuento de matrícula', error)
+    descuentosMatriculaCatalogo.value = []
+    return
+  }
+  descuentosMatriculaCatalogo.value = data
+}
+
 async function cargarCarteraBeneficios() {
   const codcli = pickCampoAlumno(fuente.codcliMostrado.value)
   const rut = pickCampoAlumno(fuente.rutMostrado.value)
@@ -738,6 +769,7 @@ onMounted(async () => {
     docpagArancel.ensureLoaded(),
     cargarCarteraBeneficios(),
     cargarCatalogoPeriodo(),
+    cargarDescuentosMatricula(),
   ])
   await refrescarCasosConvenio()
 
@@ -904,8 +936,14 @@ function montoBeneficiosArancel(): number {
   return lineasDescuento.value.reduce((sum, linea) => sum + linea.monto, 0)
 }
 
+function montoDescuentoMatriculaAplicado(): number {
+  const catalogo = descuentoMatriculaMes.value?.monto ?? 0
+  if (catalogo <= 0) return 0
+  return Math.min(catalogo, montoBrutoMatricula())
+}
+
 function montoNetoMatricula(): number {
-  return Math.max(0, montoBrutoMatricula())
+  return Math.max(0, montoBrutoMatricula() - montoDescuentoMatriculaAplicado())
 }
 
 function montoNetoArancel(): number {
@@ -1027,6 +1065,16 @@ function descuentosParaContrato(): MockDescuentoPagare[] {
       flujo: 'CAE',
       descripcion: 'Crédito Aval del Estado',
       monto: montoCaeAprobado.value,
+    })
+  }
+  const descuentoMes = descuentoMatriculaMes.value
+  const montoDescuentoMes = montoDescuentoMatriculaAplicado()
+  if (descuentoMes && montoDescuentoMes > 0) {
+    lineas.push({
+      concepto: 'matricula',
+      flujo: FLUJO_DESCUENTO_MATRICULA,
+      descripcion: descuentoMes.nombre,
+      monto: montoDescuentoMes,
     })
   }
   return asignarDocumentosDescuento({
@@ -1404,6 +1452,13 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
               <div class="flex justify-between gap-2">
                 <span>Valor matrícula</span>
                 <span>{{ fmt(montoBrutoMatricula()) }}</span>
+              </div>
+              <div
+                v-if="descuentoMatriculaMes && montoDescuentoMatriculaAplicado() > 0"
+                class="flex justify-between gap-3 text-emerald-700"
+              >
+                <span class="min-w-0 truncate">{{ descuentoMatriculaMes.nombre }}</span>
+                <span class="shrink-0 tabular-nums">− {{ fmt(montoDescuentoMatriculaAplicado()) }}</span>
               </div>
               <div
                 class="mt-3 flex justify-between border-t border-uniacc-orange/30 pt-3 text-base font-bold text-uniacc-orange"
