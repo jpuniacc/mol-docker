@@ -41,7 +41,7 @@ import {
 } from '@/constants/descuentoMatriculaAnticipada'
 import {
   fmtFechaCalendario,
-  fmtPorcentaje,
+  fmtMontoDescuento,
   toInputFechaCalendario,
   type DescuentoMatriculaAnticipadaInput,
 } from '@/services/descuentoMatriculaAnticipada'
@@ -86,7 +86,7 @@ function blankForm(): DescuentoMatriculaAnticipadaInput {
     vigencia_desde: '',
     vigencia_hasta: '',
     aplicable_a: 'MATRICULA',
-    porcentaje_descuento: 0,
+    monto_descuento: 0,
     activo: true,
   }
 }
@@ -106,7 +106,7 @@ function openEdit(row: TpMnpDescuentoMatriculaAnticipadaRow) {
     vigencia_desde: toInputFechaCalendario(row.vigencia_desde),
     vigencia_hasta: toInputFechaCalendario(row.vigencia_hasta),
     aplicable_a: row.aplicable_a,
-    porcentaje_descuento: Number(row.porcentaje_descuento),
+    monto_descuento: Number(row.monto_descuento),
     activo: row.activo,
   }
   dialogOpen.value = true
@@ -242,7 +242,7 @@ onMounted(() => {
                 <TableHead class="whitespace-nowrap">Vigencia desde (inc.)</TableHead>
                 <TableHead class="whitespace-nowrap">Vigencia hasta (inc.)</TableHead>
                 <TableHead class="whitespace-nowrap">Aplicable a</TableHead>
-                <TableHead class="whitespace-nowrap text-right">Descuento</TableHead>
+                <TableHead class="whitespace-nowrap text-right">Monto</TableHead>
                 <TableHead class="whitespace-nowrap">Estado</TableHead>
                 <TableHead class="w-[100px] text-right">Acciones</TableHead>
               </TableRow>
@@ -271,7 +271,7 @@ onMounted(() => {
                   {{ DESCUENTO_MATRICULA_APLICABLE_LABEL[row.aplicable_a] }}
                 </TableCell>
                 <TableCell class="text-right font-mono text-xs">
-                  {{ fmtPorcentaje(row.porcentaje_descuento) }}
+                  {{ fmtMontoDescuento(row.monto_descuento) }}
                 </TableCell>
                 <TableCell>
                   <Badge
@@ -323,7 +323,7 @@ onMounted(() => {
             {{ editingId ? 'Editar descuento' : 'Nuevo descuento matrícula anticipada' }}
           </DialogTitle>
           <DialogDescription>
-            Defina beneficio, periodo académico, vigencia (fechas inclusive) y porcentaje de descuento.
+            Defina beneficio, periodo académico, vigencia (fechas inclusive) y el monto del descuento en pesos.
           </DialogDescription>
         </DialogHeader>
         <div class="grid gap-4 py-2">
@@ -375,14 +375,13 @@ onMounted(() => {
             </Select>
           </div>
           <div class="grid gap-2">
-            <Label for="dm-pct">Porcentaje descuento (0–100)</Label>
+            <Label for="dm-monto">Monto descuento (pesos)</Label>
             <Input
-              id="dm-pct"
-              v-model.number="form.porcentaje_descuento"
+              id="dm-monto"
+              v-model.number="form.monto_descuento"
               type="number"
               min="0"
-              max="100"
-              step="0.01"
+              step="1"
             />
           </div>
           <div class="flex items-center gap-2">

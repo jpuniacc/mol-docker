@@ -3,7 +3,7 @@ import type { DescuentoMatriculaAplicable } from '@/constants/descuentoMatricula
 import type { TpMnpDescuentoMatriculaAnticipadaRow } from '@/types/supabase'
 
 const SELECT_COLS =
-  'id, cod_beneficio, nombre, periodo, vigencia_desde, vigencia_hasta, aplicable_a, porcentaje_descuento, activo, created_at, updated_at'
+  'id, cod_beneficio, nombre, periodo, vigencia_desde, vigencia_hasta, aplicable_a, monto_descuento, activo, created_at, updated_at'
 
 export type DescuentoMatriculaAnticipadaInput = {
   cod_beneficio: number
@@ -12,7 +12,7 @@ export type DescuentoMatriculaAnticipadaInput = {
   vigencia_desde: string
   vigencia_hasta: string
   aplicable_a: DescuentoMatriculaAplicable
-  porcentaje_descuento: number
+  monto_descuento: number
   activo: boolean
 }
 
@@ -45,12 +45,14 @@ export function fmtFechaCalendario(iso: string | null | undefined): string {
   }
 }
 
-export function fmtPorcentaje(n: number | null | undefined): string {
+export function fmtMontoDescuento(n: number | null | undefined): string {
   if (n == null || Number.isNaN(Number(n))) return '—'
-  return `${new Intl.NumberFormat('es-CL', {
+  return new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(Number(n))}%`
+    maximumFractionDigits: 0,
+  }).format(Number(n))
 }
 
 export function fmtFecha(iso: string | null | undefined): string {
@@ -101,7 +103,7 @@ export async function insertDescuentoMatriculaAnticipada(
       vigencia_desde: payload.vigencia_desde,
       vigencia_hasta: payload.vigencia_hasta,
       aplicable_a: payload.aplicable_a,
-      porcentaje_descuento: payload.porcentaje_descuento,
+      monto_descuento: payload.monto_descuento,
       activo: payload.activo,
     })
     .select(SELECT_COLS)
@@ -126,7 +128,7 @@ export async function updateDescuentoMatriculaAnticipada(
       vigencia_desde: payload.vigencia_desde,
       vigencia_hasta: payload.vigencia_hasta,
       aplicable_a: payload.aplicable_a,
-      porcentaje_descuento: payload.porcentaje_descuento,
+      monto_descuento: payload.monto_descuento,
       activo: payload.activo,
     })
     .eq('id', id)

@@ -118,9 +118,9 @@ export const useDescuentoMatriculaAnticipadaStore = defineStore(
         }
         const vigErr = validarVigencia(payload.vigencia_desde, payload.vigencia_hasta)
         if (vigErr) return vigErr
-        const pct = Number(payload.porcentaje_descuento)
-        if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
-          return 'Porcentaje debe estar entre 0 y 100.'
+        const monto = Number(payload.monto_descuento)
+        if (!Number.isFinite(monto) || monto < 0) {
+          return 'El monto debe ser un valor en pesos igual o mayor a 0.'
         }
         return null
       },

@@ -622,7 +622,7 @@ export type TpMnpDescuentoMatriculaAnticipadaRow = {
   vigencia_desde: string;
   vigencia_hasta: string;
   aplicable_a: 'MATRICULA' | 'ARANCEL';
-  porcentaje_descuento: number;
+  monto_descuento: number;
   activo: boolean;
   created_at: string;
   updated_at: string;
