@@ -72,6 +72,52 @@ function itemDesdeSlot(
   }
 }
 
+export type FilaBeneficioAsignacion = {
+  cod_beneficio: string | null
+  ano: number | null
+  periodo: number | null
+  estado: string | null
+}
+
+function esAsignado(estado: string | null | undefined): boolean {
+  return (estado ?? '').trim().toUpperCase() === 'ASIGNADO'
+}
+
+/** Códigos con estado 4 (ASIGNADO) en el año y periodo más recientes del alumno. */
+export function codigosAsignadosUltimoPeriodo(filas: FilaBeneficioAsignacion[]): Set<string> {
+  let maxAno = Number.NEGATIVE_INFINITY
+  let maxPeriodo = Number.NEGATIVE_INFINITY
+  for (const fila of filas) {
+    if (!esAsignado(fila.estado)) continue
+    if (fila.ano == null || fila.periodo == null) continue
+    if (fila.ano > maxAno || (fila.ano === maxAno && fila.periodo > maxPeriodo)) {
+      maxAno = fila.ano
+      maxPeriodo = fila.periodo
+    }
+  }
+  if (!Number.isFinite(maxAno)) return new Set()
+
+  const codigos = new Set<string>()
+  for (const fila of filas) {
+    if (!esAsignado(fila.estado)) continue
+    if (fila.ano !== maxAno || fila.periodo !== maxPeriodo) continue
+    const cod = (fila.cod_beneficio ?? '').trim()
+    if (cod) codigos.add(cod)
+  }
+  return codigos
+}
+
+/** Deja las becas del Excel cuyo código está asignado en ese periodo. */
+export function filtrarBeneficiosAsignados(
+  items: BeneficioExcelUiItem[],
+  codigosAsignados: ReadonlySet<string>,
+): BeneficioExcelUiItem[] {
+  return items.filter((item) => {
+    const cod = (item.cod_beneficio ?? '').trim()
+    return cod.length > 0 && codigosAsignados.has(cod)
+  })
+}
+
 export function itemsBeneficioDesdeCartera(
   row: CarteraBeneficioRow | null,
   catalogo: CatalogoBeneficioAplica[] = [],

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import {
   beneficioSeleccionable,
+  codigosAsignadosUltimoPeriodo,
   etiquetaNoAplica,
+  filtrarBeneficiosAsignados,
   flagsConsolidado,
   itemsBeneficioDesdeCartera,
   lineasDescuentoSeleccion,
@@ -194,6 +196,39 @@ describe('lineasDescuentoSeleccion', () => {
       arancelBruto: 1_000_000,
     })
     expect(lineas.map((l) => l.monto)).toEqual([300_000, 100_000])
+  })
+})
+
+describe('becas asignadas estado 4', () => {
+  const items = itemsBeneficioDesdeCartera({
+    ...VANESSA,
+    beca_2: 'Caja Los Andes',
+    pct_2: 25,
+    cod_beneficio_2: '1800',
+  })
+
+  it('toma solo los ASIGNADO del último periodo', () => {
+    const codigos = codigosAsignadosUltimoPeriodo([
+      { cod_beneficio: '1756', ano: 2025, periodo: 1, estado: 'ASIGNADO' },
+      { cod_beneficio: '1800', ano: 2026, periodo: 1, estado: 'APROBADO' },
+      { cod_beneficio: '1756', ano: 2026, periodo: 1, estado: 'asignado' },
+      { cod_beneficio: '1791', ano: 2026, periodo: 2, estado: 'ASIGNADO' },
+    ])
+    expect([...codigos]).toEqual(['1791'])
+  })
+
+  it('muestra la beca del Excel solo si el código está asignado', () => {
+    const visibles = filtrarBeneficiosAsignados(items, new Set(['1756']))
+    expect(visibles.map((item) => item.cod_beneficio)).toEqual(['1756'])
+  })
+
+  it('sin código o sin asignación no muestra la beca', () => {
+    const sinCodigo = itemsBeneficioDesdeCartera({
+      ...VANESSA,
+      cod_beneficio_1: null,
+    })
+    expect(filtrarBeneficiosAsignados(sinCodigo, new Set(['1756']))).toEqual([])
+    expect(filtrarBeneficiosAsignados(items, new Set())).toEqual([])
   })
 })
 

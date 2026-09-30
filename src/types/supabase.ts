@@ -815,6 +815,27 @@ export type MnpCarteraBeneficiosRow = {
   loaded_at: string;
 };
 
+/** Beneficio POS del alumno (`mnp_mv_alumnos_beneficios`, MT_POSBEN estado 4 → ASIGNADO). */
+export type MnpMvAlumnosBeneficiosRow = {
+  codcli: string | null;
+  rut: string | null;
+  cod_carrera: string | null;
+  cod_beneficio: string | null;
+  descripcion: string | null;
+  ano: number | null;
+  periodo: number | null;
+  porc_sol: number | null;
+  porc_apr: number | null;
+  monto_sol: number | null;
+  monto_apr: number | null;
+  monto: number | null;
+  aplicable: string | null;
+  estado: string | null;
+  anio_matricula: number | null;
+  periodo_matricula: number | null;
+  synced_at: string;
+};
+
 /** Ítem del menú lateral del backoffice (`bo_menu_item`). */
 export type BoMenuItemRow = {
   id: string;
@@ -892,6 +913,12 @@ export type Database = {
           codcli_excel: string;
         };
         Update: Partial<MnpCarteraBeneficiosRow>;
+        Relationships: [];
+      };
+      mnp_mv_alumnos_beneficios: {
+        Row: MnpMvAlumnosBeneficiosRow;
+        Insert: Partial<MnpMvAlumnosBeneficiosRow> & { synced_at?: string };
+        Update: Partial<MnpMvAlumnosBeneficiosRow>;
         Relationships: [];
       };
       mnp_informacion_finanzas: {

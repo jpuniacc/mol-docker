@@ -41,6 +41,7 @@ import { Check, FileText, GraduationCap } from 'lucide-vue-next'
 import { abrirCasoRematricula, consultarCasosAlumno } from '@/services/casoRematriculaApi'
 import {
   consultarCarteraBeneficios,
+  consultarCodigosBeneficioAsignados,
   PERIODO_CARTERA_BENEFICIOS,
 } from '@/services/carteraBeneficiosApi'
 import { detectarConveniosAlumno } from '@/services/convenioAlumno'
@@ -53,6 +54,7 @@ import { registrarFormaPagoAudit } from '@/services/formaPagoAuditLog'
 import {
   beneficioSeleccionable,
   etiquetaNoAplica,
+  filtrarBeneficiosAsignados,
   itemsBeneficioDesdeCartera,
   type BeneficioExcelUiItem,
   type CarteraBeneficioRow,
@@ -399,6 +401,7 @@ const verificandoCae = ref(false)
 const reintentandoCae = ref(false)
 
 const carteraBeneficiosRow = ref<CarteraBeneficioRow | null>(null)
+const codigosBeneficioAsignados = ref<Set<string>>(new Set())
 const cargandoCarteraBeneficios = ref(false)
 const errorCarteraBeneficios = ref<string | null>(null)
 
@@ -413,7 +416,10 @@ const catalogoAplica = computed((): CatalogoBeneficioAplica[] =>
 )
 
 const beneficios = computed((): BeneficioExcelUiItem[] =>
-  itemsBeneficioDesdeCartera(carteraBeneficiosRow.value, catalogoAplica.value),
+  filtrarBeneficiosAsignados(
+    itemsBeneficioDesdeCartera(carteraBeneficiosRow.value, catalogoAplica.value),
+    codigosBeneficioAsignados.value,
+  ),
 )
 
 const periodoBeneficioLabel = computed(
@@ -618,6 +624,7 @@ async function cargarCarteraBeneficios() {
   const rut = pickCampoAlumno(fuente.rutMostrado.value)
   if (!codcli && !rut) {
     carteraBeneficiosRow.value = null
+    codigosBeneficioAsignados.value = new Set()
     errorCarteraBeneficios.value = null
     initBeneficiosSeleccionados()
     return
@@ -626,16 +633,21 @@ async function cargarCarteraBeneficios() {
   cargandoCarteraBeneficios.value = true
   errorCarteraBeneficios.value = null
   try {
-    const { data, error } = await consultarCarteraBeneficios({
-      periodo: PERIODO_CARTERA_BENEFICIOS,
-      codcliExcel: codcli,
-      rutNorm: rut ? rutNorm(rut) : null,
-    })
-    if (error) {
-      errorCarteraBeneficios.value = error
+    const [{ data, error }, asignados] = await Promise.all([
+      consultarCarteraBeneficios({
+        periodo: PERIODO_CARTERA_BENEFICIOS,
+        codcliExcel: codcli,
+        rutNorm: rut ? rutNorm(rut) : null,
+      }),
+      consultarCodigosBeneficioAsignados(codcli),
+    ])
+    if (error || asignados.error) {
+      errorCarteraBeneficios.value = error ?? asignados.error
       carteraBeneficiosRow.value = null
+      codigosBeneficioAsignados.value = new Set()
     } else {
       carteraBeneficiosRow.value = data
+      codigosBeneficioAsignados.value = asignados.codigos
     }
   } finally {
     cargandoCarteraBeneficios.value = false
