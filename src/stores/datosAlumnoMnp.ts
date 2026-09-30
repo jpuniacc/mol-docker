@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 
+import { esEstadoAcademicoVigente } from '@/constants/accesoMnp'
 import { fueraCarteraDesdeEstado } from '@/constants/carteraOficial'
 import { estadoCarteraOficial } from '@/services/carteraOficialApi'
 import { supabase } from '@/services/supabaseClient'
@@ -17,6 +18,8 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
     filas: [] as MnpDatosAlumnosRow[],
     /** true = ausente del Excel oficial o excluido MOL (SUBDERE). */
     fueraCarteraOficial: false,
+    /** true = hay filas MNP y ninguna está VIGENTE. */
+    accesoBloqueadoNoVigente: false,
   }),
   getters: {
     primeraFila: (s) => s.filas[0] ?? null,
@@ -28,6 +31,7 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
       this.error = null
       this.filas = []
       this.fueraCarteraOficial = false
+      this.accesoBloqueadoNoVigente = false
     },
 
     async verificarCarteraOficial(): Promise<void> {
@@ -54,6 +58,7 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
       }
       this.loading = true
       this.error = null
+      this.accesoBloqueadoNoVigente = false
       const email = emailInstitucionalDesdeUsername(username)
       try {
         const { data, error } = await supabase
@@ -66,7 +71,16 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
           this.filas = []
           return
         }
-        this.filas = (data as MnpDatosAlumnosRow[]) ?? []
+        const todas = (data as MnpDatosAlumnosRow[]) ?? []
+        const vigentes = todas.filter((fila) => esEstadoAcademicoVigente(fila.estado_academico))
+        if (todas.length > 0 && vigentes.length === 0) {
+          this.filas = todas
+          this.accesoBloqueadoNoVigente = true
+          this.fueraCarteraOficial = false
+          return
+        }
+        this.accesoBloqueadoNoVigente = false
+        this.filas = vigentes
         if (this.filas.length > 0) {
           await this.verificarCarteraOficial()
         } else {

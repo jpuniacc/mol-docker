@@ -17,7 +17,9 @@ import { sanitizeUsernameInput } from '@/composables/utils'
 import {
   MSG_ACCESO_MNP_NO_VIGENTE,
   MSG_ACCESO_MNP_VERIFICACION_FALLIDA,
+  TITULO_ACCESO_NO_VIGENTE,
 } from '@/constants/accesoMnp'
+import { registrarIntentoNoVigente, tomarAvisoNoVigente } from '@/services/accesoNoVigenteApi'
 import {
   TYC_RECHAZO_MODAL_ENTENDIDO,
   TYC_RECHAZO_MODAL_MENSAJE,
@@ -39,6 +41,8 @@ const username = ref('')
 const password = ref('')
 const loading = ref(false)
 const modalTyCRechazadoOpen = ref(false)
+const modalNoVigenteOpen = ref(false)
+const mensajeNoVigente = ref('')
 
 function syncModalTyCRechazado() {
   modalTyCRechazadoOpen.value = route.query.tycRechazado === '1'
@@ -46,6 +50,11 @@ function syncModalTyCRechazado() {
 
 onMounted(() => {
   syncModalTyCRechazado()
+  const aviso = tomarAvisoNoVigente()
+  if (aviso) {
+    mensajeNoVigente.value = aviso
+    modalNoVigenteOpen.value = true
+  }
   void periodoActivo.ensureLoaded()
 })
 
@@ -90,6 +99,14 @@ async function onSubmit() {
     if (!result.mvUsuario) {
       if (alumnoMnp.error) {
         toast.error(MSG_ACCESO_MNP_VERIFICACION_FALLIDA)
+        auth.logout()
+        return
+      }
+      if (alumnoMnp.accesoBloqueadoNoVigente) {
+        const filas = [...alumnoMnp.filas]
+        mensajeNoVigente.value = await registrarIntentoNoVigente(filas)
+        tomarAvisoNoVigente()
+        modalNoVigenteOpen.value = true
         auth.logout()
         return
       }
@@ -229,6 +246,26 @@ async function onSubmit() {
         </div>
       </div>
     </main>
+
+    <Dialog :open="modalNoVigenteOpen" @update:open="(v: boolean) => (modalNoVigenteOpen = v)">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{{ TITULO_ACCESO_NO_VIGENTE }}</DialogTitle>
+          <DialogDescription>
+            {{ mensajeNoVigente }}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            type="button"
+            class="cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90"
+            @click="modalNoVigenteOpen = false"
+          >
+            Entendido
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <Dialog :open="modalTyCRechazadoOpen" @update:open="(v: boolean) => (v ? (modalTyCRechazadoOpen = true) : cerrarModalTyCRechazado())">
       <DialogContent>
