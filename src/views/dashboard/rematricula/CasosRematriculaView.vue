@@ -44,7 +44,7 @@ import {
 } from '@/services/contratoFirmaApi'
 import { CONVENIO_DOC_BUCKET } from '@/services/convenioDocumento'
 import { fetchPlanPagosMvByCodcli } from '@/services/fetchPlanPagosMv'
-import { fetchKpiProgresoRematricula } from '@/services/progresoRematriculaApi'
+import { fetchKpiProgresoRematricula, refreshProgresoRematricula } from '@/services/progresoRematriculaApi'
 import { supabase } from '@/services/supabaseClient'
 import { useAuthStore } from '@/stores/auth'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
@@ -402,6 +402,13 @@ async function cargarFirmas() {
 }
 
 async function cargar() {
+  await periodoActivo.ensureLoaded()
+  const anio = periodoActivo.anio
+  const sem = periodoActivo.semestre
+  if (anio != null && sem != null) {
+    const { error } = await refreshProgresoRematricula(anio, sem)
+    if (error) console.warn('[Casos] refresh progreso:', error)
+  }
   await Promise.all([cargarCasos(), cargarFirmas(), cargarKpi()])
 }
 

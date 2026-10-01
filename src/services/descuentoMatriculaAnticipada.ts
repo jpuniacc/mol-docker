@@ -3,7 +3,7 @@ import type { DescuentoMatriculaAplicable } from '@/constants/descuentoMatricula
 import type { TpMnpDescuentoMatriculaAnticipadaRow } from '@/types/supabase'
 
 const SELECT_COLS =
-  'id, cod_beneficio, nombre, periodo, vigencia_desde, vigencia_hasta, aplicable_a, monto_descuento, activo, created_at, updated_at'
+  'id, cod_beneficio, nombre, periodo, vigencia_desde, vigencia_hasta, reserva_hasta, aplicable_a, monto_descuento, activo, created_at, updated_at'
 
 export type DescuentoMatriculaAnticipadaInput = {
   cod_beneficio: number
@@ -11,6 +11,7 @@ export type DescuentoMatriculaAnticipadaInput = {
   periodo: string
   vigencia_desde: string
   vigencia_hasta: string
+  reserva_hasta: string | null
   aplicable_a: DescuentoMatriculaAplicable
   monto_descuento: number
   activo: boolean
@@ -74,6 +75,17 @@ export function validarVigencia(desde: string, hasta: string): string | null {
   return null
 }
 
+export function validarReservaHasta(vigenciaHasta: string, reservaHasta: string | null): string | null {
+  const reserva = toInputFechaCalendario(reservaHasta ?? '')
+  if (!reserva) return null
+  const hasta = toInputFechaCalendario(vigenciaHasta)
+  if (!hasta) return 'Indique la vigencia antes de la fecha reservable hasta.'
+  if (reserva < hasta) {
+    return 'Reservable hasta debe ser posterior o igual a la vigencia hasta.'
+  }
+  return null
+}
+
 export async function fetchDescuentosMatriculaAnticipada(): Promise<{
   data: TpMnpDescuentoMatriculaAnticipadaRow[]
   error: string | null
@@ -102,6 +114,7 @@ export async function insertDescuentoMatriculaAnticipada(
       periodo: payload.periodo.trim(),
       vigencia_desde: payload.vigencia_desde,
       vigencia_hasta: payload.vigencia_hasta,
+      reserva_hasta: toInputFechaCalendario(payload.reserva_hasta) || null,
       aplicable_a: payload.aplicable_a,
       monto_descuento: payload.monto_descuento,
       activo: payload.activo,
@@ -127,6 +140,7 @@ export async function updateDescuentoMatriculaAnticipada(
       periodo: payload.periodo.trim(),
       vigencia_desde: payload.vigencia_desde,
       vigencia_hasta: payload.vigencia_hasta,
+      reserva_hasta: toInputFechaCalendario(payload.reserva_hasta) || null,
       aplicable_a: payload.aplicable_a,
       monto_descuento: payload.monto_descuento,
       activo: payload.activo,

@@ -27,6 +27,7 @@ import {
   DISCAPACIDAD_TIPOS,
 } from '@/constants/discapacidadEncuesta'
 import { actualizarDiscapacidadMolErp } from '@/services/actualizarDiscapacidadMolApi'
+import { codcliMtClientDesdeRut } from '@/services/alumnoDeudaNetApi'
 import { contextoMolAuditoria } from '@/services/molAuditContext'
 import { guardarDiscapacidadEncuesta } from '@/services/discapacidadEncuesta'
 import { useMockMatriculaContextStore } from '@/stores/mockMatriculaContext'
@@ -164,11 +165,11 @@ async function guardar() {
     }
     mockCtx.setDiscapacidad(respuesta)
     toast.message('Encuesta guardada (mock). En producción se alertaría al CRM institucional.')
-    const ctx = contextoEncuesta()
-    const codcli = (ctx.codcli ?? '').trim()
-    if (codcli && respuesta.tipo) {
+    const rut = pickCampoAlumno(fuente.rutMostrado.value)
+    const codcliErp = rut ? codcliMtClientDesdeRut(rut) : ''
+    if (codcliErp && respuesta.tipo) {
       void actualizarDiscapacidadMolErp({
-        codcli,
+        codcli: codcliErp,
         discapacidad: respuesta.tipo,
       }).then((r) => {
         if (!r.ok) console.warn('[discapacidadErp]', r.error ?? r.message)

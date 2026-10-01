@@ -14,6 +14,7 @@ const props = defineProps<{
   periodoLabel?: string | null
   nombreAlumno?: string
   codcli?: string
+  reservaTexto?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -70,6 +71,13 @@ const codcliDisplay = computed(() => props.codcli?.trim() || '—')
               <p class="font-medium text-zinc-900 dark:text-zinc-50">{{ ui.pendienteAclaracion }}</p>
             </AlertDescription>
           </Alert>
+
+          <p
+            v-if="reservaTexto"
+            class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+          >
+            {{ reservaTexto }}
+          </p>
 
           <section
             class="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50/80 p-4"

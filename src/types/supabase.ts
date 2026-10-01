@@ -621,6 +621,7 @@ export type TpMnpDescuentoMatriculaAnticipadaRow = {
   periodo: string;
   vigencia_desde: string;
   vigencia_hasta: string;
+  reserva_hasta: string | null;
   aplicable_a: 'MATRICULA' | 'ARANCEL';
   monto_descuento: number;
   activo: boolean;
@@ -1444,6 +1445,48 @@ export type Database = {
           p_es_mock?: boolean | null;
         };
         Returns: number;
+      };
+      consultar_resolucion_beca_estatal: {
+        Args: {
+          p_codcli: string;
+          p_anio_periodo: number;
+          p_semestre_periodo: number;
+        };
+        Returns: { resolucion_disponible: boolean };
+      };
+      consultar_reserva_descuento_matricula: {
+        Args: {
+          p_codcli: string;
+          p_anio_periodo: number;
+          p_semestre_periodo: number;
+        };
+        Returns: {
+          reservado: boolean;
+          descuento_id?: number;
+          cod_beneficio?: number;
+          nombre?: string;
+          monto?: number;
+          reserva_hasta?: string | null;
+          motivo?: 'CAE' | 'ESTATAL';
+        };
+      };
+      reservar_descuento_matricula: {
+        Args: {
+          p_codcli: string;
+          p_anio_periodo: number;
+          p_semestre_periodo: number;
+          p_rut_alumno?: string | null;
+          p_motivo?: string | null;
+        };
+        Returns: {
+          reservado: boolean;
+          descuento_id?: number;
+          cod_beneficio?: number;
+          nombre?: string;
+          monto?: number;
+          reserva_hasta?: string | null;
+          motivo?: 'CAE' | 'ESTATAL';
+        };
       };
       ejecutar_verificacion_cae_mol: {
         Args: {

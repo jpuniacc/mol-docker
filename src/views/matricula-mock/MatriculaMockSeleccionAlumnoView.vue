@@ -30,7 +30,10 @@ import {
   MSG_FUERA_CARTERA_OFICIAL,
   TITULO_FUERA_CARTERA_OFICIAL,
 } from '@/constants/carteraOficial'
+import { PERIODO_CARTERA_BENEFICIOS } from '@/services/carteraBeneficiosApi'
 import { detectarConveniosAlumno } from '@/services/convenioAlumno'
+import { fetchBeneficioPeriodo } from '@/services/fetchBeneficioPeriodo'
+import { tieneBeneficioAplicable, type CatalogoBeneficioAplica } from '@/utils/carteraBeneficiosUi'
 import { useConvenioInstitucionalStore } from '@/stores/convenioInstitucional'
 import { useMockMatriculaContextStore } from '@/stores/mockMatriculaContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
@@ -47,6 +50,7 @@ const { label: periodoActivoLabel, anio, semestre } = storeToRefs(periodoStore)
 const { rows, loading, error: loadError, estaCargandoPrimeraVez } = storeToRefs(planPagos)
 
 const selectingCodcli = ref<string | null>(null)
+const catalogoAplica = ref<CatalogoBeneficioAplica[]>([])
 
 const filtroRut = ref('')
 const filtroNombre = ref('')
@@ -78,6 +82,12 @@ function conveniosVigentesDeAlumno(r: PlanPagosMvRow) {
 
 function tieneConvenioVigente(r: PlanPagosMvRow): boolean {
   return conveniosVigentesDeAlumno(r).length > 0
+}
+
+function etiquetaBeneficio(r: PlanPagosMvRow): string {
+  if (catalogoAplica.value.length === 0) return r.tiene_beneficio ?? 'No'
+  const detalle = Array.isArray(r.beneficios_detalle) ? r.beneficios_detalle : []
+  return tieneBeneficioAplicable(detalle, catalogoAplica.value) ? 'Si' : 'No'
 }
 
 function convenioVigenteLabel(r: PlanPagosMvRow): string {
@@ -116,6 +126,16 @@ watch([filtroRut, filtroNombre, filtroCodcli, soloConConvenio, soloFueraCartera]
 const totalConConvenio = computed(() => rows.value.filter((r) => tieneConvenioVigente(r)).length)
 const totalFueraCartera = computed(() => rows.value.filter((r) => filaFueraCarteraOficial(r)).length)
 
+async function cargarCatalogo() {
+  const { data, error } = await fetchBeneficioPeriodo(PERIODO_CARTERA_BENEFICIOS)
+  if (error || !data) return
+  catalogoAplica.value = data.map((c) => ({
+    codigo_beneficio: c.codigo_beneficio,
+    flujo: c.flujo,
+    aplica: c.aplica,
+  }))
+}
+
 async function cargarDatos(force = false) {
   if (force) {
     await planPagos.fetchAll(anio.value, semestre.value)
@@ -142,7 +162,7 @@ async function probarFlujo(row: PlanPagosMvRow) {
 onMounted(() => {
   void (async () => {
     await periodoStore.ensureLoaded()
-    await Promise.all([cargarDatos(), convenioStore.ensureLoaded()])
+    await Promise.all([cargarDatos(), convenioStore.ensureLoaded(), cargarCatalogo()])
   })()
 })
 </script>
@@ -272,8 +292,8 @@ onMounted(() => {
                 <TableCell>{{ periodoIngresoLabel(row) }}</TableCell>
                 <TableCell>{{ row.categoria_alumno ?? '—' }}</TableCell>
                 <TableCell>
-                  <Badge :variant="row.tiene_beneficio === 'Si' ? 'default' : 'secondary'">
-                    {{ row.tiene_beneficio ?? 'No' }}
+                  <Badge :variant="etiquetaBeneficio(row) === 'Si' ? 'default' : 'secondary'">
+                    {{ etiquetaBeneficio(row) }}
                   </Badge>
                 </TableCell>
                 <TableCell>

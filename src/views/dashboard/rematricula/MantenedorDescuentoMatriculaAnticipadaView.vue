@@ -85,6 +85,7 @@ function blankForm(): DescuentoMatriculaAnticipadaInput {
     periodo: periodoActivoLabel.value ?? '2027-1',
     vigencia_desde: '',
     vigencia_hasta: '',
+    reserva_hasta: null,
     aplicable_a: 'MATRICULA',
     monto_descuento: 0,
     activo: true,
@@ -105,6 +106,7 @@ function openEdit(row: TpMnpDescuentoMatriculaAnticipadaRow) {
     periodo: row.periodo,
     vigencia_desde: toInputFechaCalendario(row.vigencia_desde),
     vigencia_hasta: toInputFechaCalendario(row.vigencia_hasta),
+    reserva_hasta: toInputFechaCalendario(row.reserva_hasta) || null,
     aplicable_a: row.aplicable_a,
     monto_descuento: Number(row.monto_descuento),
     activo: row.activo,
@@ -158,7 +160,7 @@ onMounted(() => {
     <Card class="border-zinc-200 shadow-sm">
       <CardHeader class="flex flex-row flex-wrap items-start justify-between gap-4 space-y-0">
         <div>
-          <CardTitle class="text-xl text-zinc-900">Descuento matrícula anticipada</CardTitle>
+          <CardTitle class="text-xl text-zinc-900">Descuento de matrícula</CardTitle>
           <CardDescription class="text-zinc-600">
             Catálogo de descuentos por periodo y vigencia (Matrícula / Arancel). Acceso DVU y TI.
             Las fechas de vigencia son <span class="font-medium text-zinc-800">inclusive</span>
@@ -241,6 +243,7 @@ onMounted(() => {
                 <TableHead class="whitespace-nowrap">Periodo</TableHead>
                 <TableHead class="whitespace-nowrap">Vigencia desde (inc.)</TableHead>
                 <TableHead class="whitespace-nowrap">Vigencia hasta (inc.)</TableHead>
+                <TableHead class="whitespace-nowrap">Reservable hasta</TableHead>
                 <TableHead class="whitespace-nowrap">Aplicable a</TableHead>
                 <TableHead class="whitespace-nowrap text-right">Monto</TableHead>
                 <TableHead class="whitespace-nowrap">Estado</TableHead>
@@ -249,10 +252,10 @@ onMounted(() => {
             </TableHeader>
             <TableBody>
               <TableRow v-if="loading && total === 0">
-                <TableCell colspan="10" class="text-center text-zinc-500">Cargando…</TableCell>
+                <TableCell colspan="11" class="text-center text-zinc-500">Cargando…</TableCell>
               </TableRow>
               <TableRow v-else-if="rowsFiltradas.length === 0">
-                <TableCell colspan="10" class="text-center text-zinc-500">
+                <TableCell colspan="11" class="text-center text-zinc-500">
                   Sin registros para mostrar.
                 </TableCell>
               </TableRow>
@@ -266,6 +269,9 @@ onMounted(() => {
                 </TableCell>
                 <TableCell class="whitespace-nowrap text-xs">
                   {{ fmtFechaCalendario(row.vigencia_hasta) }}
+                </TableCell>
+                <TableCell class="whitespace-nowrap text-xs">
+                  {{ fmtFechaCalendario(row.reserva_hasta) }}
                 </TableCell>
                 <TableCell>
                   {{ DESCUENTO_MATRICULA_APLICABLE_LABEL[row.aplicable_a] }}
@@ -320,7 +326,7 @@ onMounted(() => {
       <DialogContent class="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {{ editingId ? 'Editar descuento' : 'Nuevo descuento matrícula anticipada' }}
+            {{ editingId ? 'Editar descuento' : 'Nuevo descuento de matrícula' }}
           </DialogTitle>
           <DialogDescription>
             Defina beneficio, periodo académico, vigencia (fechas inclusive) y el monto del descuento en pesos.
@@ -356,6 +362,18 @@ onMounted(() => {
               <Label for="dm-hasta">Vigencia hasta (inclusive)</Label>
               <Input id="dm-hasta" v-model="form.vigencia_hasta" type="date" />
             </div>
+          </div>
+          <div class="grid gap-2">
+            <Label for="dm-reserva">Reservable hasta (opcional)</Label>
+            <Input
+              id="dm-reserva"
+              :model-value="form.reserva_hasta ?? ''"
+              type="date"
+              @update:model-value="(v: string | number) => (form.reserva_hasta = String(v) || null)"
+            />
+            <p class="text-xs text-zinc-500">
+              Si el alumno queda en espera de CAE o beca ministerial durante la vigencia, puede usar este monto hasta esta fecha.
+            </p>
           </div>
           <div class="grid gap-2">
             <Label>Aplicable a</Label>

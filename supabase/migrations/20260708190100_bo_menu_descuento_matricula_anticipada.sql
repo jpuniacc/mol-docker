@@ -1,11 +1,11 @@
--- Ítem «Descuento matrícula anticipada» bajo Mantenedores / Rematrícula (DVU; TI vía grupo 3)
+-- Ítem «Descuento de matrícula» bajo Mantenedores / Rematrícula (DVU; TI vía grupo 3)
 
 INSERT INTO public.bo_menu_item (id, parent_id, tipo, label, route_name, icon_key, orden, activo)
 VALUES (
   'b0000001-0001-4000-8000-000000000034',
   'b0000001-0001-4000-8000-000000000024',
   'link',
-  'Descuento matrícula anticipada',
+  'Descuento de matrícula',
   'dashboard-mantenedor-descuento-matricula-anticipada',
   'Percent',
   28,

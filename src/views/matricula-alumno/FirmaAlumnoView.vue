@@ -21,6 +21,7 @@ import {
   type ContratoFirmaFirmanteEstado,
 } from '@/services/contratoFirmaApi'
 import { downloadContratoPreviewPdf } from '@/services/contratoPreviewApi'
+import { registrarFirmaAudit } from '@/services/firmaAuditLog'
 import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import { esPropioSostenedor } from '@/utils/apoderadoResponsable'
 
@@ -38,6 +39,7 @@ const enviando = ref(false)
 const errorFirma = ref<string | null>(null)
 const firmantes = ref<ContratoFirmaFirmanteEstado[]>([])
 const numOperacionFirma = ref<string | null>(null)
+const contratoFirmadoRegistrado = ref(false)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let unmounted = false
@@ -55,9 +57,39 @@ function completarYNavegar(): void {
   void router.push({ name: 'matricula-alumno-resumen' })
 }
 
+function contextoFirma() {
+  const limpio = (valor: string): string | null => {
+    const texto = valor.trim()
+    return !texto || texto === '—' ? null : texto
+  }
+  return {
+    rutAlumno: limpio(fuente.rutMostrado.value),
+    codcli: limpio(fuente.codcliMostrado.value),
+    nombreAlumno: limpio(fuente.nombreMostrado.value),
+    anioPeriodo: periodoActivo.anio,
+    semestrePeriodo: periodoActivo.semestre,
+    esMock: false,
+  }
+}
+
+async function registrarPasoFirma(
+  accion: 'enviado' | 'firmado',
+  numOperacion: string,
+): Promise<void> {
+  await registrarFirmaAudit({
+    ...contextoFirma(),
+    accion,
+    numOperacion,
+  })
+}
+
 function aplicarEstadoOk(estado: Extract<ContratoFirmaEstadoResponse, { ok: true }>): void {
   firmantes.value = estado.firmantes
   numOperacionFirma.value = estado.numOperacion
+  if (estado.ready && !contratoFirmadoRegistrado.value) {
+    contratoFirmadoRegistrado.value = true
+    void registrarPasoFirma('firmado', estado.numOperacion)
+  }
   if (estado.ready) {
     completarYNavegar()
   }
@@ -92,6 +124,7 @@ async function enviarAFirmar(): Promise<void> {
     const codcliRaw = fuente.codcliMostrado.value
     const codcli = codcliRaw === '—' ? undefined : codcliRaw.trim()
     let esResponsableFinanciero: string | null | undefined
+    let emailApoderado = vm.emailApoderado
     if (codcli && periodoActivo.anio != null && periodoActivo.semestre != null) {
       const { data: planRow } = await fetchPlanPagosMvByCodcli({
         codcli,
@@ -99,11 +132,14 @@ async function enviarAFirmar(): Promise<void> {
         periodoMatricula: periodoActivo.semestre,
       })
       esResponsableFinanciero = planRow?.es_responsable_financiero
+      const mailPlan = (planRow?.mail_apoder ?? '').trim()
+      if (mailPlan && mailPlan !== '—') emailApoderado = mailPlan
     }
     const incluirApoderado = !esPropioSostenedor(esResponsableFinanciero)
     const res = await ensureContratoFirma({
       ...vm,
       incluirApoderado,
+      emailApoderado,
       codcli,
     })
 
@@ -116,6 +152,7 @@ async function enviarAFirmar(): Promise<void> {
       return
     }
 
+    await registrarPasoFirma('enviado', res.numOperacion)
     aplicarEstadoOk(res)
     if (!res.ready) {
       iniciarPoll(res.numOperacion)

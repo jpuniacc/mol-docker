@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  descuentoMatriculaParaPago,
   filaDescuentoMatriculaDelMes,
   type FilaDescuentoMatriculaMes,
 } from '@/utils/descuentoMatriculaMes'
@@ -82,5 +83,52 @@ describe('filaDescuentoMatriculaDelMes', () => {
     }
     expect(filaDescuentoMatriculaDelMes({ ...base, tieneCae: true })).toBeNull()
     expect(filaDescuentoMatriculaDelMes({ ...base, tieneBecaEstatal: true })).toBeNull()
+  })
+})
+
+const FILA_NOVIEMBRE: FilaDescuentoMatriculaMes = {
+  ...FILAS[0]!,
+  id: 2,
+  reserva_hasta: '2027-03-15',
+}
+
+describe('descuentoMatriculaParaPago', () => {
+  it('usa el monto reservado en enero aunque tenga CAE', () => {
+    expect(
+      descuentoMatriculaParaPago({
+        filas: [FILA_NOVIEMBRE],
+        periodo: '2027-1',
+        hoy: '2027-01-10',
+        tieneCae: true,
+        tieneBecaEstatal: false,
+        reserva: { descuentoId: 2, nombre: 'Matricula Anticipada Noviembre', monto: 50000 },
+      }),
+    ).toEqual({ nombre: 'Matricula Anticipada Noviembre', monto: 50000 })
+  })
+
+  it('vence el día después de reservable hasta', () => {
+    expect(
+      descuentoMatriculaParaPago({
+        filas: [FILA_NOVIEMBRE],
+        periodo: '2027-1',
+        hoy: '2027-03-16',
+        tieneCae: true,
+        tieneBecaEstatal: false,
+        reserva: { descuentoId: 2, nombre: 'Matricula Anticipada Noviembre', monto: 50000 },
+      }),
+    ).toBeNull()
+  })
+
+  it('sin reserva y con CAE no descuenta en el mes', () => {
+    expect(
+      descuentoMatriculaParaPago({
+        filas: [FILA_NOVIEMBRE],
+        periodo: '2027-1',
+        hoy: '2026-11-15',
+        tieneCae: true,
+        tieneBecaEstatal: false,
+        reserva: null,
+      }),
+    ).toBeNull()
   })
 })

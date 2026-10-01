@@ -2,6 +2,7 @@
 export const FLUJO_DESCUENTO_MATRICULA = 'DESCUENTO_MATRICULA'
 
 export type FilaDescuentoMatriculaMes = {
+  id?: number
   nombre: string
   periodo: string
   aplicable_a: string
@@ -9,6 +10,13 @@ export type FilaDescuentoMatriculaMes = {
   activo: boolean
   vigencia_desde: string
   vigencia_hasta: string
+  reserva_hasta?: string | null
+}
+
+export type ReservaDescuentoMatriculaAplicar = {
+  descuentoId: number
+  nombre: string
+  monto: number
 }
 
 export type DescuentoMatriculaDelMes = {
@@ -67,4 +75,38 @@ export function filaDescuentoMatriculaDelMes(input: {
   const fila = candidatos[0]
   if (!fila) return null
   return { nombre: fila.nombre.trim(), monto: Number(fila.monto_descuento) }
+}
+
+/**
+ * La reserva vigente gana aunque haya CAE o beca estatal y aunque el día
+ * ya no caiga en el mes. Si no hay reserva usable, queda la regla del mes.
+ */
+export function descuentoMatriculaParaPago(input: {
+  filas: FilaDescuentoMatriculaMes[]
+  periodo: string
+  hoy: string
+  tieneCae: boolean
+  tieneBecaEstatal: boolean
+  reserva: ReservaDescuentoMatriculaAplicar | null
+}): DescuentoMatriculaDelMes | null {
+  const reservado = descuentoDesdeReserva(input.filas, input.hoy, input.reserva)
+  if (reservado) return reservado
+  return filaDescuentoMatriculaDelMes(input)
+}
+
+function descuentoDesdeReserva(
+  filas: FilaDescuentoMatriculaMes[],
+  hoy: string,
+  reserva: ReservaDescuentoMatriculaAplicar | null,
+): DescuentoMatriculaDelMes | null {
+  if (!reserva || reserva.monto <= 0) return null
+  const dia = ymd(hoy)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dia)) return null
+  const fila = filas.find((item) => item.id === reserva.descuentoId)
+  if (!fila?.activo) return null
+  const hasta = fila.reserva_hasta ? ymd(fila.reserva_hasta) : ''
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(hasta) || dia > hasta) return null
+  const nombre = reserva.nombre.trim() || fila.nombre.trim()
+  if (!nombre) return null
+  return { nombre, monto: Number(reserva.monto) }
 }

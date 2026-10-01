@@ -27,6 +27,8 @@ type StoredAlumnoMatriculaContext = {
   convenioCertificadoBloqueo: boolean
   estatalBloqueo: boolean
   promedioBloqueo: boolean
+  contactoCorreoValidado: string | null
+  contactoTelefonoValidado: string | null
 }
 
 function sanitizeConveniosDocumentos(v: unknown): Record<string, MockConvenioDocumento> {
@@ -77,8 +79,18 @@ function hasAnyProgressPayload(parsed: Partial<StoredAlumnoMatriculaContext>): b
     parsed.apoderadoBloqueo === true ||
     parsed.convenioCertificadoBloqueo === true ||
     parsed.estatalBloqueo === true ||
-    parsed.promedioBloqueo === true
+    parsed.promedioBloqueo === true ||
+    (typeof parsed.contactoCorreoValidado === 'string' &&
+      parsed.contactoCorreoValidado.trim().length > 0) ||
+    (typeof parsed.contactoTelefonoValidado === 'string' &&
+      parsed.contactoTelefonoValidado.trim().length > 0)
   )
+}
+
+function textoPersistido(v: unknown): string | null {
+  if (typeof v !== 'string') return null
+  const t = v.trim()
+  return t.length > 0 ? t : null
 }
 
 export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContext', {
@@ -95,6 +107,8 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
     convenioCertificadoBloqueo: false,
     estatalBloqueo: false,
     promedioBloqueo: false,
+    contactoCorreoValidado: null as string | null,
+    contactoTelefonoValidado: null as string | null,
   }),
   actions: {
     persistToSessionStorage() {
@@ -111,6 +125,8 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
         convenioCertificadoBloqueo: this.convenioCertificadoBloqueo,
         estatalBloqueo: this.estatalBloqueo,
         promedioBloqueo: this.promedioBloqueo,
+        contactoCorreoValidado: this.contactoCorreoValidado,
+        contactoTelefonoValidado: this.contactoTelefonoValidado,
       }
       sessionStorage.setItem(ALUMNO_CTX_STORAGE_KEY, JSON.stringify(payload))
     },
@@ -149,6 +165,8 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
         this.convenioCertificadoBloqueo = parsed.convenioCertificadoBloqueo === true
         this.estatalBloqueo = parsed.estatalBloqueo === true
         this.promedioBloqueo = parsed.promedioBloqueo === true
+        this.contactoCorreoValidado = textoPersistido(parsed.contactoCorreoValidado)
+        this.contactoTelefonoValidado = textoPersistido(parsed.contactoTelefonoValidado)
       } catch {
         sessionStorage.removeItem(ALUMNO_CTX_STORAGE_KEY)
       }
@@ -179,6 +197,8 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
       this.convenioCertificadoBloqueo = false
       this.estatalBloqueo = false
       this.promedioBloqueo = false
+      this.contactoCorreoValidado = null
+      this.contactoTelefonoValidado = null
       this.resetStoresErp()
       this.clearSessionStorage()
     },
@@ -263,6 +283,30 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
 
     setPromedioBloqueo(bloqueado: boolean) {
       this.promedioBloqueo = bloqueado
+      this.persistToSessionStorage()
+    },
+
+    marcarCorreoValidado(correo: string) {
+      const t = correo.trim()
+      this.contactoCorreoValidado = t.length > 0 ? t : null
+      this.persistToSessionStorage()
+    },
+
+    limpiarCorreoValidado() {
+      if (this.contactoCorreoValidado == null) return
+      this.contactoCorreoValidado = null
+      this.persistToSessionStorage()
+    },
+
+    marcarTelefonoValidado(digitos: string) {
+      const d = digitos.replace(/\D/g, '')
+      this.contactoTelefonoValidado = d.length > 0 ? d : null
+      this.persistToSessionStorage()
+    },
+
+    limpiarTelefonoValidado() {
+      if (this.contactoTelefonoValidado == null) return
+      this.contactoTelefonoValidado = null
       this.persistToSessionStorage()
     },
   },

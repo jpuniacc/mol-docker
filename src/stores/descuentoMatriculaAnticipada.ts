@@ -11,6 +11,7 @@ import {
   type DescuentoMatriculaAnticipadaInput,
   updateDescuentoMatriculaAnticipada,
   validarPeriodo,
+  validarReservaHasta,
   validarVigencia,
 } from '@/services/descuentoMatriculaAnticipada'
 import type { TpMnpDescuentoMatriculaAnticipadaRow } from '@/types/supabase'
@@ -118,6 +119,8 @@ export const useDescuentoMatriculaAnticipadaStore = defineStore(
         }
         const vigErr = validarVigencia(payload.vigencia_desde, payload.vigencia_hasta)
         if (vigErr) return vigErr
+        const reservaErr = validarReservaHasta(payload.vigencia_hasta, payload.reserva_hasta)
+        if (reservaErr) return reservaErr
         const monto = Number(payload.monto_descuento)
         if (!Number.isFinite(monto) || monto < 0) {
           return 'El monto debe ser un valor en pesos igual o mayor a 0.'

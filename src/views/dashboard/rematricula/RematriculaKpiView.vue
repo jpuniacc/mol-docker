@@ -77,7 +77,6 @@ async function actualizarProgreso() {
       return
     }
     
-    toast.success('Progreso actualizado correctamente')
     await cargarKpi()
   } finally {
     refreshing.value = false
@@ -87,7 +86,7 @@ async function actualizarProgreso() {
 onMounted(async () => {
   await periodoActivo.ensureLoaded()
   if (tienePeriodo.value) {
-    await cargarKpi()
+    await actualizarProgreso()
   }
 })
 </script>

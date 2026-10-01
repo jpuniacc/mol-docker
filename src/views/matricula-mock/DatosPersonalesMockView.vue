@@ -57,6 +57,7 @@ import {
   actualizarDatosMolErp,
   fonoactParaSp,
 } from '@/services/actualizarDatosMolApi'
+import { codcliMtClientDesdeRut } from '@/services/alumnoDeudaNetApi'
 
 const auth = useAuthStore()
 const otpConfig = useContactoOtpConfigStore()
@@ -981,9 +982,11 @@ async function maybeActualizarDatosErp(): Promise<void> {
   if (!correoValidadoOk.value || !telefonoValidadoOk.value) return
   if (!contactoCambioRespectoErp()) return
 
-  const codcli = pickCampoAlumno(fuente.codcliMostrado.value)
+  // MT_CLIENT.CODCLI = RUT sin DV (no el codcli Excel del plan de pagos)
+  const rut = pickCampoAlumno(fuente.rutMostrado.value)
+  const codcli = rut ? codcliMtClientDesdeRut(rut) : ''
   if (!codcli) {
-    console.warn('[actualiza-datos-mol] sin codcli; se omite SP')
+    console.warn('[actualiza-datos-mol] sin RUT→CODCLI; se omite SP')
     return
   }
 

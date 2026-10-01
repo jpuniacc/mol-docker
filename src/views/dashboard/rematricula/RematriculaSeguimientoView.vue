@@ -28,7 +28,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { listarProgresoRematricula, listarTimelineMolAlumno } from '@/services/progresoRematriculaApi'
+import {
+  listarProgresoRematricula,
+  listarTimelineMolAlumno,
+  refreshProgresoRematricula,
+} from '@/services/progresoRematriculaApi'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import type { EtapaProgresoRematricula, MnpProgresoRematriculaRow, VLogMolSesionTimelineRow } from '@/types/supabase'
 import { etiquetaEtapaProgreso, etiquetaActividadLog } from '@/utils/etapaProgresoRematricula'
@@ -81,11 +85,18 @@ function formatearFecha(fecha: string | null): string {
   }
 }
 
-async function cargar() {
+async function cargar(refrescar = false) {
   if (!tienePeriodo.value) return
 
   loading.value = true
   try {
+    if (refrescar && periodoActivo.anio != null && periodoActivo.semestre != null) {
+      const { error: refreshError } = await refreshProgresoRematricula(
+        periodoActivo.anio,
+        periodoActivo.semestre,
+      )
+      if (refreshError) toast.error(`Error al actualizar progreso: ${refreshError}`)
+    }
     const etapa = filtroEtapa.value === 'todas' ? null : (filtroEtapa.value as EtapaProgresoRematricula)
     const q = busqueda.value.trim() || null
 
@@ -150,7 +161,7 @@ watch([filtroEtapa, busqueda], () => {
 onMounted(async () => {
   await periodoActivo.ensureLoaded()
   if (tienePeriodo.value) {
-    await cargar()
+    await cargar(true)
   }
 })
 </script>
@@ -161,7 +172,7 @@ onMounted(async () => {
       <CardHeader>
         <CardTitle>Seguimiento rematrícula</CardTitle>
         <CardDescription>
-          Periodo {{ periodoLabel }}. Vista de progreso individual y actividad en MOL.
+          Periodo {{ periodoLabel }}. Etapa actual de cada alumno y los pasos que ya registró en MOL.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -192,7 +203,7 @@ onMounted(async () => {
               class="w-64"
               placeholder="Buscar RUT, nombre o codcli"
             />
-            <Button type="button" variant="outline" :disabled="loading" @click="cargar">
+            <Button type="button" variant="outline" :disabled="loading" @click="cargar(true)">
               Actualizar
             </Button>
           </div>

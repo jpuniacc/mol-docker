@@ -36,6 +36,14 @@ export function rutSinDv(rut: string): string {
   return alnum.replace(/\D/g, '')
 }
 
+/**
+ * CODCLI de MT_CLIENT / SPs de contacto-discapacidad = RUT sin DV.
+ * No usar el `codcli` del plan de pagos (código Excel ~15 chars).
+ */
+export function codcliMtClientDesdeRut(rutCompleto: string): string {
+  return rutSinDv(rutCompleto)
+}
+
 const TIMEOUT_MS = 60_000
 
 export async function fetchAlumnoDeudaNet(

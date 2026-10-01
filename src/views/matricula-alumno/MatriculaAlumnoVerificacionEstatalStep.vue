@@ -13,9 +13,12 @@ const props = defineProps<{
   nombreAlumno?: string
   codcli?: string
   beneficios: string[]
+  reintentando?: boolean
+  reservaTexto?: string | null
 }>()
 
 const emit = defineEmits<{
+  reintentar: []
   volver: []
 }>()
 
@@ -46,6 +49,13 @@ const codcliDisplay = computed(() => props.codcli?.trim() || '—')
           <p class="font-medium text-zinc-900">{{ ui.pendienteAclaracion }}</p>
         </AlertDescription>
       </Alert>
+
+      <p
+        v-if="reservaTexto"
+        class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+      >
+        {{ reservaTexto }}
+      </p>
 
       <section class="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50/80 p-4">
         <div class="flex items-center gap-2 text-sm font-medium">
@@ -79,8 +89,16 @@ const codcliDisplay = computed(() => props.codcli?.trim() || '—')
         </ul>
       </section>
 
-      <div class="border-t border-zinc-200 pt-4">
-        <Button type="button" variant="outline" @click="emit('volver')">
+      <div class="flex flex-col gap-3 border-t border-zinc-200 pt-4 sm:flex-row">
+        <Button
+          type="button"
+          class="w-full bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
+          :disabled="reintentando"
+          @click="emit('reintentar')"
+        >
+          {{ reintentando ? ui.reintentando : ui.reintentar }}
+        </Button>
+        <Button type="button" variant="outline" class="w-full sm:w-auto" :disabled="reintentando" @click="emit('volver')">
           {{ ui.volver }}
         </Button>
       </div>

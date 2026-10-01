@@ -16,5 +16,7 @@ export const VERIFICACION_ESTATAL_UI = {
   contextoPeriodo: 'Periodo',
   contextoAlumno: 'Alumno',
   contextoCodcli: 'codcli',
+  reintentar: 'Reintentar verificación',
+  reintentando: 'Verificando…',
   volver: 'Volver a datos personales',
 } as const

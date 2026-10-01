@@ -46,7 +46,15 @@ import {
 } from '@/services/carteraBeneficiosApi'
 import { detectarConveniosAlumno } from '@/services/convenioAlumno'
 import { fetchBeneficioPeriodo } from '@/services/fetchBeneficioPeriodo'
-import { fetchDescuentosMatriculaAnticipada } from '@/services/descuentoMatriculaAnticipada'
+import {
+  fetchDescuentosMatriculaAnticipada,
+  fmtFechaCalendario,
+} from '@/services/descuentoMatriculaAnticipada'
+import {
+  consultarReservaDescuentoMatricula,
+  consultarResolucionBecaEstatal,
+  reservarDescuentoMatricula,
+} from '@/services/reservaDescuentoMatricula'
 import { fmtMontoClp, fetchPlanPagosMvByCodcli } from '@/services/fetchPlanPagosMv'
 import { fetchMontoCaeAprobadoAlumno } from '@/services/fetchMnpEstadoCaeAlumnos'
 import { contextoMolAuditoria, type ContextoMolAuditoriaOpciones } from '@/services/molAuditContext'
@@ -94,9 +102,10 @@ import type {
 } from '@/stores/mockMatriculaContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import {
+  descuentoMatriculaParaPago,
   fechaChileIso,
-  filaDescuentoMatriculaDelMes,
   FLUJO_DESCUENTO_MATRICULA,
+  type ReservaDescuentoMatriculaAplicar,
 } from '@/utils/descuentoMatriculaMes'
 import { asignarDocumentosDescuento } from '@/utils/documentosDescuentoContrato'
 import {
@@ -110,6 +119,7 @@ import {
   proximaFechaDiaVencimiento,
 } from '@/utils/pagareFechaInicio'
 import MatriculaAlumnoVerificacionCaeStep from '@/views/matricula-alumno/MatriculaAlumnoVerificacionCaeStep.vue'
+import MatriculaAlumnoVerificacionEstatalStep from '@/views/matricula-alumno/MatriculaAlumnoVerificacionEstatalStep.vue'
 import type {
   MnpCasoRematriculaRow,
   PlanPagosMvRow,
@@ -337,7 +347,7 @@ const resumenPagoMatricula = computed(() => {
   return `${p.nombre} (simulado)`
 })
 
-type SubPaso = 'verificacion-cae' | 'becas' | 'pago'
+type SubPaso = 'verificacion-cae' | 'verificacion-estatal' | 'becas' | 'pago'
 const subPaso = ref<SubPaso>('becas')
 
 const fmt = fmtMontoClp
@@ -409,6 +419,8 @@ async function cargarMontoCaeDocumento(fila: PlanPagosMvRow | null): Promise<voi
 
 const verificandoCae = ref(false)
 const reintentandoCae = ref(false)
+const reintentandoEstatal = ref(false)
+const reservaMatricula = ref<ReservaDescuentoMatriculaAplicar | null>(null)
 
 const carteraBeneficiosRow = ref<CarteraBeneficioRow | null>(null)
 const codigosBeneficioAsignados = ref<Set<string>>(new Set())
@@ -439,15 +451,34 @@ const periodoBeneficioLabel = computed(
 const beneficiosSeleccionados = ref<Record<number, boolean>>({})
 const descuentosMatriculaCatalogo = ref<TpMnpDescuentoMatriculaAnticipadaRow[]>([])
 
+const tieneBecaEstatalAsignada = computed(() =>
+  beneficios.value.some((b) => b.flujo === 'ESTATAL'),
+)
+
+const nombresBecaEstatal = computed(() =>
+  beneficios.value.filter((b) => b.flujo === 'ESTATAL').map((b) => b.descripcion),
+)
+
 const descuentoMatriculaMes = computed(() =>
-  filaDescuentoMatriculaDelMes({
+  descuentoMatriculaParaPago({
     filas: descuentosMatriculaCatalogo.value,
     periodo: periodoActivoLabel.value ?? '',
     hoy: fechaChileIso(),
     tieneCae: tieneCae(plan.value),
-    tieneBecaEstatal: beneficios.value.some((b) => b.flujo === 'ESTATAL'),
+    tieneBecaEstatal: tieneBecaEstatalAsignada.value,
+    reserva: reservaMatricula.value,
   }),
 )
+
+const textoReservaMatricula = computed(() => {
+  const descuento = descuentoMatriculaMes.value
+  const reserva = reservaMatricula.value
+  if (!descuento || !reserva) return null
+  const fila = descuentosMatriculaCatalogo.value.find((item) => item.id === reserva.descuentoId)
+  const hasta = fmtFechaCalendario(fila?.reserva_hasta)
+  if (hasta === '—') return null
+  return `Tienes reservado ${descuento.nombre} por ${fmt(descuento.monto)} hasta el ${hasta}.`
+})
 
 function pickCampoAlumno(val: string): string | null {
   const t = val.trim()
@@ -694,6 +725,85 @@ watch(catalogoAplica, () => {
   initBeneficiosSeleccionados()
 })
 
+function periodoFormaPago(): { codcli: string; anio: number; semestre: number } | null {
+  const codcli = pickCampoAlumno(fuente.codcliMostrado.value)
+  const anio = periodoActivo.anio
+  const semestre = periodoActivo.semestre
+  if (!codcli || anio == null || semestre == null) return null
+  return { codcli, anio, semestre }
+}
+
+async function cargarReservaMatricula() {
+  const periodo = periodoFormaPago()
+  if (!periodo) return
+  const { data, error } = await consultarReservaDescuentoMatricula({
+    codcli: periodo.codcli,
+    anioPeriodo: periodo.anio,
+    semestrePeriodo: periodo.semestre,
+  })
+  if (error) {
+    console.warn('[forma-pago] reserva de matrícula', error)
+    return
+  }
+  reservaMatricula.value = data
+}
+
+async function guardarReservaMatricula(motivo: 'CAE' | 'ESTATAL') {
+  const periodo = periodoFormaPago()
+  if (!periodo) return
+  const { data, error } = await reservarDescuentoMatricula({
+    codcli: periodo.codcli,
+    anioPeriodo: periodo.anio,
+    semestrePeriodo: periodo.semestre,
+    rutAlumno: pickCampoAlumno(fuente.rutMostrado.value),
+    motivo,
+  })
+  if (error) {
+    console.warn('[forma-pago] no se pudo reservar el descuento de matrícula', error)
+    return
+  }
+  reservaMatricula.value = data
+}
+
+async function entrarSiBecaEstatalOPlan() {
+  if (!tieneBecaEstatalAsignada.value) {
+    subPaso.value = 'becas'
+    return
+  }
+  const periodo = periodoFormaPago()
+  if (!periodo) {
+    toast.error('No se pudo verificar la beca ministerial: faltan codcli o periodo activo.')
+    subPaso.value = 'verificacion-estatal'
+    return
+  }
+  const { disponible, error } = await consultarResolucionBecaEstatal({
+    codcli: periodo.codcli,
+    anioPeriodo: periodo.anio,
+    semestrePeriodo: periodo.semestre,
+  })
+  if (error) {
+    console.warn('[forma-pago] resolución beca ministerial', error)
+    toast.error('No se pudo verificar la beca ministerial. Intenta de nuevo.')
+    subPaso.value = 'verificacion-estatal'
+    return
+  }
+  if (disponible) {
+    subPaso.value = 'becas'
+    return
+  }
+  await guardarReservaMatricula('ESTATAL')
+  subPaso.value = 'verificacion-estatal'
+}
+
+async function correrVerificacionEstatal() {
+  reintentandoEstatal.value = true
+  try {
+    await entrarSiBecaEstatalOPlan()
+  } finally {
+    reintentandoEstatal.value = false
+  }
+}
+
 async function correrVerificacionCae(reintento = false) {
   const p = plan.value
   if (!p || !tieneCae(p)) {
@@ -749,10 +859,11 @@ async function correrVerificacionCae(reintento = false) {
     alumnoCtx.setVerificacionCae({ resultado: data.resultado })
 
     if (data.resultado === 'continua') {
-      subPaso.value = 'becas'
+      await entrarSiBecaEstatalOPlan()
       return
     }
 
+    await guardarReservaMatricula('CAE')
     subPaso.value = 'verificacion-cae'
   } finally {
     verificandoCae.value = false
@@ -771,7 +882,7 @@ onMounted(async () => {
     cargarCatalogoPeriodo(),
     cargarDescuentosMatricula(),
   ])
-  await refrescarCasosConvenio()
+  await Promise.all([refrescarCasosConvenio(), cargarReservaMatricula()])
 
   let p = (await cargarPlanPagosAlumno()) ?? plan.value
   if (!p) return
@@ -781,16 +892,17 @@ onMounted(async () => {
   await Promise.all([cargarArancelDesdeErp(p), precargarDeudaSiHayRut()])
 
   if (!tieneCae(p)) {
-    subPaso.value = 'becas'
+    await entrarSiBecaEstatalOPlan()
     return
   }
 
   if (alumnoCtx.verificacionCae?.resultado === 'continua') {
-    subPaso.value = 'becas'
+    await entrarSiBecaEstatalOPlan()
     return
   }
 
   if (alumnoCtx.verificacionCae?.resultado === 'pendiente_resolucion') {
+    await guardarReservaMatricula('CAE')
     subPaso.value = 'verificacion-cae'
     return
   }
@@ -1249,7 +1361,20 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
       :periodo-label="periodoActivoLabel"
       :nombre-alumno="nombreMostrado"
       :codcli="codcliMostrado"
+      :reserva-texto="textoReservaMatricula"
       @reintentar="correrVerificacionCae(true)"
+      @volver="volverDatosPersonales"
+    />
+
+    <MatriculaAlumnoVerificacionEstatalStep
+      v-else-if="subPaso === 'verificacion-estatal'"
+      :periodo-label="periodoActivoLabel"
+      :nombre-alumno="nombreMostrado"
+      :codcli="codcliMostrado"
+      :beneficios="nombresBecaEstatal"
+      :reintentando="reintentandoEstatal"
+      :reserva-texto="textoReservaMatricula"
+      @reintentar="correrVerificacionEstatal"
       @volver="volverDatosPersonales"
     />
 

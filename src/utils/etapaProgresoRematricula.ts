@@ -55,9 +55,16 @@ export function etiquetaActividadLog(categoria: string, accion: string): string 
   if (c === 'tyc' && a === 'acepta') return 'Aceptó TyC'
   if (c === 'tyc' && a === 'rechaza') return 'Rechazó TyC'
   if (c === 'sesion' && a === 'inicio') return 'Inicio de sesión'
+  if ((c === 'contacto' || c === 'contacto_otp') && a === 'verificar_ok') return 'Verificó contacto'
   if (c === 'contacto' || c === 'contacto_otp') return `Contacto OTP: ${a}`
+  if (c === 'apoderado' && a === 'confirma_ok') return 'Confirmó datos del apoderado'
+  if (c === 'apoderado' && a === 'confirma_desactualizado') return 'Marcó datos del apoderado como desactualizados'
   if (c === 'apoderado') return `Apoderado: ${a}`
+  if (c === 'discapacidad' && a === 'omitir') return 'Omitió discapacidad'
   if (c === 'discapacidad') return `Discapacidad: ${a}`
+  if (c === 'forma_pago' && a === 'confirmado') return 'Confirmó forma de pago'
+  if (c === 'firma' && a === 'enviado') return 'Envió el contrato a firmar'
+  if (c === 'firma' && a === 'firmado') return 'Contrato firmado'
   return `${categoria}: ${accion}`
 }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { AlertTriangle, Info } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
@@ -118,6 +118,8 @@ const telefonoTocado = ref(false)
 /** 8 dígitos del abonado (sin +569). */
 const telefonoDigitosLocal = ref('')
 
+/** Evita el salto a apoderado/discapacidad cuando se reponen marcas ya guardadas. */
+const restaurandoContacto = ref(false)
 /** Evita doble POST a SP_ACTUALIZA_DATOS_MOL en la misma sesión de contacto. */
 const erpSyncIntentado = ref(false)
 /** Baseline ERP al cargar/resetear el paso (comparación “¿cambió?”). */
@@ -171,25 +173,58 @@ function capturarBaselineContactoErp(): void {
   erpSyncIntentado.value = false
 }
 
+function correoPersistidoCoincide(valor: string): boolean {
+  const guardado = alumnoCtx.contactoCorreoValidado
+  if (!guardado) return false
+  return valor.trim().toLowerCase() === guardado.trim().toLowerCase()
+}
+
+function telefonoPersistidoCoincide(digitos: string): boolean {
+  const guardado = alumnoCtx.contactoTelefonoValidado
+  if (!guardado) return false
+  return digitos.replace(/\D/g, '') === guardado
+}
+
+function aplicarMarcasContactoPersistidas() {
+  correoValidadoOk.value = correoPersistidoCoincide(emailDraft.value)
+  telefonoValidadoOk.value = telefonoPersistidoCoincide(telefonoDigitosLocal.value)
+}
+
+function resetOtpEnCurso() {
+  otpUi.modalContacto = null
+  otpUi.errorCorreo = null
+  otpUi.errorTelefono = null
+  otpUi.resetCorreoOtpEnvios()
+  otpUi.resetTelefonoOtpEnvios()
+  otpUi.resetCorreoOtp()
+  otpUi.resetTelefonoOtp()
+}
+
 function sincronizarDraftsContactoDesdeFuente(opciones?: { forzarResetValidacion?: boolean }) {
   if (paso.value !== 'contacto' || datosCargando.value) return
 
+  restaurandoContacto.value = true
   if (opciones?.forzarResetValidacion) {
-    otpUi.resetAll()
-    emailDraft.value = valorInicialCorreoPersonal()
-    telefonoDigitosLocal.value = valorInicialTelefonoDigitos()
+    resetOtpEnCurso()
+    emailDraft.value = alumnoCtx.contactoCorreoValidado ?? valorInicialCorreoPersonal()
+    telefonoDigitosLocal.value =
+      alumnoCtx.contactoTelefonoValidado ?? valorInicialTelefonoDigitos()
     sincronizarTelefonoDraftDesdeDigitos()
     capturarBaselineContactoErp()
-    return
+  } else {
+    if (!correoValidadoOk.value && !correoPersistidoCoincide(emailDraft.value)) {
+      emailDraft.value = alumnoCtx.contactoCorreoValidado ?? valorInicialCorreoPersonal()
+    }
+    if (!telefonoValidadoOk.value && !telefonoPersistidoCoincide(telefonoDigitosLocal.value)) {
+      telefonoDigitosLocal.value =
+        alumnoCtx.contactoTelefonoValidado ?? valorInicialTelefonoDigitos()
+      sincronizarTelefonoDraftDesdeDigitos()
+    }
   }
-
-  if (!correoValidadoOk.value) {
-    emailDraft.value = valorInicialCorreoPersonal()
-  }
-  if (!telefonoValidadoOk.value) {
-    telefonoDigitosLocal.value = valorInicialTelefonoDigitos()
-    sincronizarTelefonoDraftDesdeDigitos()
-  }
+  aplicarMarcasContactoPersistidas()
+  void nextTick(() => {
+    restaurandoContacto.value = false
+  })
 }
 
 async function hidratarTycDesdeTabla(): Promise<void> {
@@ -373,7 +408,8 @@ watch(
 )
 
 function resetContactoModalYEstadoOtp() {
-  otpUi.resetAll()
+  resetOtpEnCurso()
+  if (paso.value === 'contacto') aplicarMarcasContactoPersistidas()
 }
 
 function onPageShowRestaurarContacto(e: PageTransitionEvent) {
@@ -538,7 +574,12 @@ watch(
 
 watch(emailDraft, () => {
   if (paso.value !== 'contacto') return
+  if (correoPersistidoCoincide(emailDraft.value)) {
+    correoValidadoOk.value = true
+    return
+  }
   correoValidadoOk.value = false
+  alumnoCtx.limpiarCorreoValidado()
   otpUi.resetCorreoOtpEnvios()
   resetCorreoOtpUi()
 })
@@ -546,7 +587,12 @@ watch(emailDraft, () => {
 watch(telefonoDigitosLocal, () => {
   if (paso.value !== 'contacto') return
   sincronizarTelefonoDraftDesdeDigitos()
+  if (telefonoPersistidoCoincide(telefonoDigitosLocal.value)) {
+    telefonoValidadoOk.value = true
+    return
+  }
   telefonoValidadoOk.value = false
+  alumnoCtx.limpiarTelefonoValidado()
   otpUi.resetTelefonoOtpEnvios()
   resetTelefonoOtpUi()
 })
@@ -662,6 +708,7 @@ function cancelarContinuarSinOtpCorreo() {
 
 function aceptarContinuarSinOtpCorreo() {
   mostrarContinuarSinOtpCorreo.value = false
+  alumnoCtx.marcarCorreoValidado(emailDraft.value)
   correoValidadoOk.value = true
   logMockContactoOtp('ui.correo.continuarSinOtp', { email: emailDraft.value.trim() })
   void registrarEventoContactoOtp(
@@ -686,6 +733,7 @@ function cancelarContinuarSinOtpTelefono() {
 
 function aceptarContinuarSinOtpTelefono() {
   mostrarContinuarSinOtpTelefono.value = false
+  alumnoCtx.marcarTelefonoValidado(telefonoDigitosLocal.value)
   telefonoValidadoOk.value = true
   logMockContactoOtp('ui.telefono.continuarSinOtp', { telefono: telefonoDraft.value.trim() })
   void registrarEventoContactoOtp(
@@ -811,6 +859,7 @@ async function confirmarCodigoCorreoOtp() {
       )
       return
     }
+    alumnoCtx.marcarCorreoValidado(emailDraft.value)
     correoValidadoOk.value = true
     void registrarEventoContactoOtp('correo', 'verificar_ok', emailDraft.value.trim())
     logMockContactoOtp('ui.correo.confirmar.ok')
@@ -932,6 +981,7 @@ async function confirmarCodigoTelefonoOtp() {
       )
       return
     }
+    alumnoCtx.marcarTelefonoValidado(telefonoDigitosLocal.value)
     telefonoValidadoOk.value = true
     void registrarEventoContactoOtp('telefono', 'verificar_ok', telefonoDraft.value.trim())
     logMockContactoOtp('ui.telefono.confirmar.ok')
@@ -1045,6 +1095,7 @@ async function maybeActualizarDatosErp(): Promise<void> {
 watch(
   () => correoValidadoOk.value && telefonoValidadoOk.value,
   (listo) => {
+    if (restaurandoContacto.value) return
     if (listo && paso.value === 'contacto' && !datosCargando.value) {
       void maybeActualizarDatosErp()
       irPostContacto()
@@ -1165,6 +1216,15 @@ watch(
             <p class="text-xs text-muted-foreground">
               Debes validar correo y teléfono para continuar. Al completar ambos pasarás automáticamente a la encuesta.
             </p>
+          </div>
+          <div v-else class="flex justify-end border-t border-zinc-200 pt-4">
+            <Button
+              type="button"
+              class="bg-uniacc-orange hover:bg-uniacc-orange/90"
+              @click="irPostContacto"
+            >
+              Continuar
+            </Button>
           </div>
         </CardContent>
       </Card>
