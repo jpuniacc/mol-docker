@@ -145,6 +145,11 @@ const routes = [
             name: 'matricula-alumno-resumen',
             component: () => import('../views/matricula-alumno/ResumenAlumnoView.vue'),
           },
+          {
+            path: 'webpay/retorno',
+            name: 'matricula-alumno-webpay-retorno',
+            component: () => import('../views/matricula-alumno/WebpayRetornoAlumnoView.vue'),
+          },
         ],
       },
       {
@@ -508,10 +513,18 @@ router.beforeEach(async (to) => {
 
   if (needsAuth && auth.isAuthenticated && isAlumnoFlowRoute(to.name)) {
     const alumnoCtx = useMatriculaAlumnoContextStore()
-    if (alumnoCtx.firmaCompletada && to.name !== 'matricula-alumno-resumen') {
+    if (
+      alumnoCtx.firmaCompletada &&
+      to.name !== 'matricula-alumno-resumen' &&
+      to.name !== 'matricula-alumno-webpay-retorno'
+    ) {
       return { name: 'matricula-alumno-resumen', replace: true }
     }
-    if (alumnoCtx.apoderadoBloqueo && to.name !== ALUMNO_DATOS_ROUTE) {
+    if (
+      alumnoCtx.apoderadoBloqueo &&
+      to.name !== ALUMNO_DATOS_ROUTE &&
+      to.name !== 'matricula-alumno-webpay-retorno'
+    ) {
       return { name: ALUMNO_DATOS_ROUTE, replace: true }
     }
     if (
@@ -519,7 +532,8 @@ router.beforeEach(async (to) => {
         alumnoCtx.estatalBloqueo ||
         alumnoCtx.promedioBloqueo) &&
       to.name !== ALUMNO_DATOS_ROUTE &&
-      to.name !== ALUMNO_FORMA_PAGO_ROUTE
+      to.name !== ALUMNO_FORMA_PAGO_ROUTE &&
+      to.name !== 'matricula-alumno-webpay-retorno'
     ) {
       return { name: ALUMNO_FORMA_PAGO_ROUTE, replace: true }
     }

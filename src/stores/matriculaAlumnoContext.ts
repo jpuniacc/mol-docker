@@ -11,8 +11,11 @@ import type {
   MockPagoMatricula,
   MockVerificacionCae,
 } from '@/stores/mockMatriculaContext'
+import type { MedioConcepto } from '@/utils/webpaySiguientePaso'
 
 const ALUMNO_CTX_STORAGE_KEY = 'rematricula-alumno-matricula'
+
+export type WebpayConceptoEstado = 'autorizada' | 'rechazada' | 'abortada'
 
 type StoredAlumnoMatriculaContext = {
   tycAccepted: boolean
@@ -29,6 +32,12 @@ type StoredAlumnoMatriculaContext = {
   promedioBloqueo: boolean
   contactoCorreoValidado: string | null
   contactoTelefonoValidado: string | null
+  medioMatricula: MedioConcepto | null
+  medioArancel: MedioConcepto | null
+  webpayMatriculaEstado: WebpayConceptoEstado | null
+  webpayArancelEstado: WebpayConceptoEstado | null
+  webpayMontoMatricula: number | null
+  webpayMontoArancel: number | null
 }
 
 function sanitizeConveniosDocumentos(v: unknown): Record<string, MockConvenioDocumento> {
@@ -64,6 +73,19 @@ function isFormaPago(v: unknown): v is 'webpay' | 'pagare' | 'toku' {
   return v === 'webpay' || v === 'pagare' || v === 'toku'
 }
 
+function isMedioConcepto(v: unknown): v is MedioConcepto {
+  return v === 'webpay' || v === 'pagare'
+}
+
+function isWebpayConceptoEstado(v: unknown): v is WebpayConceptoEstado {
+  return v === 'autorizada' || v === 'rechazada' || v === 'abortada'
+}
+
+function montoWebpayPersistido(v: unknown): number | null {
+  if (typeof v !== 'number' || !Number.isInteger(v) || v <= 0) return null
+  return v
+}
+
 function hasAnyProgressPayload(parsed: Partial<StoredAlumnoMatriculaContext>): boolean {
   return (
     parsed.tycAccepted === true ||
@@ -83,7 +105,11 @@ function hasAnyProgressPayload(parsed: Partial<StoredAlumnoMatriculaContext>): b
     (typeof parsed.contactoCorreoValidado === 'string' &&
       parsed.contactoCorreoValidado.trim().length > 0) ||
     (typeof parsed.contactoTelefonoValidado === 'string' &&
-      parsed.contactoTelefonoValidado.trim().length > 0)
+      parsed.contactoTelefonoValidado.trim().length > 0) ||
+    parsed.medioMatricula != null ||
+    parsed.medioArancel != null ||
+    parsed.webpayMatriculaEstado != null ||
+    parsed.webpayArancelEstado != null
   )
 }
 
@@ -109,6 +135,12 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
     promedioBloqueo: false,
     contactoCorreoValidado: null as string | null,
     contactoTelefonoValidado: null as string | null,
+    medioMatricula: null as MedioConcepto | null,
+    medioArancel: null as MedioConcepto | null,
+    webpayMatriculaEstado: null as WebpayConceptoEstado | null,
+    webpayArancelEstado: null as WebpayConceptoEstado | null,
+    webpayMontoMatricula: null as number | null,
+    webpayMontoArancel: null as number | null,
   }),
   actions: {
     persistToSessionStorage() {
@@ -127,6 +159,12 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
         promedioBloqueo: this.promedioBloqueo,
         contactoCorreoValidado: this.contactoCorreoValidado,
         contactoTelefonoValidado: this.contactoTelefonoValidado,
+        medioMatricula: this.medioMatricula,
+        medioArancel: this.medioArancel,
+        webpayMatriculaEstado: this.webpayMatriculaEstado,
+        webpayArancelEstado: this.webpayArancelEstado,
+        webpayMontoMatricula: this.webpayMontoMatricula,
+        webpayMontoArancel: this.webpayMontoArancel,
       }
       sessionStorage.setItem(ALUMNO_CTX_STORAGE_KEY, JSON.stringify(payload))
     },
@@ -167,6 +205,16 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
         this.promedioBloqueo = parsed.promedioBloqueo === true
         this.contactoCorreoValidado = textoPersistido(parsed.contactoCorreoValidado)
         this.contactoTelefonoValidado = textoPersistido(parsed.contactoTelefonoValidado)
+        this.medioMatricula = isMedioConcepto(parsed.medioMatricula) ? parsed.medioMatricula : null
+        this.medioArancel = isMedioConcepto(parsed.medioArancel) ? parsed.medioArancel : null
+        this.webpayMatriculaEstado = isWebpayConceptoEstado(parsed.webpayMatriculaEstado)
+          ? parsed.webpayMatriculaEstado
+          : null
+        this.webpayArancelEstado = isWebpayConceptoEstado(parsed.webpayArancelEstado)
+          ? parsed.webpayArancelEstado
+          : null
+        this.webpayMontoMatricula = montoWebpayPersistido(parsed.webpayMontoMatricula)
+        this.webpayMontoArancel = montoWebpayPersistido(parsed.webpayMontoArancel)
       } catch {
         sessionStorage.removeItem(ALUMNO_CTX_STORAGE_KEY)
       }
@@ -199,6 +247,12 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
       this.promedioBloqueo = false
       this.contactoCorreoValidado = null
       this.contactoTelefonoValidado = null
+      this.medioMatricula = null
+      this.medioArancel = null
+      this.webpayMatriculaEstado = null
+      this.webpayArancelEstado = null
+      this.webpayMontoMatricula = null
+      this.webpayMontoArancel = null
       this.resetStoresErp()
       this.clearSessionStorage()
     },
@@ -307,6 +361,36 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
     limpiarTelefonoValidado() {
       if (this.contactoTelefonoValidado == null) return
       this.contactoTelefonoValidado = null
+      this.persistToSessionStorage()
+    },
+
+    setMedioMatricula(medio: MedioConcepto | null) {
+      this.medioMatricula = medio
+      this.persistToSessionStorage()
+    },
+
+    setMedioArancel(medio: MedioConcepto | null) {
+      this.medioArancel = medio
+      this.persistToSessionStorage()
+    },
+
+    setWebpayMatriculaEstado(estado: WebpayConceptoEstado | null) {
+      this.webpayMatriculaEstado = estado
+      this.persistToSessionStorage()
+    },
+
+    setWebpayArancelEstado(estado: WebpayConceptoEstado | null) {
+      this.webpayArancelEstado = estado
+      this.persistToSessionStorage()
+    },
+
+    setWebpayMontoMatricula(monto: number | null) {
+      this.webpayMontoMatricula = montoWebpayPersistido(monto)
+      this.persistToSessionStorage()
+    },
+
+    setWebpayMontoArancel(monto: number | null) {
+      this.webpayMontoArancel = montoWebpayPersistido(monto)
       this.persistToSessionStorage()
     },
   },
