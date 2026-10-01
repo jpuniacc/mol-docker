@@ -69,7 +69,7 @@ describe('armarBuyOrder', () => {
         codcli: '12345678',
         anio: 2027,
         periodo: 1,
-        correlativo: 10_000_000_000,
+        correlativo: 100_000_000_000,
       }),
     )
   })
