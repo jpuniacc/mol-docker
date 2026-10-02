@@ -117,6 +117,46 @@ export async function ensureContratoFirma(
   }
 }
 
+export async function getEnlaceFirmaFirmante(
+  numOperacion: string,
+  email: string,
+): Promise<{ ok: true; signatureLink: string } | { ok: false; error: string }> {
+  const op = encodeURIComponent(numOperacion)
+  try {
+    const res = await fetchWithTimeout(firmaUrl(`/${op}/enlace`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    let data: unknown
+    try {
+      data = await res.json()
+    } catch {
+      return { ok: false, error: `Error HTTP ${res.status}` }
+    }
+    if (!res.ok) {
+      return { ok: false, error: errorFromUnknown(data, `Error HTTP ${res.status}`) }
+    }
+    if (data && typeof data === 'object') {
+      const link = (data as { signatureLink?: unknown }).signatureLink
+      if (typeof link === 'string' && link.startsWith('https://')) {
+        try {
+          const url = new URL(link)
+          const host = url.hostname.toLowerCase()
+          if (host === 'tufirma.digital' || host.endsWith('.tufirma.digital')) {
+            return { ok: true, signatureLink: url.toString() }
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    return { ok: false, error: 'Enlace de firma inválido' }
+  } catch (e) {
+    return { ok: false, error: abortMessage(e) }
+  }
+}
+
 export async function getContratoFirmaEstado(
   numOperacion: string,
 ): Promise<ContratoFirmaEstadoResponse> {

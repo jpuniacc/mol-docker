@@ -17,6 +17,7 @@ import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import {
   ensureContratoFirma,
   getContratoFirmaEstado,
+  getEnlaceFirmaFirmante,
   type ContratoFirmaEstadoResponse,
   type ContratoFirmaFirmanteEstado,
 } from '@/services/contratoFirmaApi'
@@ -38,6 +39,7 @@ const aceptado = ref(false)
 const enviando = ref(false)
 const errorFirma = ref<string | null>(null)
 const firmantes = ref<ContratoFirmaFirmanteEstado[]>([])
+const abriendoFirma = ref<string | null>(null)
 const numOperacionFirma = ref<string | null>(null)
 const contratoFirmadoRegistrado = ref(false)
 
@@ -81,6 +83,29 @@ async function registrarPasoFirma(
     accion,
     numOperacion,
   })
+}
+
+async function abrirFirma(email: string): Promise<void> {
+  const numOperacion = numOperacionFirma.value || viewModel.value?.numOperacion
+  if (!numOperacion || abriendoFirma.value) return
+  const ventana = window.open('about:blank', '_blank')
+  if (!ventana) {
+    toast.error('El navegador bloqueó la ventana de firma. Permite ventanas emergentes e inténtalo de nuevo.')
+    return
+  }
+  abriendoFirma.value = email
+  const res = await getEnlaceFirmaFirmante(numOperacion, email)
+  abriendoFirma.value = null
+  if (unmounted) {
+    ventana.close()
+    return
+  }
+  if (!res.ok) {
+    ventana.close()
+    toast.error(res.error)
+    return
+  }
+  ventana.location.href = res.signatureLink
 }
 
 function aplicarEstadoOk(estado: Extract<ContratoFirmaEstadoResponse, { ok: true }>): void {
@@ -308,7 +333,7 @@ async function descargaBorrador(): Promise<void> {
             <div class="flex items-center gap-2 text-sm text-muted-foreground">
               <Mail class="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>
-                Firmar desde el correo. Operación
+                Firmar desde el correo o con el botón de cada persona. Operación
                 {{ numOperacionFirma || viewModel?.numOperacion }}.
               </span>
             </div>
@@ -322,9 +347,22 @@ async function descargaBorrador(): Promise<void> {
                   <p class="font-medium text-foreground">{{ firmante.nombre }}</p>
                   <p class="text-sm text-muted-foreground">{{ firmante.email }}</p>
                 </div>
-                <Badge :variant="firmante.ready ? 'success' : 'warning'">
-                  {{ firmante.ready ? 'Firmado' : 'Pendiente' }}
-                </Badge>
+                <div class="flex items-center gap-2">
+                  <Button
+                    v-if="!firmante.ready"
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    class="cursor-pointer"
+                    :disabled="abriendoFirma === firmante.email"
+                    @click="abrirFirma(firmante.email)"
+                  >
+                    {{ abriendoFirma === firmante.email ? 'Abriendo…' : 'Firmar' }}
+                  </Button>
+                  <Badge :variant="firmante.ready ? 'success' : 'warning'">
+                    {{ firmante.ready ? 'Firmado' : 'Pendiente' }}
+                  </Badge>
+                </div>
               </li>
             </ul>
             <p
