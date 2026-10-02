@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Download, Loader2, Mail } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
@@ -39,6 +39,7 @@ const aceptado = ref(false)
 const enviando = ref(false)
 const errorFirma = ref<string | null>(null)
 const firmantes = ref<ContratoFirmaFirmanteEstado[]>([])
+const restaurandoFirma = ref(false)
 const abriendoFirma = ref<string | null>(null)
 const numOperacionFirma = ref<string | null>(null)
 const contratoFirmadoRegistrado = ref(false)
@@ -135,6 +136,20 @@ function iniciarPoll(numOperacion: string): void {
   }, POLL_MS)
 }
 
+async function restaurarFirmaExistente(): Promise<void> {
+  const num = (viewModel.value?.numOperacion ?? '').trim()
+  if (!num || num === '—') return
+  restaurandoFirma.value = true
+  try {
+    const res = await getContratoFirmaEstado(num)
+    if (unmounted || !res.ok) return
+    aplicarEstadoOk(res)
+    if (!res.ready) iniciarPoll(res.numOperacion)
+  } finally {
+    if (!unmounted) restaurandoFirma.value = false
+  }
+}
+
 async function enviarAFirmar(): Promise<void> {
   const vm = viewModel.value
   if (!vm || enviando.value) {
@@ -177,7 +192,9 @@ async function enviarAFirmar(): Promise<void> {
       return
     }
 
-    await registrarPasoFirma('enviado', res.numOperacion)
+    if (res.created) {
+      await registrarPasoFirma('enviado', res.numOperacion)
+    }
     aplicarEstadoOk(res)
     if (!res.ready) {
       iniciarPoll(res.numOperacion)
@@ -186,6 +203,10 @@ async function enviarAFirmar(): Promise<void> {
     enviando.value = false
   }
 }
+
+onMounted(() => {
+  void restaurarFirmaExistente()
+})
 
 onUnmounted(() => {
   unmounted = true
@@ -273,7 +294,7 @@ async function descargaBorrador(): Promise<void> {
         </CardContent>
       </Card>
 
-      <Card v-if="firmantes.length === 0 && !enviando && !errorFirma" class="shadow-md">
+      <Card v-if="firmantes.length === 0 && !enviando && !restaurandoFirma && !errorFirma" class="shadow-md">
         <CardHeader>
           <CardTitle>2. Acepta y envía a firmar</CardTitle>
           <CardDescription>
@@ -312,11 +333,13 @@ async function descargaBorrador(): Promise<void> {
         </CardHeader>
         <CardContent class="space-y-6">
           <div
-            v-if="enviando && firmantes.length === 0 && !errorFirma"
+            v-if="(enviando || restaurandoFirma) && firmantes.length === 0 && !errorFirma"
             class="flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-muted-foreground"
           >
             <Loader2 class="h-5 w-5 shrink-0 animate-spin text-uniacc-orange" aria-hidden="true" />
-            <span>Enviando el contrato a firmar…</span>
+            <span>{{
+              restaurandoFirma ? 'Recuperando la firma del contrato…' : 'Enviando el contrato a firmar…'
+            }}</span>
           </div>
 
           <Alert v-if="errorFirma" variant="destructive">
