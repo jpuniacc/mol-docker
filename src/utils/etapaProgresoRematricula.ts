@@ -49,6 +49,77 @@ export function etiquetaEtapaProgreso(etapa: EtapaProgresoRematricula): string {
   return map[etapa]
 }
 
+const ETIQUETAS_DETALLE: Record<string, string> = {
+  tyc_titulo: 'Documento',
+  tyc_updated_at: 'Versión',
+  canal: 'Canal',
+  numero_envio: 'Envío',
+  contacto_mascara: 'Contacto',
+  numOperacion: 'N.º de operación',
+  num_operacion: 'N.º de operación',
+  medio: 'Medio',
+  cuotas: 'Cuotas',
+  montoMatricula: 'Matrícula',
+  montoArancel: 'Arancel',
+  montoTotal: 'Total',
+  contrato: 'Contrato',
+  apoderadoNombre: 'Apoderado',
+  apoderadoTelefono: 'Teléfono',
+  apoderadoEmail: 'Correo',
+  simulado: 'Simulado',
+}
+
+const CANAL_DETALLE: Record<string, string> = {
+  correo: 'Correo',
+  telefono: 'Teléfono',
+}
+
+const MEDIO_DETALLE: Record<string, string> = {
+  pagare: 'Pagaré',
+  webpay: 'WebPay',
+  toku: 'TOKU',
+}
+
+function valorDetalleActividad(clave: string, crudo: unknown): string | null {
+  if (crudo == null || crudo === '') return null
+  if (clave === 'canal' && typeof crudo === 'string') return CANAL_DETALLE[crudo] ?? crudo
+  if (clave === 'medio' && typeof crudo === 'string') return MEDIO_DETALLE[crudo] ?? crudo
+  if (clave === 'simulado') return crudo === true ? 'Sí' : crudo === false ? 'No' : null
+  if ((clave.endsWith('_at') || clave.endsWith('At')) && (typeof crudo === 'string' || typeof crudo === 'number')) {
+    const fecha = new Date(crudo)
+    if (!Number.isNaN(fecha.getTime())) {
+      return fecha.toLocaleString('es-CL', {
+        timeZone: 'America/Santiago',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    }
+  }
+  if (clave.startsWith('monto') && typeof crudo === 'number') {
+    return crudo.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })
+  }
+  if (typeof crudo === 'string' || typeof crudo === 'number') return String(crudo)
+  return null
+}
+
+export function lineasDetalleActividad(
+  payload: Record<string, unknown> | null,
+): { etiqueta: string; valor: string }[] {
+  if (!payload) return []
+  const lineas: { etiqueta: string; valor: string }[] = []
+  for (const [clave, crudo] of Object.entries(payload)) {
+    const etiqueta = ETIQUETAS_DETALLE[clave]
+    if (!etiqueta) continue
+    const valor = valorDetalleActividad(clave, crudo)
+    if (!valor) continue
+    lineas.push({ etiqueta, valor })
+  }
+  return lineas
+}
+
 export function etiquetaActividadLog(categoria: string, accion: string): string {
   const c = categoria.trim().toLowerCase()
   const a = accion.trim().toLowerCase()
@@ -65,6 +136,7 @@ export function etiquetaActividadLog(categoria: string, accion: string): string 
   if (c === 'forma_pago' && a === 'confirmado') return 'Confirmó forma de pago'
   if (c === 'firma' && a === 'enviado') return 'Envió el contrato a firmar'
   if (c === 'firma' && a === 'firmado') return 'Contrato firmado'
+  if (c === 'matricula' && a === 'matriculado') return 'Matrícula actualizada en U+'
   return `${categoria}: ${accion}`
 }
 

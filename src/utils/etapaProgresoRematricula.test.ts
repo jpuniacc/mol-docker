@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  etiquetaActividadLog,
   etiquetaEtapaProgreso,
+  lineasDetalleActividad,
   resolverEtapaProgreso,
 } from './etapaProgresoRematricula'
 
@@ -59,5 +61,26 @@ describe('resolverEtapaProgreso', () => {
 
   it('etiqueta legible', () => {
     expect(etiquetaEtapaProgreso('forma_pago')).toMatch(/pago/i)
+  })
+})
+
+describe('etiquetaActividadLog', () => {
+  it('etiqueta la matrícula actualizada por el SP', () => {
+    expect(etiquetaActividadLog('matricula', 'matriculado')).toBe(
+      'Matrícula actualizada en U+',
+    )
+  })
+})
+
+describe('lineasDetalleActividad', () => {
+  it('muestra el documento y la versión de TyC, sin el JSON', () => {
+    const lineas = lineasDetalleActividad({
+      codigo_tyc: 'mol',
+      tyc_titulo: 'Términos y Condiciones de Rematrícula Online',
+      tyc_updated_at: '2026-09-14T19:16:04.123312+00:00',
+    })
+    expect(lineas.map((linea) => linea.etiqueta)).toEqual(['Documento', 'Versión'])
+    expect(lineas[0]?.valor).toBe('Términos y Condiciones de Rematrícula Online')
+    expect(lineas[1]?.valor).toMatch(/14-09-2026/)
   })
 })

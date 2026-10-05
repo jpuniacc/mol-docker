@@ -35,7 +35,7 @@ import {
 } from '@/services/progresoRematriculaApi'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import type { EtapaProgresoRematricula, MnpProgresoRematriculaRow, VLogMolSesionTimelineRow } from '@/types/supabase'
-import { etiquetaEtapaProgreso, etiquetaActividadLog } from '@/utils/etapaProgresoRematricula'
+import { etiquetaEtapaProgreso, etiquetaActividadLog, lineasDetalleActividad } from '@/utils/etapaProgresoRematricula'
 
 const ETAPAS: EtapaProgresoRematricula[] = [
   'sin_ingreso',
@@ -63,6 +63,13 @@ const timelineRows = ref<VLogMolSesionTimelineRow[]>([])
 const tienePeriodo = computed(() => {
   return periodoActivo.anio != null && periodoActivo.semestre != null
 })
+
+const timelineCronologico = computed(() => [...timelineRows.value].reverse())
+
+function indiceEtapa(etapa: EtapaProgresoRematricula): number {
+  const indice = ETAPAS.indexOf(etapa)
+  return indice < 0 ? 0 : indice
+}
 
 const periodoLabel = computed(() => {
   return periodoActivo.label ?? '—'
@@ -236,7 +243,29 @@ onMounted(async () => {
               <TableCell>{{ row.codcli }}</TableCell>
               <TableCell>{{ row.nombre_carrera ?? '—' }}</TableCell>
               <TableCell>
-                <Badge variant="outline">{{ etiquetaEtapaProgreso(row.etapa_actual) }}</Badge>
+                <div
+                  class="flex items-center gap-1.5"
+                  :title="etiquetaEtapaProgreso(row.etapa_actual)"
+                >
+                  <span class="flex items-center" aria-hidden="true">
+                    <span
+                      v-for="(etapa, indice) in ETAPAS"
+                      :key="etapa"
+                      class="h-2 w-2 rounded-full"
+                      :class="[
+                        indice > 0 ? 'ml-1' : '',
+                        indice < indiceEtapa(row.etapa_actual)
+                          ? 'bg-uniacc-blue'
+                          : indice === indiceEtapa(row.etapa_actual)
+                            ? 'bg-uniacc-magenta ring-2 ring-uniacc-magenta/30'
+                            : 'bg-muted-foreground/25',
+                      ]"
+                    />
+                  </span>
+                  <span class="text-xs text-foreground">
+                    {{ etiquetaEtapaProgreso(row.etapa_actual) }}
+                  </span>
+                </div>
               </TableCell>
               <TableCell>
                 <div class="flex flex-col gap-1">
@@ -291,7 +320,54 @@ onMounted(async () => {
           </SheetDescription>
         </SheetHeader>
 
-        <div class="mt-6">
+        <div class="mt-6 space-y-6">
+          <ol
+            v-if="timelineAlumno"
+            class="flex items-start overflow-x-auto pb-1"
+            :aria-label="`Etapa actual: ${etiquetaEtapaProgreso(timelineAlumno.etapa_actual)}`"
+          >
+            <li
+              v-for="(etapa, indice) in ETAPAS"
+              :key="etapa"
+              class="flex min-w-[4.5rem] flex-1 flex-col items-center"
+            >
+              <div class="flex w-full items-center">
+                <span
+                  class="h-0.5 flex-1"
+                  :class="indice === 0
+                    ? 'bg-transparent'
+                    : indice <= indiceEtapa(timelineAlumno.etapa_actual)
+                      ? 'bg-uniacc-blue'
+                      : 'bg-border'"
+                />
+                <span
+                  class="h-3 w-3 shrink-0 rounded-full border-2"
+                  :class="indice < indiceEtapa(timelineAlumno.etapa_actual)
+                    ? 'border-uniacc-blue bg-uniacc-blue'
+                    : indice === indiceEtapa(timelineAlumno.etapa_actual)
+                      ? 'border-uniacc-magenta bg-uniacc-magenta'
+                      : 'border-border bg-background'"
+                />
+                <span
+                  class="h-0.5 flex-1"
+                  :class="indice === ETAPAS.length - 1
+                    ? 'bg-transparent'
+                    : indice < indiceEtapa(timelineAlumno.etapa_actual)
+                      ? 'bg-uniacc-blue'
+                      : 'bg-border'"
+                />
+              </div>
+              <span
+                class="mt-2 px-1 text-center text-[10px] leading-tight"
+                :class="indice === indiceEtapa(timelineAlumno.etapa_actual)
+                  ? 'font-semibold text-foreground'
+                  : 'text-muted-foreground'"
+              >
+                {{ etiquetaEtapaProgreso(etapa) }}
+              </span>
+            </li>
+          </ol>
+
           <div v-if="timelineLoading" class="text-center text-sm text-muted-foreground py-8">
             Cargando timeline...
           </div>
@@ -301,33 +377,46 @@ onMounted(async () => {
           <div v-else-if="timelineRows.length === 0" class="text-center text-sm text-muted-foreground py-8">
             Sin actividad en MOL
           </div>
-          <div v-else class="space-y-4">
-            <div
-              v-for="event in timelineRows"
+          <ol v-else class="ml-2 border-l border-border">
+            <li
+              v-for="(event, indice) in timelineCronologico"
               :key="event.id"
-              class="rounded-lg border p-4 space-y-2"
+              class="relative pb-6 pl-6 last:pb-0"
             >
-              <div class="flex items-start justify-between">
-                <div class="flex-1">
-                  <div class="font-medium text-sm">
+              <span
+                class="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-background"
+                :class="indice === timelineCronologico.length - 1
+                  ? 'bg-uniacc-magenta'
+                  : 'bg-uniacc-blue'"
+              />
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <div class="text-sm font-medium">
                     {{ etiquetaActividadLog(event.categoria, event.accion) }}
                   </div>
-                  <div class="text-xs text-muted-foreground mt-1">
+                  <div class="mt-1 text-xs text-muted-foreground">
                     {{ event.creado_en_chile_txt }}
                   </div>
                 </div>
-                <Badge v-if="event.es_mock" variant="secondary" class="text-xs ml-2">
+                <Badge v-if="event.es_mock" variant="secondary" class="text-xs">
                   Mock
                 </Badge>
               </div>
-              <div v-if="event.payload && Object.keys(event.payload).length > 0" class="text-xs text-muted-foreground">
-                <details>
-                  <summary class="cursor-pointer hover:text-foreground">Ver detalles</summary>
-                  <pre class="mt-2 rounded bg-muted p-2 text-xs overflow-x-auto">{{ JSON.stringify(event.payload, null, 2) }}</pre>
-                </details>
-              </div>
-            </div>
-          </div>
+              <dl
+                v-if="lineasDetalleActividad(event.payload).length > 0"
+                class="mt-2 space-y-0.5 text-xs"
+              >
+                <div
+                  v-for="linea in lineasDetalleActividad(event.payload)"
+                  :key="linea.etiqueta"
+                  class="flex gap-2"
+                >
+                  <dt class="shrink-0 text-muted-foreground">{{ linea.etiqueta }}</dt>
+                  <dd class="text-foreground">{{ linea.valor }}</dd>
+                </div>
+              </dl>
+            </li>
+          </ol>
         </div>
       </SheetContent>
     </Sheet>
