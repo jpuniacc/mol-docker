@@ -1,5 +1,6 @@
 import type { Component } from 'vue'
 import {
+  Accessibility,
   Briefcase,
   Calendar,
   CircleDot,
@@ -37,6 +38,7 @@ const ICON_MAP: Record<string, Component> = {
   DollarSign,
   Handshake,
   Gift,
+  Accessibility,
   FileCheck,
   Percent,
   PenLine,

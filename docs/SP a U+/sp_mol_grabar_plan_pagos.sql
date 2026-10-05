@@ -1,6 +1,10 @@
 -- U+ Test. Graba dos pagarés (matrícula y arancel) cuando el contrato ya está firmado.
 -- Los CORRPAGNUM entran reservados. Este SP pide el número de operación y las dos boletas.
 -- No toca MT_POSBEN.
+-- @codcli es el RUT sin dígito verificador.
+-- Después del COMMIT, MOL llama aparte a SP_MOL_ACTUALIZA_MATRICULA_FIRMADA
+-- con el código académico (MT_ALUMNO.CODCLI), no con este @codcli.
+-- Si esa segunda llamada falla, los pagarés quedan. Se reintenta solo la ficha.
 
 CREATE OR ALTER PROCEDURE dbo.sp_mol_grabar_plan_pagos
     @codcli              varchar(20),

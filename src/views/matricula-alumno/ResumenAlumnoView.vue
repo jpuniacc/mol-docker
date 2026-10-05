@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Download, Loader2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
@@ -11,15 +11,58 @@ import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFu
 import { downloadContratoFirmaPdf } from '@/services/contratoFirmaApi'
 import { downloadContratoPreviewPdf } from '@/services/contratoPreviewApi'
 import { fmtMontoClp } from '@/services/fetchPlanPagosMv'
+import { armarGrabarPlanPagos, postGrabarPlanPagos } from '@/services/grabarPlanPagosApi'
 import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
+import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
+import { useMatriculaFlujoPreflightStore } from '@/stores/datos_erp/matricula_flujo_preflight'
+import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 
 const router = useRouter()
 const alumnoCtx = useMatriculaAlumnoContextStore()
+const alumnoMnp = useDatosAlumnoMnpStore()
+const preflight = useMatriculaFlujoPreflightStore()
+const periodoActivo = usePeriodoActivoStore()
 const fuente = useAlumnoRematriculaFuente()
 const { viewModel } = useContratoMatriculaViewModel('alumno')
 
 const fmt = fmtMontoClp
 const descargando = ref(false)
+
+const grabacionIniciada = ref(false)
+
+watch(
+  () =>
+    [
+      alumnoCtx.firmaCompletada,
+      alumnoMnp.primeraFila?.codigo_carrera,
+      periodoActivo.anio,
+      periodoActivo.semestre,
+      alumnoCtx.pagoMatricula,
+    ] as const,
+  () => {
+    if (!alumnoCtx.firmaCompletada || grabacionIniciada.value) return
+    const armado = armarGrabarPlanPagos({
+      rut: fuente.rutMostrado.value,
+      codcliAcademico: fuente.codcliMostrado.value,
+      codigoCarrera: alumnoMnp.primeraFila?.codigo_carrera ?? '',
+      ano: periodoActivo.anio,
+      periodo: periodoActivo.semestre,
+      caja: preflight.steps?.caja.row?.caja ?? null,
+      pago: alumnoCtx.pagoMatricula,
+    })
+    if (!armado.ok) return
+    grabacionIniciada.value = true
+    void postGrabarPlanPagos(armado.payload).then((res) => {
+      if (!res.ok) {
+        grabacionIniciada.value = false
+        toast.error(res.error)
+        return
+      }
+      if (!res.already) toast.success('Plan de pagos guardado en TEST.')
+    })
+  },
+  { immediate: true },
+)
 
 const formaPagoLabel = (): string => {
   const m = alumnoCtx.formaPagoSeleccionada

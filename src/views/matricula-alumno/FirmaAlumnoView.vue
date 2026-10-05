@@ -24,12 +24,17 @@ import {
 import { downloadContratoPreviewPdf } from '@/services/contratoPreviewApi'
 import { registrarFirmaAudit } from '@/services/firmaAuditLog'
 import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
+import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
+import { useMatriculaFlujoPreflightStore } from '@/stores/datos_erp/matricula_flujo_preflight'
 import { esPropioSostenedor } from '@/utils/apoderadoResponsable'
+import { armarGrabarPlanPagos, postGrabarPlanPagos } from '@/services/grabarPlanPagosApi'
 
 const POLL_MS = 5000
 
 const router = useRouter()
 const alumnoCtx = useMatriculaAlumnoContextStore()
+const alumnoMnp = useDatosAlumnoMnpStore()
+const preflight = useMatriculaFlujoPreflightStore()
 const periodoActivo = usePeriodoActivoStore()
 const fuente = useAlumnoRematriculaFuente()
 const { viewModel, tienePlanConfirmado } = useContratoMatriculaViewModel('alumno')
@@ -43,6 +48,9 @@ const restaurandoFirma = ref(false)
 const abriendoFirma = ref<string | null>(null)
 const numOperacionFirma = ref<string | null>(null)
 const contratoFirmadoRegistrado = ref(false)
+const grabandoPlan = ref(false)
+const planGrabado = ref(false)
+const errorGrabacion = ref<string | null>(null)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let unmounted = false
@@ -109,6 +117,34 @@ async function abrirFirma(email: string): Promise<void> {
   ventana.location.href = res.signatureLink
 }
 
+async function grabarPlanFirmado(): Promise<boolean> {
+  if (planGrabado.value || grabandoPlan.value) return planGrabado.value
+  const armado = armarGrabarPlanPagos({
+    rut: fuente.rutMostrado.value,
+    codcliAcademico: fuente.codcliMostrado.value,
+    codigoCarrera: alumnoMnp.primeraFila?.codigo_carrera ?? '',
+    ano: periodoActivo.anio,
+    periodo: periodoActivo.semestre,
+    caja: preflight.steps?.caja.row?.caja ?? null,
+    pago: alumnoCtx.pagoMatricula,
+  })
+  if (!armado.ok) {
+    errorGrabacion.value = armado.error
+    return false
+  }
+  grabandoPlan.value = true
+  errorGrabacion.value = null
+  const res = await postGrabarPlanPagos(armado.payload)
+  grabandoPlan.value = false
+  if (unmounted) return false
+  if (!res.ok) {
+    errorGrabacion.value = res.error
+    return false
+  }
+  planGrabado.value = true
+  return true
+}
+
 function aplicarEstadoOk(estado: Extract<ContratoFirmaEstadoResponse, { ok: true }>): void {
   firmantes.value = estado.firmantes
   numOperacionFirma.value = estado.numOperacion
@@ -117,7 +153,9 @@ function aplicarEstadoOk(estado: Extract<ContratoFirmaEstadoResponse, { ok: true
     void registrarPasoFirma('firmado', estado.numOperacion)
   }
   if (estado.ready) {
-    completarYNavegar()
+    void grabarPlanFirmado().then((ok) => {
+      if (ok && !unmounted) completarYNavegar()
+    })
   }
 }
 
@@ -389,7 +427,20 @@ async function descargaBorrador(): Promise<void> {
               </li>
             </ul>
             <p
-              v-if="!errorFirma"
+              v-if="errorGrabacion"
+              class="text-sm text-destructive"
+            >
+              {{ errorGrabacion }}
+            </p>
+            <p
+              v-else-if="grabandoPlan"
+              class="flex items-center gap-2 text-sm text-muted-foreground"
+            >
+              <Loader2 class="h-4 w-4 shrink-0 animate-spin text-uniacc-orange" aria-hidden="true" />
+              Guardando el plan de pagos en TEST…
+            </p>
+            <p
+              v-else-if="!errorFirma"
               class="flex items-center gap-2 text-sm text-muted-foreground"
             >
               <Loader2 class="h-4 w-4 shrink-0 animate-spin text-uniacc-orange" aria-hidden="true" />

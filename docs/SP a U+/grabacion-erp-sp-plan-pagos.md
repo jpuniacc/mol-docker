@@ -43,6 +43,25 @@ flowchart TD
   filas --> ok{"Todo ok?"}
   ok -->|si| commit["COMMIT"]
   ok -->|no| rollback["ROLLBACK de cargos, boletas y numero de operacion"]
+  commit --> ficha["EXEC SP_MOL_ACTUALIZA_MATRICULA_FIRMADA con el codigo academico"]
+```
+
+El `COMMIT` cierra los pagarés. Recién ahí MOL llama a `SP_MOL_ACTUALIZA_MATRICULA_FIRMADA`. El parámetro es el código académico de `MT_ALUMNO.CODCLI` (`varchar(20)`), no el RUT que usa el plan. En la prueba de Valentina es `20201TRIE1DR056`.
+
+Esa llamada va aparte. El procedimiento de ficha abre su propia transacción y, si falla, hace `ROLLBACK`. Metido dentro del plan, ese rollback desharía también los pagarés. Si la ficha falla y el plan ya confirmó, los pagarés quedan y se reintenta solo la segunda llamada, con el mismo código.
+
+Actualiza esa fila de `MT_ALUMNO`:
+
+- `ANO_MAT = 2027`
+- `PERIODO_MAT = 1`
+- `PERIODOS = 2`
+- `FEC_MAT = GETDATE()`
+
+El año, el periodo y `PERIODOS` van fijos en el procedimiento. Devuelve un `SELECT` con `RESULTADO` `OK` o `ERROR`. No hace `THROW`. Si el código no está en `MT_ALUMNO`, no cambia nada. Existe en U+ Test. En producción todavía no está.
+
+```sql
+EXEC SP_MOL_ACTUALIZA_MATRICULA_FIRMADA
+    @CODCLI = '20201TRIE1DR056';
 ```
 
 ---
@@ -57,6 +76,7 @@ Nombre propuesto: `sp_mol_grabar_plan_pagos`. Una llamada por alumno.
 4. Inserta `MT_DOCITEM`, las boletas 41, los `MT_CTAPAG`, las cuotas y los `MT_CTADEP`. Las cuotas cuelgan del header: `90121320816` → `9012132081601` … `10`. No piden otro número.
 5. Actualiza cada `MT_POSBEN` usado. Ver [cómo se marca el beneficio](casuisticas-cartera-posben.md#cómo-se-marca-el-beneficio).
 6. Commit. Si algo falla, rollback y el error vuelve al API. MOL no marca la matrícula como grabada.
+7. Si el commit salió bien, `SP_MOL_ACTUALIZA_MATRICULA_FIRMADA` con el código académico. Un error ahí no revierte el plan.
 
 El esqueleto, sin el detalle de columnas, está en [`matricula-escritura-tablas.md`](../matricula-escritura-tablas.md):
 
@@ -138,4 +158,4 @@ En el caso 1 los dos pagarés van primero y las becas después. En el caso 4 el 
 2. **Beca estatal y convenio.** En estos casos la beca interna y el descuento de matrícula son tipo 373, y el CAE es tipo 21. Estatal y convenio no aparecen en los nueve casos.
 3. **CAE y el pagaré del alumno.** En los [casos 5 y 6](casuisticas-cartera-posben.md#caso-5-cae-con-descuento-de-matrícula) el documento 21 usa `MONTO`, que es menor que lo pedido, y no queda un pagaré 5 por el saldo del arancel. MOL hoy no resta el CAE del pagaré del alumno. Hay que fijar el monto antes de grabar.
 4. **Cheques, redcompra, tarjeta y depósito.** Aparecen en la cartera y quedan fuera de esta primera versión. Su número no es `CORRPAGNUM`. El [caso 7](casuisticas-cartera-posben.md#caso-7-cheques-y-descuento-de-matrícula) y el [caso 8](casuisticas-cartera-posben.md#caso-8-sin-beneficio) son el ejemplo.
-5. **Alcance.** Esta versión cubre cargos, pagos, cruces, cuotas y `MT_POSBEN`. Queda fuera el cierre de ficha (`MATRICULADO`, `MT_HISTMAT`, control de matrícula).
+5. **Alcance.** Esta versión cubre cargos, pagos, cruces, cuotas y `MT_POSBEN`. El cierre de `MT_ALUMNO` (`ANO_MAT`, `PERIODO_MAT`, `PERIODOS`, `FEC_MAT`) es la segunda llamada, después del commit. Siguen fuera `MATRICULADO`, `MT_HISTMAT` y el control de matrícula.
