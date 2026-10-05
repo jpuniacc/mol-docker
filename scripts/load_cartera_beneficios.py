@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Carga becas desde BASE PARA PRUEBA.xlsx → mnp_cartera_beneficios.
+"""Carga becas desde la cartera Excel → mnp_cartera_beneficios.
+
+Por defecto lee Meta Ingresos Antiguos 2027-1, hoja CARTERA 2027_1, y deja
+el periodo 2027-01 igual a ese archivo: borra los codcli que ya no están.
 
 Instalar dependencias: python3 -m pip install -r scripts/requirements.txt
 """
@@ -21,9 +24,11 @@ except ImportError:
 
 EXCEL = os.environ.get(
     "CARTERA_XLSX",
-    "/opt/mol-docker/docs/becas-beneficios/BASE PARA PRUEBA.xlsx",
+    "/opt/mol-docker/docs/base alumnos/Meta Ingresos Antiguos 2027-1.xlsx",
 )
+SHEET = os.environ.get("CARTERA_SHEET", "CARTERA 2027_1")
 PERIODO = os.environ.get("CARTERA_PERIODO", "2027-01")
+REEMPLAZAR = os.environ.get("CARTERA_REEMPLAZAR", "1") == "1"
 CATALOG_CSV = os.environ.get(
     "BENEFICIOS_CATALOG_CSV",
     "/opt/mol-docker/docs/becas-beneficios/cod_beneficios_flujos_2027-01.csv",
@@ -64,8 +69,9 @@ def parse_pct(value: Any) -> Decimal | None:
     if value is None or value == "":
         return None
     if isinstance(value, (int, float)):
-        return Decimal(str(value)).quantize(Decimal("0.01"))
-    text = str(value).strip()
+        text = format(value, "f")
+    else:
+        text = str(value).strip()
     if not text:
         return None
     if "," in text and "." in text:
@@ -73,9 +79,13 @@ def parse_pct(value: Any) -> Decimal | None:
     elif "," in text:
         text = text.replace(",", ".")
     try:
-        return Decimal(text).quantize(Decimal("0.01"))
+        number = Decimal(text).quantize(Decimal("0.01"))
     except InvalidOperation:
         return None
+    # Excel guarda 30 % como 0.3. Un 10 escrito como texto queda en 10.
+    if Decimal("0") < number <= Decimal("1"):
+        number = (number * Decimal("100")).quantize(Decimal("0.01"))
+    return number
 
 
 def cell_text(value: Any) -> str | None:
@@ -147,7 +157,9 @@ def resolve_column_indices(header: list[str]) -> dict[str, int]:
 
 def load_excel_rows() -> list[dict[str, Any]]:
     wb = load_workbook(EXCEL, data_only=True, read_only=True)
-    ws = wb.active
+    if SHEET not in wb.sheetnames:
+        raise SystemExit(f"No existe la hoja {SHEET!r} en {EXCEL}")
+    ws = wb[SHEET]
     rows_iter = ws.iter_rows(values_only=True)
     header = [str(c).strip() if c is not None else "" for c in next(rows_iter)]
     cols = resolve_column_indices(header)
@@ -163,15 +175,17 @@ def load_excel_rows() -> list[dict[str, Any]]:
         consolidado = (
             cell_text(row[cols["consolidado"]]) if cols["consolidado"] is not None else None
         )
+        sin1 = es_sin_beca(beca1)
+        sin2 = es_sin_beca(beca2)
         out.append(
             {
                 "codcli_excel": codcli,
                 "rut_norm": rut_norm(row[cols["rut"]], row[cols["dig"]]),
                 "codcarpr": cell_text(row[cols["codcarpr"]]),
-                "beca_1": None if es_sin_beca(beca1) else beca1,
-                "pct_1": parse_pct(row[cols["pct1"]]),
-                "beca_2": None if es_sin_beca(beca2) else beca2,
-                "pct_2": parse_pct(row[cols["pct2"]]),
+                "beca_1": None if sin1 else beca1,
+                "pct_1": None if sin1 else parse_pct(row[cols["pct1"]]),
+                "beca_2": None if sin2 else beca2,
+                "pct_2": None if sin2 else parse_pct(row[cols["pct2"]]),
                 "consolidado": consolidado,
             }
         )
@@ -258,7 +272,20 @@ def main() -> None:
             catalogo = db_catalog
             catalog_source = "db"
         matched1, unmatched1, matched2, unmatched2 = enrich_and_count(rows, catalogo)
+        if REEMPLAZAR and len(rows) < 1000:
+            raise SystemExit(f"Solo {len(rows)} filas; no se reemplaza el periodo {PERIODO}")
         upserted = upsert_rows(cur, rows)
+        removed = 0
+        if REEMPLAZAR:
+            cur.execute(
+                """
+                DELETE FROM public.mnp_cartera_beneficios
+                WHERE periodo = %s
+                  AND NOT (codcli_excel = ANY(%s))
+                """,
+                (PERIODO, [row["codcli_excel"] for row in rows]),
+            )
+            removed = cur.rowcount
         conn.commit()
         cur.execute(
             """
@@ -274,7 +301,7 @@ def main() -> None:
         print(
             f"rows={len(rows)} matched1={matched1} unmatched1={unmatched1} "
             f"matched2={matched2} unmatched2={unmatched2} upserted={upserted} "
-            f"catalog={catalog_source}({len(catalogo)})"
+            f"removed={removed} catalog={catalog_source}({len(catalogo)})"
         )
         if vanessa:
             print(f"vanessa={vanessa}")

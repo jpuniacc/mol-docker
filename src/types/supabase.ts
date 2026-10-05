@@ -788,6 +788,8 @@ export type PlanPagosMvRow = {
   monto_total_beneficios?: number | null;
   /** true si el RUT no está en la cartera oficial (Excel BASE PARA PRUEBA). */
   fuera_cartera_oficial?: boolean | null;
+  /** Texto Excel CONSOLIDADO: CAE, BECA MINISTERIAL, CAE/BECA MINISTERIAL, SUBDERE, o null. */
+  consolidado?: string | null;
 };
 
 /** RUT de la cartera oficial Rematrícula (Excel BASE PARA PRUEBA). */

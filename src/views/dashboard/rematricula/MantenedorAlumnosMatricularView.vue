@@ -62,6 +62,13 @@ const periodoDatosLabel = computed(() => {
   return p ?? null
 })
 
+const vistaErpNombre = computed(() => {
+  const label = periodoActivoLabel.value
+  if (!label) return 'VW_ALUMNOS_PARA_MAT'
+  const sufijo = anio.value === 2027 && semestre.value === 1 ? '_Cartera_DVU' : ''
+  return `VW_ALUMNOS_PARA_MAT_${label.replace('-', '_')}${sufijo}`
+})
+
 const datosDesactualizados = computed(() => {
   const activo = periodoActivoLabel.value
   if (!activo) return false
@@ -191,7 +198,7 @@ onMounted(() => {
           <strong>{{ periodoActivoLabel }}</strong>
           <span v-if="periodoDatosLabel"> (actualmente: {{ periodoDatosLabel }})</span>.
           Ejecute <strong>Sincronizar desde ERP</strong> para cargar la vista
-          <code class="rounded bg-amber-100 px-1">VW_ALUMNOS_PARA_MAT_{{ periodoActivoLabel?.replace('-', '_') }}</code>.
+          <code class="rounded bg-amber-100 px-1">{{ vistaErpNombre }}</code>.
         </p>
 
         <p
@@ -238,16 +245,17 @@ onMounted(() => {
                 <TableHead>Últ. matrícula</TableHead>
                 <TableHead>Últ. situación</TableHead>
                 <TableHead>CAE</TableHead>
+                <TableHead>Consolidado</TableHead>
                 <TableHead>Beneficios</TableHead>
                 <TableHead class="w-[80px] text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               <TableRow v-if="loading && rows.length === 0">
-                <TableCell colspan="11" class="text-center text-zinc-500">Cargando…</TableCell>
+                <TableCell colspan="12" class="text-center text-zinc-500">Cargando…</TableCell>
               </TableRow>
               <TableRow v-else-if="rowsFiltradas.length === 0">
-                <TableCell colspan="11" class="text-center text-zinc-500">
+                <TableCell colspan="12" class="text-center text-zinc-500">
                   Sin registros para mostrar.
                 </TableCell>
               </TableRow>
@@ -276,6 +284,12 @@ onMounted(() => {
                   <Badge :variant="row.alumno_cae === 'Si' ? 'default' : 'secondary'">
                     {{ row.alumno_cae ?? '—' }}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge v-if="row.consolidado" variant="default">
+                    {{ row.consolidado }}
+                  </Badge>
+                  <span v-else class="text-zinc-500">—</span>
                 </TableCell>
                 <TableCell>
                   <Badge :variant="row.tiene_beneficio === 'Si' ? 'default' : 'secondary'">
