@@ -4,6 +4,12 @@
 -- El cargo (DOCITEM y boleta 41) es el bruto: pagaré más beneficios de ese concepto.
 -- Cada beneficio además es un pago (MT_CTAPAG con la forma de pago del beneficio
 -- y MT_CTADEP contra esa boleta). El pagaré tipo 5 queda por el saldo.
+-- La jornada de pagos, depósitos, boleta y cargo es la de MT_ALUMNO para esa carrera.
+-- La boleta 41 usa el apoderado de MT_CLIENT. Si no hay otro, queda el alumno.
+-- FECHA y SEDE de la boleta, y MONTOINT / DEVENGO_SEM del cargo,
+-- quedan como en la matrícula de producción. FECREG de la boleta es la fecha
+-- de la caja abierta: la clave foránea pide esa pareja en MT_PARCAJA.
+-- POSBEN guarda 0 en interés y porcentaje parcial.
 -- Una tabla vacía no inserta beneficios. @codcli es el RUT sin dígito verificador.
 -- Después del COMMIT, MOL llama aparte a SP_MOL_ACTUALIZA_MATRICULA_FIRMADA
 -- con el código académico (MT_ALUMNO.CODCLI), no con este @codcli.
@@ -89,6 +95,30 @@ BEGIN
     )
         THROW 50010, 'El beneficio no tiene forma de pago.', 1;
 
+    DECLARE @jornada varchar(10);
+    SELECT TOP 1 @jornada = NULLIF(LTRIM(RTRIM(JORNADA)), '')
+    FROM dbo.MT_ALUMNO
+    WHERE RUT = @codcli
+      AND CODCLI LIKE '%' + @codcarr + '%'
+      AND NULLIF(LTRIM(RTRIM(JORNADA)), '') IS NOT NULL;
+    IF @jornada IS NULL
+        THROW 50011, 'La carrera del alumno no tiene jornada.', 1;
+
+    DECLARE @codapod_boleta varchar(30);
+    SELECT @codapod_boleta = NULLIF(LTRIM(RTRIM(CODAPOD)), '')
+    FROM dbo.MT_CLIENT
+    WHERE CODCLI = @codcli;
+    IF @codapod_boleta IS NULL OR @codapod_boleta = @codcli
+        SET @codapod_boleta = @codcli;
+
+    DECLARE @fecreg_caja date;
+    SELECT TOP 1 @fecreg_caja = CAST(FECHA AS date)
+    FROM dbo.MT_PARCAJA
+    WHERE CAJA = @caja AND ABIERTA = 'S'
+    ORDER BY FECHA DESC;
+    IF @fecreg_caja IS NULL
+        THROW 50012, 'La caja no está abierta.', 1;
+
     DECLARE @hoy date = CAST(GETDATE() AS date);
     DECLARE @bruto_matricula decimal(18, 2) = @monto_matricula
         + ISNULL((SELECT SUM(monto) FROM @beneficios WHERE concepto = 'M'), 0);
@@ -127,29 +157,35 @@ BEGIN
 
         INSERT INTO dbo.MT_DOCITEM (
             ITEM, CTADOC, CTADOCNUM, ANO, PERIODO, CODCLI, CODCARR, TIPOCARR,
-            CANTIDAD, PRECIO, MONTO, FECCOM, USUARIO, ESTADO, CTATRANS, num_operacion, SEDE
+            CANTIDAD, PRECIO, MONTO, MONTOINT, FECCOM, USUARIO, ESTADO, CTATRANS,
+            num_operacion, SEDE, DEVENGO_SEM, jornada
         )
         VALUES
             (1, 41, @ctadoc_matricula, @ano, @periodo, @codcli, @codcarr, 1,
-             1, @bruto_matricula, @bruto_matricula, @hoy, @usuario, 1, @ctadoc_matricula, @num_operacion, 'STGO'),
+             1, @bruto_matricula, @bruto_matricula, 0, @hoy, @usuario, 1, @ctadoc_matricula,
+             @num_operacion, 'STGO', 'SI', @jornada),
             (2, 41, @ctadoc_arancel, @ano, @periodo, @codcli, @codcarr, 1,
-             1, @bruto_arancel, @bruto_arancel, @hoy, @usuario, 1, @ctadoc_arancel, @num_operacion, 'STGO');
+             1, @bruto_arancel, @bruto_arancel, 0, @hoy, @usuario, 1, @ctadoc_arancel,
+             @num_operacion, 'STGO', 'SI', @jornada);
 
         INSERT INTO dbo.MT_CTADOC (
             CTADOC, CTADOCNUM, ITEM, CUOTA, NUMCUOT, CODCLI, CODAPOD, CODCARR,
             MONTO, SALDO, SALDO_AD, ESTADO, RECIBIDO, FACTURABLE, CONTRATO, CAJA,
             CTATRANS, FECVEN, FECDEUDA, FECREP, FECCANCEL, UBICACION, TIPOCARR,
-            ANO, PERIODO, GASTOSOP, USUARIO, CODBAN, NUM_OPERACION
+            ANO, PERIODO, GASTOSOP, USUARIO, CODBAN, NUM_OPERACION,
+            FECREG, FECHA, SEDE, jornada
         )
         VALUES
-            (41, @ctadoc_matricula, 1, 1, 1, @codcli, @codapod, @codcarr,
+            (41, @ctadoc_matricula, 1, 1, 1, @codcli, @codapod_boleta, @codcarr,
              @bruto_matricula, 0, 0, 1, 'S', 'S', @contrato, @caja,
              @ctadoc_matricula, @hoy, @hoy, @hoy, @hoy, 1, 1,
-             @ano, @periodo, 0, @usuario, 0, @num_operacion),
-            (41, @ctadoc_arancel, 2, 1, 1, @codcli, @codapod, @codcarr,
+             @ano, @periodo, 0, @usuario, 0, @num_operacion,
+             @fecreg_caja, @hoy, 'STGO', @jornada),
+            (41, @ctadoc_arancel, 2, 1, 1, @codcli, @codapod_boleta, @codcarr,
              @bruto_arancel, 0, 0, 1, 'S', 'S', @contrato, @caja,
              @ctadoc_arancel, @hoy, @hoy, @hoy, @hoy, 1, 1,
-             @ano, @periodo, 0, @usuario, 0, @num_operacion);
+             @ano, @periodo, 0, @usuario, 0, @num_operacion,
+             @fecreg_caja, @hoy, 'STGO', @jornada);
 
         DECLARE @docs TABLE (
             orden int NOT NULL,
@@ -177,12 +213,12 @@ BEGIN
             INSERT INTO dbo.MT_CTAPAG (
                 CTAPAG, CTAPAGNUM, CODCLI, CODCARR, CODAPOD, MONTO, SALDO, SALDO_AD,
                 ESTADO, RECIBIDO, CODBAN, TIPOCARR, ANO, PERIODO, CAJA, CTATRANS,
-                FECVEN, FECCANCEL, FECREG, FECHA, USUARIO, NUM_OPERACION
+                FECVEN, FECCANCEL, FECREG, FECHA, USUARIO, NUM_OPERACION, jornada
             )
             VALUES (
                 5, @corrpag, @codcli, @codcarr, @codapod, @monto, 0, 0,
                 1, 'N', 0, 1, @ano, @periodo, @caja, @corrpag,
-                @fecha_inicio, @hoy, @hoy, @hoy, @usuario, @num_operacion
+                @fecha_inicio, @hoy, @hoy, @hoy, @usuario, @num_operacion, @jornada
             );
 
             SET @base = ROUND(@monto / @cuotas, 0);
@@ -219,12 +255,12 @@ BEGIN
             INSERT INTO dbo.MT_CTADEP (
                 CTADOC, CTADOCNUM, CTAPAG, CTAPAGNUM, CODCLI, CODCARR, CODAPOD,
                 MONTO, TIPOCARR, USUARIO, CODBAN, ESTADO, CTATRANS, NUM_OPERACION,
-                CAJA, FECREG_DEP, ANO
+                CAJA, FECREG_DEP, ANO, jornada
             )
             VALUES (
                 41, @ctadocnum, 5, @corrpag, @codcli, @codcarr, @codapod,
                 @monto, 1, @usuario, 0, '1', @ctadocnum, @num_operacion,
-                @caja, @hoy, @ano
+                @caja, @hoy, @ano, @jornada
             );
 
             FETCH NEXT FROM cur INTO @orden, @item, @corrpag, @monto, @ctadocnum;
@@ -237,7 +273,8 @@ BEGIN
             CODBEN, ORDEN, CODCLI, CODCARR, ANO, PERIODO,
             PORC_SOL, PORC_APR, MONTO_SOL, MONTO_APR, MONTO,
             APROBADO, APLICABLE, USUARIO, FECAPROB,
-            ESTADO, FECASIG, num_operacion
+            ESTADO, FECASIG, num_operacion,
+            MONTOINT, PORCINT, PORC_PAR
         )
         SELECT
             b.codben,
@@ -257,13 +294,16 @@ BEGIN
             CAST(@hoy AS datetime),
             4,
             CAST(@hoy AS datetime),
-            @num_operacion
+            @num_operacion,
+            0,
+            0,
+            0
         FROM @beneficios b;
 
         INSERT INTO dbo.MT_CTAPAG (
             CTAPAG, CTAPAGNUM, CODCLI, CODCARR, CODAPOD, MONTO, SALDO, SALDO_AD,
             ESTADO, RECIBIDO, CODBAN, TIPOCARR, ANO, PERIODO, CAJA, CTATRANS,
-            FECVEN, FECCANCEL, FECREG, FECHA, USUARIO, NUM_OPERACION
+            FECVEN, FECCANCEL, FECREG, FECHA, USUARIO, NUM_OPERACION, jornada
         )
         SELECT
             ben.FPAGOGENERADA,
@@ -287,14 +327,15 @@ BEGIN
             @hoy,
             @hoy,
             @usuario,
-            @num_operacion
+            @num_operacion,
+            @jornada
         FROM @beneficios b
         INNER JOIN dbo.MT_BENEFICIO ben ON ben.CODBEN = b.codben;
 
         INSERT INTO dbo.MT_CTADEP (
             CTADOC, CTADOCNUM, CTAPAG, CTAPAGNUM, CODCLI, CODCARR, CODAPOD,
             MONTO, TIPOCARR, USUARIO, CODBAN, ESTADO, CTATRANS, NUM_OPERACION,
-            CAJA, FECREG_DEP, ANO
+            CAJA, FECREG_DEP, ANO, jornada
         )
         SELECT
             41,
@@ -313,7 +354,8 @@ BEGIN
             @num_operacion,
             @caja,
             @hoy,
-            @ano
+            @ano,
+            @jornada
         FROM @beneficios b
         INNER JOIN dbo.MT_BENEFICIO ben ON ben.CODBEN = b.codben;
 
