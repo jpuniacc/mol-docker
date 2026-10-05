@@ -65,6 +65,64 @@ export async function solicitarOtpEmailCorreoPersonal(
   return { ok: true, expiresAt: data.expiresAt }
 }
 
+export type SolicitarOtpSmsPayload = {
+  usuarioConexion: string
+  emailInstitucional: string
+  telefono: string
+  urlOrigen?: string | null
+}
+
+export async function solicitarOtpSmsTelefono(
+  payload: SolicitarOtpSmsPayload,
+): Promise<{ ok: true; expiresAt: string } | { ok: false; message: string }> {
+  let res: Response
+  try {
+    res = await fetchWithTimeout(apiPath('/api/rematricula/contacto-otp/sms/solicitar'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'No se pudo conectar con el servidor.'
+    return { ok: false, message: msg }
+  }
+  const data = (await res.json().catch(() => ({}))) as { message?: string; expiresAt?: string }
+  if (!res.ok) {
+    return {
+      ok: false,
+      message: typeof data.message === 'string' ? data.message : 'No se pudo enviar el SMS.',
+    }
+  }
+  if (typeof data.expiresAt !== 'string') {
+    return { ok: false, message: 'Respuesta inválida del servidor.' }
+  }
+  return { ok: true, expiresAt: data.expiresAt }
+}
+
+export async function verificarOtpSmsTelefono(
+  payload: SolicitarOtpSmsPayload & { codigo: string },
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  let res: Response
+  try {
+    res = await fetchWithTimeout(apiPath('/api/rematricula/contacto-otp/sms/verificar'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'No se pudo conectar con el servidor.'
+    return { ok: false, message: msg }
+  }
+  const data = (await res.json().catch(() => ({}))) as { message?: string }
+  if (!res.ok) {
+    return {
+      ok: false,
+      message: typeof data.message === 'string' ? data.message : 'Código incorrecto o caducado.',
+    }
+  }
+  return { ok: true }
+}
+
 export async function verificarOtpEmailCorreoPersonal(
   payload: SolicitarOtpEmailPayload & { codigo: string },
 ): Promise<{ ok: true } | { ok: false; message: string }> {

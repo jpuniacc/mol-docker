@@ -39,6 +39,7 @@ import {
   registrarLogContactoOtp,
 } from '@/services/contactoOtpAuditLog'
 import { logMockContactoOtp } from '@/utils/mockContactoOtpDebug'
+import { solicitarOtpSmsTelefono, verificarOtpSmsTelefono } from '@/services/rematriculaOtpApi'
 import {
   extraerDigitosTelefonoChile,
   normalizarTelefonoChile,
@@ -455,6 +456,28 @@ function segundosRestantesReintentoSms(nowMs: number): number {
   return segundosRestantesHastaTimestamp(telefonoOtpProximoReintentoAt.value, nowMs)
 }
 
+function segundosRestantesTelefonoOtp(ahoraMs: number): number {
+  const iso = telefonoOtpExpiresAt.value
+  if (iso) {
+    const fin = Date.parse(iso)
+    if (!Number.isNaN(fin)) return Math.max(0, Math.ceil((fin - ahoraMs) / 1000))
+  }
+  return segundosValidezRestantes(
+    telefonoOtpValidezDesdeMs.value,
+    otpConfig.smsSegundos,
+    ahoraMs,
+  )
+}
+
+function identidadOtpAlumno(): { usuarioConexion: string; emailInstitucional: string } | null {
+  const usuario = auth.username?.trim() ?? ''
+  const instMostrado = fuente.correoInstitucionalMostrado.value
+  const inst =
+    instMostrado && instMostrado !== '—' ? instMostrado.trim() : (auth.email?.trim() ?? '')
+  if (!usuario || !inst) return null
+  return { usuarioConexion: usuario, emailInstitucional: inst }
+}
+
 const telefonoOtpAhoraMs = computed(() => {
   if (telefonoOtpTick.value > 0) return telefonoOtpTick.value
   if (telefonoOtpPendiente.value || telefonoOtpProximoReintentoAt.value != null) return Date.now()
@@ -463,23 +486,12 @@ const telefonoOtpAhoraMs = computed(() => {
 
 const telefonoOtpCountdownMmSs = computed(() => {
   if (!telefonoOtpPendiente.value || telefonoOtpValidezDesdeMs.value == null) return '00:00'
-  const s = segundosValidezRestantes(
-    telefonoOtpValidezDesdeMs.value,
-    otpConfig.smsSegundos,
-    telefonoOtpAhoraMs.value,
-  )
-  return formatearMmSs(s)
+  return formatearMmSs(segundosRestantesTelefonoOtp(telefonoOtpAhoraMs.value))
 })
 
 const telefonoOtpCountdownAgotado = computed(() => {
   if (!telefonoOtpPendiente.value || telefonoOtpValidezDesdeMs.value == null) return false
-  return (
-    segundosValidezRestantes(
-      telefonoOtpValidezDesdeMs.value,
-      otpConfig.smsSegundos,
-      telefonoOtpAhoraMs.value,
-    ) <= 0
-  )
+  return segundosRestantesTelefonoOtp(telefonoOtpAhoraMs.value) <= 0
 })
 
 const telefonoOtpReintentoMmSs = computed(() => {
@@ -530,11 +542,7 @@ watch(
       const expiryActive =
         telefonoOtpPendiente.value &&
         telefonoOtpValidezDesdeMs.value != null &&
-        segundosValidezRestantes(
-          telefonoOtpValidezDesdeMs.value,
-          otpConfig.smsSegundos,
-          now,
-        ) > 0
+        segundosRestantesTelefonoOtp(now) > 0
       const reintentoActive =
         telefonoOtpProximoReintentoAt.value != null && now < telefonoOtpProximoReintentoAt.value
       if (!expiryActive && !reintentoActive) clearTelefonoOtpCountdown()
@@ -905,18 +913,30 @@ async function enviarCodigoTelefonoOtp() {
     errorTelefono.value = `El teléfono debe tener el formato ${TELEFONO_CHILE_PREFIJO} seguido de 8 dígitos.`
     return
   }
+  const identidad = identidadOtpAlumno()
+  if (!identidad) {
+    errorTelefono.value = 'No se pudo identificar la sesión. Vuelve a ingresar.'
+    return
+  }
+
   telefonoOtpEnviando.value = true
   try {
-    await new Promise((r) => setTimeout(r, 400))
+    const resultado = await solicitarOtpSmsTelefono({
+      ...identidad,
+      telefono: tel,
+      urlOrigen: typeof window !== 'undefined' ? window.location.href : null,
+    })
+    if (!resultado.ok) {
+      errorTelefono.value = resultado.message
+      logMockContactoOtp('ui.telefono.enviar.error', { message: resultado.message })
+      return
+    }
     const ahora = Date.now()
     telefonoOtpPendiente.value = true
     telefonoOtpIntentosFallidos.value = 0
     telefonoOtpValidezDesdeMs.value = ahora
-    telefonoOtpExpiresAt.value = new Date(
-      ahora + otpConfig.smsSegundos * 1000,
-    ).toISOString()
-    telefonoOtpProximoReintentoAt.value =
-      ahora + otpConfig.smsReintentoSegundos * 1000
+    telefonoOtpExpiresAt.value = resultado.expiresAt
+    telefonoOtpProximoReintentoAt.value = ahora + otpConfig.smsReintentoSegundos * 1000
     telefonoOtpTick.value = ahora
     telefonoOtpCodigo.value = ''
     telefonoOtpEnviosRealizados.value += 1
@@ -929,7 +949,6 @@ async function enviarCodigoTelefonoOtp() {
     )
     logMockContactoOtp('ui.telefono.enviar.ok', {
       expiresAt: telefonoOtpExpiresAt.value,
-      validezSegundos: otpConfig.smsSegundos,
       reenvioCooldownSegundos: otpConfig.smsReintentoSegundos,
       proximoReintentoAt: telefonoOtpProximoReintentoAt.value,
       enviosRealizados: telefonoOtpEnviosRealizados.value,
@@ -955,25 +974,26 @@ async function confirmarCodigoTelefonoOtp() {
     errorTelefono.value = 'Código caducado. Reenvía el SMS.'
     return
   }
+  const identidad = identidadOtpAlumno()
+  if (!identidad) {
+    errorTelefono.value = 'No se pudo identificar la sesión. Vuelve a ingresar.'
+    return
+  }
+
   telefonoOtpVerificando.value = true
   try {
-    await new Promise((r) => setTimeout(r, 300))
-    if (codigo !== MOCK_OTP_CODE) {
+    const resultado = await verificarOtpSmsTelefono({
+      ...identidad,
+      telefono: telefonoDraft.value.trim(),
+      codigo,
+      urlOrigen: typeof window !== 'undefined' ? window.location.href : null,
+    })
+    if (!resultado.ok) {
       telefonoOtpIntentosFallidos.value += 1
-      if (telefonoOtpIntentosFallidos.value >= MOCK_OTP_MAX_INTENTOS) {
-        telefonoOtpIntentosFallidos.value = 0
-        logMockContactoOtp('ui.telefono.confirmar.maxIntentos', {
-          reintentoBloqueado: telefonoOtpReintentoBloqueado.value,
-        })
-        errorTelefono.value =
-          'Código incorrecto. Solicita un nuevo código con Reenviar SMS cuando esté disponible.'
-        return
-      }
+      errorTelefono.value = resultado.message
       logMockContactoOtp('ui.telefono.confirmar.incorrecto', {
-        intentos: telefonoOtpIntentosFallidos.value,
-        max: MOCK_OTP_MAX_INTENTOS,
+        message: resultado.message,
       })
-      errorTelefono.value = `Código incorrecto (${telefonoOtpIntentosFallidos.value}/${MOCK_OTP_MAX_INTENTOS} intentos).`
       void registrarEventoContactoOtp(
         'telefono',
         'verificar_fallido',
