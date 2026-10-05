@@ -28,6 +28,8 @@ export type BeneficioPlanPagos = {
   montoApr: number
   monto: number
   aplicable: number
+  concepto: 'M' | 'A'
+  corrpag: string
 }
 
 export type GrabarPlanPagosResponse =
@@ -120,7 +122,8 @@ function beneficiosDelPlan(pago: MockPagoMatricula): BeneficioPlanPagos[] {
   const beneficios: BeneficioPlanPagos[] = []
   for (const descuento of pago.descuentos ?? []) {
     const codigo = (descuento.codben ?? '').trim()
-    if (!/^\d+$/.test(codigo)) continue
+    const corrpag = (descuento.documento ?? '').trim()
+    if (!/^\d+$/.test(codigo) || !/^\d+$/.test(corrpag)) continue
     const codben = Number(codigo)
     if (!Number.isInteger(codben) || codben <= 0 || vistos.has(codben)) continue
     if (!(descuento.monto > 0)) continue
@@ -134,6 +137,8 @@ function beneficiosDelPlan(pago: MockPagoMatricula): BeneficioPlanPagos[] {
       montoApr: descuento.monto,
       monto: descuento.monto,
       aplicable: 1,
+      concepto: descuento.concepto === 'matricula' ? 'M' : 'A',
+      corrpag,
     })
   }
   return beneficios

@@ -1,23 +1,29 @@
 -- U+ Test. Graba dos pagarés (matrícula y arancel) cuando el contrato ya está firmado.
 -- Los CORRPAGNUM entran reservados. Este SP pide el número de operación y las dos boletas.
 -- Inserta MT_POSBEN (estado 4) por cada beneficio que llega en @beneficios.
--- Una tabla vacía no inserta nada. @codcli es el RUT sin dígito verificador.
+-- El cargo (DOCITEM y boleta 41) es el bruto: pagaré más beneficios de ese concepto.
+-- Cada beneficio además es un pago (MT_CTAPAG con la forma de pago del beneficio
+-- y MT_CTADEP contra esa boleta). El pagaré tipo 5 queda por el saldo.
+-- Una tabla vacía no inserta beneficios. @codcli es el RUT sin dígito verificador.
 -- Después del COMMIT, MOL llama aparte a SP_MOL_ACTUALIZA_MATRICULA_FIRMADA
 -- con el código académico (MT_ALUMNO.CODCLI), no con este @codcli.
 -- Si esa segunda llamada falla, los pagarés y los beneficios quedan. Se reintenta solo la ficha.
 
-IF TYPE_ID(N'dbo.mol_plan_beneficio') IS NULL
-    EXEC(N'
-        CREATE TYPE dbo.mol_plan_beneficio AS TABLE (
-            codben     decimal(18, 0) NOT NULL,
-            porc_sol   decimal(18, 4) NULL,
-            porc_apr   decimal(18, 4) NULL,
-            monto_sol  decimal(18, 2) NULL,
-            monto_apr  decimal(18, 2) NULL,
-            monto      decimal(18, 2) NOT NULL,
-            aplicable  decimal(18, 0) NOT NULL
-        )
-    ');
+DROP PROCEDURE IF EXISTS dbo.sp_mol_grabar_plan_pagos;
+GO
+DROP TYPE IF EXISTS dbo.mol_plan_beneficio;
+GO
+CREATE TYPE dbo.mol_plan_beneficio AS TABLE (
+    codben     decimal(18, 0) NOT NULL,
+    porc_sol   decimal(18, 4) NULL,
+    porc_apr   decimal(18, 4) NULL,
+    monto_sol  decimal(18, 2) NULL,
+    monto_apr  decimal(18, 2) NULL,
+    monto      decimal(18, 2) NOT NULL,
+    aplicable  decimal(18, 0) NOT NULL,
+    concepto   char(1)        NOT NULL,
+    corrpag    decimal(20, 0) NOT NULL
+);
 GO
 
 CREATE OR ALTER PROCEDURE dbo.sp_mol_grabar_plan_pagos
@@ -66,8 +72,28 @@ BEGIN
            AND p.PERIODO = CAST(@periodo AS varchar(2))
     )
         THROW 50006, 'Ya existe el beneficio en MT_POSBEN para este periodo.', 1;
+    IF EXISTS (SELECT 1 FROM @beneficios WHERE concepto NOT IN ('M', 'A') OR corrpag IS NULL)
+        THROW 50007, 'Cada beneficio necesita concepto M o A y su folio.', 1;
+    IF EXISTS (SELECT corrpag FROM @beneficios GROUP BY corrpag HAVING COUNT(*) > 1)
+        THROW 50008, 'Hay un folio de beneficio repetido.', 1;
+    IF EXISTS (
+        SELECT 1 FROM @beneficios
+        WHERE corrpag IN (@corrpag_matricula, @corrpag_arancel)
+    )
+        THROW 50009, 'El folio del beneficio no puede ser el del pagaré.', 1;
+    IF EXISTS (
+        SELECT 1
+        FROM @beneficios b
+        LEFT JOIN dbo.MT_BENEFICIO ben ON ben.CODBEN = b.codben
+        WHERE ben.FPAGOGENERADA IS NULL
+    )
+        THROW 50010, 'El beneficio no tiene forma de pago.', 1;
 
     DECLARE @hoy date = CAST(GETDATE() AS date);
+    DECLARE @bruto_matricula decimal(18, 2) = @monto_matricula
+        + ISNULL((SELECT SUM(monto) FROM @beneficios WHERE concepto = 'M'), 0);
+    DECLARE @bruto_arancel decimal(18, 2) = @monto_arancel
+        + ISNULL((SELECT SUM(monto) FROM @beneficios WHERE concepto = 'A'), 0);
     DECLARE @ctadoc_matricula decimal(20, 0);
     DECLARE @ctadoc_arancel decimal(20, 0);
     DECLARE @orden int;
@@ -105,9 +131,9 @@ BEGIN
         )
         VALUES
             (1, 41, @ctadoc_matricula, @ano, @periodo, @codcli, @codcarr, 1,
-             1, @monto_matricula, @monto_matricula, @hoy, @usuario, 1, @ctadoc_matricula, @num_operacion, 'STGO'),
+             1, @bruto_matricula, @bruto_matricula, @hoy, @usuario, 1, @ctadoc_matricula, @num_operacion, 'STGO'),
             (2, 41, @ctadoc_arancel, @ano, @periodo, @codcli, @codcarr, 1,
-             1, @monto_arancel, @monto_arancel, @hoy, @usuario, 1, @ctadoc_arancel, @num_operacion, 'STGO');
+             1, @bruto_arancel, @bruto_arancel, @hoy, @usuario, 1, @ctadoc_arancel, @num_operacion, 'STGO');
 
         INSERT INTO dbo.MT_CTADOC (
             CTADOC, CTADOCNUM, ITEM, CUOTA, NUMCUOT, CODCLI, CODAPOD, CODCARR,
@@ -117,11 +143,11 @@ BEGIN
         )
         VALUES
             (41, @ctadoc_matricula, 1, 1, 1, @codcli, @codapod, @codcarr,
-             @monto_matricula, 0, 0, 1, 'S', 'S', @contrato, @caja,
+             @bruto_matricula, 0, 0, 1, 'S', 'S', @contrato, @caja,
              @ctadoc_matricula, @hoy, @hoy, @hoy, @hoy, 1, 1,
              @ano, @periodo, 0, @usuario, 0, @num_operacion),
             (41, @ctadoc_arancel, 2, 1, 1, @codcli, @codapod, @codcarr,
-             @monto_arancel, 0, 0, 1, 'S', 'S', @contrato, @caja,
+             @bruto_arancel, 0, 0, 1, 'S', 'S', @contrato, @caja,
              @ctadoc_arancel, @hoy, @hoy, @hoy, @hoy, 1, 1,
              @ano, @periodo, 0, @usuario, 0, @num_operacion);
 
@@ -233,6 +259,63 @@ BEGIN
             CAST(@hoy AS datetime),
             @num_operacion
         FROM @beneficios b;
+
+        INSERT INTO dbo.MT_CTAPAG (
+            CTAPAG, CTAPAGNUM, CODCLI, CODCARR, CODAPOD, MONTO, SALDO, SALDO_AD,
+            ESTADO, RECIBIDO, CODBAN, TIPOCARR, ANO, PERIODO, CAJA, CTATRANS,
+            FECVEN, FECCANCEL, FECREG, FECHA, USUARIO, NUM_OPERACION
+        )
+        SELECT
+            ben.FPAGOGENERADA,
+            b.corrpag,
+            @codcli,
+            @codcarr,
+            @codapod,
+            b.monto,
+            0,
+            0,
+            1,
+            'N',
+            0,
+            1,
+            @ano,
+            @periodo,
+            @caja,
+            b.corrpag,
+            @hoy,
+            @hoy,
+            @hoy,
+            @hoy,
+            @usuario,
+            @num_operacion
+        FROM @beneficios b
+        INNER JOIN dbo.MT_BENEFICIO ben ON ben.CODBEN = b.codben;
+
+        INSERT INTO dbo.MT_CTADEP (
+            CTADOC, CTADOCNUM, CTAPAG, CTAPAGNUM, CODCLI, CODCARR, CODAPOD,
+            MONTO, TIPOCARR, USUARIO, CODBAN, ESTADO, CTATRANS, NUM_OPERACION,
+            CAJA, FECREG_DEP, ANO
+        )
+        SELECT
+            41,
+            CASE WHEN b.concepto = 'M' THEN @ctadoc_matricula ELSE @ctadoc_arancel END,
+            ben.FPAGOGENERADA,
+            b.corrpag,
+            @codcli,
+            @codcarr,
+            @codapod,
+            b.monto,
+            1,
+            @usuario,
+            0,
+            '1',
+            CASE WHEN b.concepto = 'M' THEN @ctadoc_matricula ELSE @ctadoc_arancel END,
+            @num_operacion,
+            @caja,
+            @hoy,
+            @ano
+        FROM @beneficios b
+        INNER JOIN dbo.MT_BENEFICIO ben ON ben.CODBEN = b.codben;
 
         COMMIT TRAN;
     END TRY
