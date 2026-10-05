@@ -93,7 +93,7 @@ export function armarGrabarPlanPagos(input: {
   if (!/^\d+$/.test(corrpagMatricula) || !/^\d+$/.test(corrpagArancel)) {
     return { ok: false, error: 'Faltan los folios CORRPAGNUM del plan' }
   }
-  const caja = input.caja != null && input.caja > 0 ? input.caja : 10
+  const caja = input.caja != null && input.caja > 0 ? input.caja : 997
   const beneficios = beneficiosDelPlan(pago)
   return {
     ok: true,
