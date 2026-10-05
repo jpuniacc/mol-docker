@@ -38,6 +38,8 @@ export type ContratoFirmaListRow = {
 }
 
 const TIMEOUT_MS = 90_000
+/** El alta del PDF en TuFirma puede tardar hasta 100 s. El proxy corta a los 120. */
+const ENSURE_TIMEOUT_MS = 115_000
 
 function firmaUrl(suffix: string): string {
   const base = admisionApiBaseUrl()
@@ -60,9 +62,13 @@ function errorFromUnknown(data: unknown, fallback: string): string {
   return fallback
 }
 
-async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs = TIMEOUT_MS,
+): Promise<Response> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     return await fetch(url, { ...init, signal: controller.signal })
   } finally {
@@ -106,11 +112,15 @@ export async function ensureContratoFirma(
   body: ContratoFirmaEnsureRequest,
 ): Promise<ContratoFirmaEstadoResponse> {
   try {
-    const res = await fetchWithTimeout(firmaUrl('/ensure'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
+    const res = await fetchWithTimeout(
+      firmaUrl('/ensure'),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+      ENSURE_TIMEOUT_MS,
+    )
     return await readEstadoResponse(res)
   } catch (e) {
     return { ok: false, error: abortMessage(e) }

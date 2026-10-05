@@ -50,6 +50,10 @@ export type MockDescuentoPagare = {
   monto: number
   /** dd/mm/aaaa */
   vencimiento: string
+  /** Código ERP. El grabado lo inserta en MT_POSBEN. */
+  codben?: string | null
+  porc?: number | null
+  montoSolicitado?: number | null
 }
 
 export type MockPagoMatricula = {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Download, Loader2, Mail } from 'lucide-vue-next'
+import { Check, Circle, Download, Loader2, Mail } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 
 import ContratoPrestacionServiciosPreview from '@/components/rematricula/ContratoPrestacionServiciosPreview.vue'
@@ -30,6 +30,11 @@ import { esPropioSostenedor } from '@/utils/apoderadoResponsable'
 import { armarGrabarPlanPagos, postGrabarPlanPagos } from '@/services/grabarPlanPagosApi'
 
 const POLL_MS = 5000
+const PASO_ENVIO_MS = 2_000
+const AVISO_LENTO_MS = 30_000
+
+type PasoEnvioFirma = 'generando' | 'enviando' | 'listo'
+type EstadoPasoEnvio = 'pendiente' | 'actual' | 'listo'
 
 const router = useRouter()
 const alumnoCtx = useMatriculaAlumnoContextStore()
@@ -42,6 +47,9 @@ const { viewModel, tienePlanConfirmado } = useContratoMatriculaViewModel('alumno
 const descargando = ref(false)
 const aceptado = ref(false)
 const enviando = ref(false)
+const pasoEnvio = ref<PasoEnvioFirma | null>(null)
+const avisoLento = ref(false)
+const alcanzoEnvio = ref(false)
 const errorFirma = ref<string | null>(null)
 const firmantes = ref<ContratoFirmaFirmanteEstado[]>([])
 const restaurandoFirma = ref(false)
@@ -53,7 +61,72 @@ const planGrabado = ref(false)
 const errorGrabacion = ref<string | null>(null)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
+let timerEnviando: ReturnType<typeof setTimeout> | null = null
+let timerProcesando: ReturnType<typeof setTimeout> | null = null
 let unmounted = false
+
+const pasosEnvioVisibles = computed(() => {
+  const paso = pasoEnvio.value
+  if (!paso) return []
+  const textos: Record<PasoEnvioFirma, string> = {
+    generando: 'Estamos generando tu contrato.',
+    enviando: 'Estamos enviando tu contrato a firmar.',
+    listo: 'Ya puedes firmar.',
+  }
+  if (paso === 'listo' && !alcanzoEnvio.value) {
+    return [{ id: 'listo' as const, texto: textos.listo, estado: 'listo' as EstadoPasoEnvio }]
+  }
+  const orden: PasoEnvioFirma[] = ['generando', 'enviando', 'listo']
+  const idx = orden.indexOf(paso)
+  return orden.map((id, i) => {
+    let estado: EstadoPasoEnvio = 'pendiente'
+    if (i < idx || paso === 'listo') estado = 'listo'
+    else if (i === idx) estado = 'actual'
+    return { id, texto: textos[id], estado }
+  })
+})
+
+function clearEnvioTimers(): void {
+  if (timerEnviando !== null) {
+    clearTimeout(timerEnviando)
+    timerEnviando = null
+  }
+  if (timerProcesando !== null) {
+    clearTimeout(timerProcesando)
+    timerProcesando = null
+  }
+}
+
+function iniciarProgresoEnvio(): void {
+  clearEnvioTimers()
+  pasoEnvio.value = 'generando'
+  avisoLento.value = false
+  alcanzoEnvio.value = false
+  timerEnviando = setTimeout(() => {
+    if (pasoEnvio.value !== 'generando') return
+    pasoEnvio.value = 'enviando'
+    alcanzoEnvio.value = true
+  }, PASO_ENVIO_MS)
+  timerProcesando = setTimeout(() => {
+    if (pasoEnvio.value !== 'generando' && pasoEnvio.value !== 'enviando') return
+    pasoEnvio.value = 'enviando'
+    alcanzoEnvio.value = true
+    avisoLento.value = true
+  }, AVISO_LENTO_MS)
+}
+
+function cerrarProgresoOk(): void {
+  clearEnvioTimers()
+  avisoLento.value = false
+  pasoEnvio.value = 'listo'
+}
+
+function cerrarProgresoError(): void {
+  clearEnvioTimers()
+  pasoEnvio.value = null
+  avisoLento.value = false
+  alcanzoEnvio.value = false
+}
 
 function clearPoll(): void {
   if (pollTimer !== null) {
@@ -197,6 +270,7 @@ async function enviarAFirmar(): Promise<void> {
   clearPoll()
   enviando.value = true
   errorFirma.value = null
+  iniciarProgresoEnvio()
 
   try {
     const codcliRaw = fuente.codcliMostrado.value
@@ -222,14 +296,17 @@ async function enviarAFirmar(): Promise<void> {
     })
 
     if (unmounted) {
+      clearEnvioTimers()
       return
     }
 
     if (!res.ok) {
+      cerrarProgresoError()
       errorFirma.value = res.error
       return
     }
 
+    cerrarProgresoOk()
     if (res.created) {
       await registrarPasoFirma('enviado', res.numOperacion)
     }
@@ -249,6 +326,7 @@ onMounted(() => {
 onUnmounted(() => {
   unmounted = true
   clearPoll()
+  clearEnvioTimers()
 })
 
 async function descargaBorrador(): Promise<void> {
@@ -371,13 +449,57 @@ async function descargaBorrador(): Promise<void> {
         </CardHeader>
         <CardContent class="space-y-6">
           <div
-            v-if="(enviando || restaurandoFirma) && firmantes.length === 0 && !errorFirma"
+            v-if="restaurandoFirma && firmantes.length === 0 && !errorFirma"
             class="flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-muted-foreground"
+            role="status"
           >
-            <Loader2 class="h-5 w-5 shrink-0 animate-spin text-uniacc-orange" aria-hidden="true" />
-            <span>{{
-              restaurandoFirma ? 'Recuperando la firma del contrato…' : 'Enviando el contrato a firmar…'
-            }}</span>
+            <Loader2 class="h-5 w-5 shrink-0 animate-spin text-uniacc-orange motion-reduce:animate-none" aria-hidden="true" />
+            <span>Recuperando la firma del contrato…</span>
+          </div>
+
+          <div
+            v-else-if="pasoEnvio && !errorFirma"
+            class="rounded-lg border border-zinc-200 bg-zinc-50/80 p-4"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            :aria-busy="enviando"
+          >
+            <ol class="space-y-3">
+              <li
+                v-for="paso in pasosEnvioVisibles"
+                :key="paso.id"
+                class="flex items-start gap-3 text-sm"
+                :aria-current="paso.estado === 'actual' ? 'step' : undefined"
+              >
+                <Loader2
+                  v-if="paso.estado === 'actual'"
+                  class="mt-0.5 h-5 w-5 shrink-0 animate-spin text-uniacc-orange motion-reduce:animate-none"
+                  aria-hidden="true"
+                />
+                <Check
+                  v-else-if="paso.estado === 'listo'"
+                  class="mt-0.5 h-5 w-5 shrink-0 text-uniacc-celeste"
+                  aria-hidden="true"
+                />
+                <Circle
+                  v-else
+                  class="mt-0.5 h-5 w-5 shrink-0 text-zinc-300"
+                  aria-hidden="true"
+                />
+                <div>
+                  <p :class="paso.estado === 'pendiente' ? 'text-muted-foreground' : 'text-foreground'">
+                    {{ paso.texto }}
+                  </p>
+                  <p
+                    v-if="paso.id === 'enviando' && avisoLento"
+                    class="mt-1 text-muted-foreground"
+                  >
+                    Seguimos procesando.
+                  </p>
+                </div>
+              </li>
+            </ol>
           </div>
 
           <Alert v-if="errorFirma" variant="destructive">

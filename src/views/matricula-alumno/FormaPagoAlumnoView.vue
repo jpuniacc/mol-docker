@@ -1265,11 +1265,18 @@ function descuentosParaContrato(): MockDescuentoPagare[] {
   if (!/^\d+$/.test(peek)) return []
   const anio = anioNotas.value
   const vencimiento = anio != null ? `29/12/${anio}` : '—'
+  const arancelBruto = montoBrutoArancel()
   const lineas = lineasDescuento.value.map((fila) => ({
     concepto: 'arancel' as const,
     flujo: fila.flujo,
     descripcion: fila.descripcion,
     monto: fila.monto,
+    codben: fila.codigo,
+    porc: fila.porcCatalogo,
+    montoSolicitado:
+      fila.porcCatalogo != null
+        ? Math.round((arancelBruto * fila.porcCatalogo) / 100)
+        : fila.monto,
   }))
   if (tieneCae(plan.value)) {
     lineas.push({

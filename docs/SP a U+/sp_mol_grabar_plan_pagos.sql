@@ -1,10 +1,24 @@
 -- U+ Test. Graba dos pagarés (matrícula y arancel) cuando el contrato ya está firmado.
 -- Los CORRPAGNUM entran reservados. Este SP pide el número de operación y las dos boletas.
--- No toca MT_POSBEN.
--- @codcli es el RUT sin dígito verificador.
+-- Inserta MT_POSBEN (estado 4) por cada beneficio que llega en @beneficios.
+-- Una tabla vacía no inserta nada. @codcli es el RUT sin dígito verificador.
 -- Después del COMMIT, MOL llama aparte a SP_MOL_ACTUALIZA_MATRICULA_FIRMADA
 -- con el código académico (MT_ALUMNO.CODCLI), no con este @codcli.
--- Si esa segunda llamada falla, los pagarés quedan. Se reintenta solo la ficha.
+-- Si esa segunda llamada falla, los pagarés y los beneficios quedan. Se reintenta solo la ficha.
+
+IF TYPE_ID(N'dbo.mol_plan_beneficio') IS NULL
+    EXEC(N'
+        CREATE TYPE dbo.mol_plan_beneficio AS TABLE (
+            codben     decimal(18, 0) NOT NULL,
+            porc_sol   decimal(18, 4) NULL,
+            porc_apr   decimal(18, 4) NULL,
+            monto_sol  decimal(18, 2) NULL,
+            monto_apr  decimal(18, 2) NULL,
+            monto      decimal(18, 2) NOT NULL,
+            aplicable  decimal(18, 0) NOT NULL
+        )
+    ');
+GO
 
 CREATE OR ALTER PROCEDURE dbo.sp_mol_grabar_plan_pagos
     @codcli              varchar(20),
@@ -21,6 +35,7 @@ CREATE OR ALTER PROCEDURE dbo.sp_mol_grabar_plan_pagos
     @fecha_inicio        date,
     @corrpag_matricula   decimal(20, 0),
     @corrpag_arancel     decimal(20, 0),
+    @beneficios          dbo.mol_plan_beneficio READONLY,
     @num_operacion       decimal(20, 0) OUTPUT
 AS
 BEGIN
@@ -33,6 +48,24 @@ BEGIN
         THROW 50002, 'Matrícula y arancel tienen que ser mayores que cero.', 1;
     IF @corrpag_matricula IS NULL OR @corrpag_arancel IS NULL
         THROW 50003, 'Faltan los CORRPAGNUM reservados.', 1;
+    IF EXISTS (
+        SELECT codben FROM @beneficios GROUP BY codben HAVING COUNT(*) > 1
+    )
+        THROW 50004, 'Hay un beneficio repetido en el plan.', 1;
+    IF EXISTS (SELECT 1 FROM @beneficios WHERE monto <= 0 OR aplicable NOT IN (1, 2))
+        THROW 50005, 'Cada beneficio necesita monto mayor que cero y aplicable 1 o 2.', 1;
+    IF EXISTS (
+        SELECT 1
+        FROM @beneficios b
+        INNER JOIN dbo.MT_POSBEN p
+            ON p.CODBEN = b.codben
+           AND p.ORDEN = 1
+           AND p.CODCLI = @codcli
+           AND p.CODCARR = @codcarr
+           AND p.ANO = @ano
+           AND p.PERIODO = CAST(@periodo AS varchar(2))
+    )
+        THROW 50006, 'Ya existe el beneficio en MT_POSBEN para este periodo.', 1;
 
     DECLARE @hoy date = CAST(GETDATE() AS date);
     DECLARE @ctadoc_matricula decimal(20, 0);
@@ -173,6 +206,33 @@ BEGIN
 
         CLOSE cur;
         DEALLOCATE cur;
+
+        INSERT INTO dbo.MT_POSBEN (
+            CODBEN, ORDEN, CODCLI, CODCARR, ANO, PERIODO,
+            PORC_SOL, PORC_APR, MONTO_SOL, MONTO_APR, MONTO,
+            APROBADO, APLICABLE, USUARIO, FECAPROB,
+            ESTADO, FECASIG, num_operacion
+        )
+        SELECT
+            b.codben,
+            1,
+            @codcli,
+            @codcarr,
+            @ano,
+            CAST(@periodo AS varchar(2)),
+            b.porc_sol,
+            b.porc_apr,
+            b.monto_sol,
+            b.monto_apr,
+            b.monto,
+            'S',
+            b.aplicable,
+            @usuario,
+            CAST(@hoy AS datetime),
+            4,
+            CAST(@hoy AS datetime),
+            @num_operacion
+        FROM @beneficios b;
 
         COMMIT TRAN;
     END TRY

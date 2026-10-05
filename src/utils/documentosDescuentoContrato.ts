@@ -12,6 +12,10 @@ export type LineaParaDocumentoDescuento = {
   flujo: string | null
   descripcion: string
   monto: number
+  /** Código ERP del beneficio. Sin código, el grabado no inserta MT_POSBEN. */
+  codben?: string | null
+  porc?: number | null
+  montoSolicitado?: number | null
 }
 
 export type DocumentoDescuentoAsignado = {
@@ -23,6 +27,9 @@ export type DocumentoDescuentoAsignado = {
   detalle: string
   monto: number
   vencimiento: string
+  codben?: string | null
+  porc?: number | null
+  montoSolicitado?: number | null
 }
 
 export function tipoDocumentoDescuento(flujo: string | null): string {
@@ -60,6 +67,9 @@ export function asignarDocumentosDescuento(input: {
         detalle: tipoDocumento,
         monto: linea.monto,
         vencimiento: input.vencimiento,
+        codben: linea.codben ?? null,
+        porc: linea.porc ?? null,
+        montoSolicitado: linea.montoSolicitado ?? null,
       }
     })
 }

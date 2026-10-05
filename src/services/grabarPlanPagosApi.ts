@@ -17,6 +17,17 @@ export type GrabarPlanPagosPayload = {
   fechaInicio: string
   corrpagMatricula: string
   corrpagArancel: string
+  beneficios: BeneficioPlanPagos[]
+}
+
+export type BeneficioPlanPagos = {
+  codben: number
+  porcSol: number
+  porcApr: number
+  montoSol: number
+  montoApr: number
+  monto: number
+  aplicable: number
 }
 
 export type GrabarPlanPagosResponse =
@@ -81,6 +92,7 @@ export function armarGrabarPlanPagos(input: {
     return { ok: false, error: 'Faltan los folios CORRPAGNUM del plan' }
   }
   const caja = input.caja != null && input.caja > 0 ? input.caja : 10
+  const beneficios = beneficiosDelPlan(pago)
   return {
     ok: true,
     payload: {
@@ -98,8 +110,33 @@ export function armarGrabarPlanPagos(input: {
       fechaInicio,
       corrpagMatricula,
       corrpagArancel,
+      beneficios,
     },
   }
+}
+
+function beneficiosDelPlan(pago: MockPagoMatricula): BeneficioPlanPagos[] {
+  const vistos = new Set<number>()
+  const beneficios: BeneficioPlanPagos[] = []
+  for (const descuento of pago.descuentos ?? []) {
+    const codigo = (descuento.codben ?? '').trim()
+    if (!/^\d+$/.test(codigo)) continue
+    const codben = Number(codigo)
+    if (!Number.isInteger(codben) || codben <= 0 || vistos.has(codben)) continue
+    if (!(descuento.monto > 0)) continue
+    vistos.add(codben)
+    const porc = descuento.porc ?? 0
+    beneficios.push({
+      codben,
+      porcSol: porc,
+      porcApr: porc,
+      montoSol: descuento.montoSolicitado ?? descuento.monto,
+      montoApr: descuento.monto,
+      monto: descuento.monto,
+      aplicable: 1,
+    })
+  }
+  return beneficios
 }
 
 export async function postGrabarPlanPagos(

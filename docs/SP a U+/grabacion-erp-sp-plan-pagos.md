@@ -27,7 +27,7 @@ Otras referencias: [`plan-pagos-correlativos.md`](../plan-pagos-correlativos.md)
 | Varios alumnos a la vez | Cada uno tiene su transacción. No va un lote de alumnos en la misma llamada, ni una llamada por cada fila. |
 | El peek de la pantalla | Se reserva al generar el plan: un `EXEC` de `CORRPAGNUM` por cada header. Esos folios son los de la pantalla, los del contrato y los que el SP inserta. |
 | Orden de los folios | Como el [caso 2](casuisticas-cartera-posben.md#caso-2-matrícula-cubierta-al-100) y el [caso 9](casuisticas-cartera-posben.md#caso-9-referencia-del-orden-de-folios). Primero el pagaré del saldo. Después los descuentos. Si un descuento cubre el 100 % de la matrícula, ese pagaré no se pide. |
-| El beneficio | Se actualiza la fila que ya existe en `MT_POSBEN`: estado 4, `num_operacion`, `FECASIG` y el monto del folio. Una fila y un folio por cada `CODBEN`. |
+| El beneficio | MOL inserta la fila en `MT_POSBEN` con estado 4, `APROBADO` S, `num_operacion`, `FECASIG` y el monto aplicado. Una fila por cada `CODBEN`. Si el plan no trae beneficios, no inserta nada. |
 
 Hoy el botón de generar plan solo lee `Valor + 1` y el navegador suma el resto. Con la decisión de arriba, ese clic pasa a reservar cada folio.
 
@@ -39,7 +39,7 @@ flowchart TD
   guarda --> confirma["El alumno confirma"]
   confirma --> tx["BEGIN de ese alumno"]
   tx --> nums["EXEC del numero de operacion y de las dos boletas"]
-  nums --> filas["INSERT con los folios ya reservados y UPDATE de MT_POSBEN"]
+  nums --> filas["INSERT con los folios ya reservados e INSERT de MT_POSBEN en estado 4"]
   filas --> ok{"Todo ok?"}
   ok -->|si| commit["COMMIT"]
   ok -->|no| rollback["ROLLBACK de cargos, boletas y numero de operacion"]
@@ -74,7 +74,7 @@ Nombre propuesto: `sp_mol_grabar_plan_pagos`. Una llamada por alumno.
 2. Abre la transacción.
 3. Pide `CORRELATIVO` (el `num_operacion`) y dos `SECUENCIA` (boleta de matrícula y boleta de arancel).
 4. Inserta `MT_DOCITEM`, las boletas 41, los `MT_CTAPAG`, las cuotas y los `MT_CTADEP`. Las cuotas cuelgan del header: `90121320816` → `9012132081601` … `10`. No piden otro número.
-5. Actualiza cada `MT_POSBEN` usado. Ver [cómo se marca el beneficio](casuisticas-cartera-posben.md#cómo-se-marca-el-beneficio).
+5. Inserta cada beneficio del plan en `MT_POSBEN` con estado 4 y el `num_operacion` recién pedido. Ver [cómo se marca el beneficio](casuisticas-cartera-posben.md#cómo-se-marca-el-beneficio).
 6. Commit. Si algo falla, rollback y el error vuelve al API. MOL no marca la matrícula como grabada.
 7. Si el commit salió bien, `SP_MOL_ACTUALIZA_MATRICULA_FIRMADA` con el código académico. Un error ahí no revierte el plan.
 
@@ -108,16 +108,15 @@ BEGIN
         -- Pagos, en el orden reservado: pagare del saldo, despues cada descuento.
         -- Cuotas del pagare: folio + 01 .. N. Un CTADEP por boleta + folio.
 
-        UPDATE dbo.MT_POSBEN
-           SET ESTADO = 4,
-               num_operacion = @num_operacion,
-               FECASIG = /* fecha de la matricula */,
-               MONTO = /* monto del folio de ese CODBEN */
-         WHERE CODCLI = @codcli
-           AND CODCARR = @codcarr
-           AND ANO = @ano
-           AND PERIODO = @periodo
-           AND CODBEN = /* el beneficio que este plan uso */;
+        INSERT INTO dbo.MT_POSBEN (
+            CODBEN, ORDEN, CODCLI, CODCARR, ANO, PERIODO,
+            APROBADO, APLICABLE, USUARIO, ESTADO, FECASIG, MONTO, num_operacion
+        )
+        SELECT
+            b.codben, 1, @codcli, @codcarr, @ano, @periodo,
+            'S', 1, @usuario, 4, /* fecha de la matricula, 00:00 */,
+            b.monto, @num_operacion
+        FROM @beneficios b;
 
         COMMIT TRAN;
     END TRY
