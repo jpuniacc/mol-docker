@@ -103,6 +103,7 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
   }
 
   if (paso.tipo === 'firma') {
+    alumnoCtx.marcarPasoAlcanzado(3)
     void router.push({ name: 'matricula-alumno-firma' })
     return
   }

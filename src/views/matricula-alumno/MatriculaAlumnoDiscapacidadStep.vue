@@ -131,6 +131,7 @@ async function omitir() {
       return
     }
     alumnoCtx.setDiscapacidad({ contesta: false, tipo: null, afirmaciones: [] })
+    alumnoCtx.marcarPasoAlcanzado(2)
     void router.push({ name: 'matricula-alumno-forma-pago' })
   } finally {
     guardando.value = false
@@ -164,6 +165,7 @@ async function guardar() {
       return
     }
     alumnoCtx.setDiscapacidad(respuesta)
+    alumnoCtx.marcarPasoAlcanzado(2)
     toast.message('Encuesta guardada (mock). En producción se alertaría al CRM institucional.')
     const rut = pickCampoAlumno(fuente.rutMostrado.value)
     const codcliErp = rut ? codcliMtClientDesdeRut(rut) : ''

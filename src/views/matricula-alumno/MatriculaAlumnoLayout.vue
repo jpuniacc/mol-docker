@@ -15,13 +15,12 @@ import {
   StepperTrigger,
 } from '@/components/ui/stepper'
 import { MessageCircle } from 'lucide-vue-next'
+import {
+  PASOS_ALUMNO_REMATRICULA,
+  pasoMaximoAlumno,
+} from '@/utils/pasoAlumnoRematricula'
 
-const STEP_NAMES = [
-  'matricula-alumno-datos',
-  'matricula-alumno-forma-pago',
-  'matricula-alumno-firma',
-  'matricula-alumno-resumen',
-] as const
+const STEP_NAMES = PASOS_ALUMNO_REMATRICULA
 
 const route = useRoute()
 const router = useRouter()
@@ -35,11 +34,17 @@ function routeNameToStep(name: string | symbol | null | undefined): number {
 }
 
 const matriculaCerrada = computed(() => alumnoCtx.firmaCompletada)
+const pasoMaximo = computed(() => pasoMaximoAlumno(alumnoCtx))
+
+function pasoBloqueado(step: number): boolean {
+  if (matriculaCerrada.value) return step !== 4
+  return step > pasoMaximo.value
+}
 
 const stepModel = computed({
   get: () => routeNameToStep(route.name),
   set: (v: number | undefined) => {
-    if (v === undefined || matriculaCerrada.value) return
+    if (v === undefined || matriculaCerrada.value || v > pasoMaximo.value) return
     const n = STEP_NAMES[v - 1]
     if (n) void router.push({ name: n })
   },
@@ -180,8 +185,8 @@ function reiniciarFlujo() {
         >
         <StepperItem
           :step="1"
-          :disabled="matriculaCerrada"
-          class="flex min-w-0 flex-1 flex-row items-start"
+          :disabled="pasoBloqueado(1)"
+          class="flex min-w-0 flex-1 flex-row items-start data-[disabled]:opacity-40"
         >
           <StepperTrigger class="flex min-w-0 flex-1 flex-col items-center gap-1">
             <StepperIndicator class="h-9 w-9 text-sm">1</StepperIndicator>
@@ -194,8 +199,8 @@ function reiniciarFlujo() {
         </StepperItem>
         <StepperItem
           :step="2"
-          :disabled="matriculaCerrada"
-          class="flex min-w-0 flex-1 flex-row items-start"
+          :disabled="pasoBloqueado(2)"
+          class="flex min-w-0 flex-1 flex-row items-start data-[disabled]:opacity-40"
         >
           <StepperTrigger class="flex min-w-0 flex-1 flex-col items-center gap-1">
             <StepperIndicator class="h-9 w-9 text-sm">2</StepperIndicator>
@@ -208,8 +213,8 @@ function reiniciarFlujo() {
         </StepperItem>
         <StepperItem
           :step="3"
-          :disabled="matriculaCerrada"
-          class="flex min-w-0 flex-1 flex-row items-start"
+          :disabled="pasoBloqueado(3)"
+          class="flex min-w-0 flex-1 flex-row items-start data-[disabled]:opacity-40"
         >
           <StepperTrigger class="flex min-w-0 flex-1 flex-col items-center gap-1">
             <StepperIndicator class="h-9 w-9 text-sm">3</StepperIndicator>
@@ -220,7 +225,11 @@ function reiniciarFlujo() {
           </StepperTrigger>
           <StepperSeparator class="mx-1 mt-4 h-0.5 min-w-[1rem] flex-1 self-start bg-border md:mx-2" />
         </StepperItem>
-        <StepperItem :step="4" class="flex min-w-0 flex-1 flex-col items-center">
+        <StepperItem
+          :step="4"
+          :disabled="pasoBloqueado(4)"
+          class="flex min-w-0 flex-1 flex-col items-center data-[disabled]:opacity-40"
+        >
           <StepperTrigger class="flex flex-col items-center gap-1">
             <StepperIndicator class="h-9 w-9 text-sm">4</StepperIndicator>
             <div class="text-center">

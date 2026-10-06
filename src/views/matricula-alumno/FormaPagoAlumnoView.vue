@@ -1256,6 +1256,7 @@ async function continuarSelectorMedios() {
   }
 
   if (paso.tipo === 'firma') {
+    alumnoCtx.marcarPasoAlcanzado(3)
     void router.push({ name: 'matricula-alumno-firma' })
   }
 }
@@ -1393,6 +1394,7 @@ async function confirmarPagareMatricula() {
     },
   })
 
+  alumnoCtx.marcarPasoAlcanzado(3)
   toast.success('Plan de pagos confirmado. Continúa con el contrato.')
   const medioMat = medioPagoMatricula.value ?? alumnoCtx.medioMatricula
   const medioAra = medioPagoArancel.value ?? alumnoCtx.medioArancel
@@ -1406,6 +1408,7 @@ async function confirmarPagareMatricula() {
     planListo: true,
   })
   if (paso.tipo === 'firma') {
+    alumnoCtx.marcarPasoAlcanzado(3)
     void router.push({ name: 'matricula-alumno-firma' })
   }
 }
@@ -1443,6 +1446,7 @@ function simularPago(medio: 'webpay' | 'pagare' | 'toku') {
   alumnoCtx.setFormaPago(medio)
   const labels = { webpay: 'WebPay', pagare: 'Pagaré', toku: 'TOKU' } as const
   toast.success(`Pago simulado vía ${labels[medio]}.`)
+  alumnoCtx.marcarPasoAlcanzado(3)
   void router.push({ name: 'matricula-alumno-firma' })
 }
 

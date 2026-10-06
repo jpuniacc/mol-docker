@@ -38,6 +38,7 @@ type StoredAlumnoMatriculaContext = {
   webpayArancelEstado: WebpayConceptoEstado | null
   webpayMontoMatricula: number | null
   webpayMontoArancel: number | null
+  pasoAlcanzado: number
 }
 
 function sanitizeConveniosDocumentos(v: unknown): Record<string, MockConvenioDocumento> {
@@ -109,7 +110,8 @@ function hasAnyProgressPayload(parsed: Partial<StoredAlumnoMatriculaContext>): b
     parsed.medioMatricula != null ||
     parsed.medioArancel != null ||
     parsed.webpayMatriculaEstado != null ||
-    parsed.webpayArancelEstado != null
+    parsed.webpayArancelEstado != null ||
+    (typeof parsed.pasoAlcanzado === 'number' && parsed.pasoAlcanzado > 1)
   )
 }
 
@@ -141,6 +143,7 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
     webpayArancelEstado: null as WebpayConceptoEstado | null,
     webpayMontoMatricula: null as number | null,
     webpayMontoArancel: null as number | null,
+    pasoAlcanzado: 1,
   }),
   actions: {
     persistToSessionStorage() {
@@ -165,6 +168,7 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
         webpayArancelEstado: this.webpayArancelEstado,
         webpayMontoMatricula: this.webpayMontoMatricula,
         webpayMontoArancel: this.webpayMontoArancel,
+        pasoAlcanzado: this.pasoAlcanzado,
       }
       sessionStorage.setItem(ALUMNO_CTX_STORAGE_KEY, JSON.stringify(payload))
     },
@@ -215,6 +219,12 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
           : null
         this.webpayMontoMatricula = montoWebpayPersistido(parsed.webpayMontoMatricula)
         this.webpayMontoArancel = montoWebpayPersistido(parsed.webpayMontoArancel)
+        this.pasoAlcanzado =
+          typeof parsed.pasoAlcanzado === 'number' &&
+          parsed.pasoAlcanzado >= 1 &&
+          parsed.pasoAlcanzado <= 4
+            ? Math.trunc(parsed.pasoAlcanzado)
+            : 1
       } catch {
         sessionStorage.removeItem(ALUMNO_CTX_STORAGE_KEY)
       }
@@ -253,8 +263,16 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
       this.webpayArancelEstado = null
       this.webpayMontoMatricula = null
       this.webpayMontoArancel = null
+      this.pasoAlcanzado = 1
       this.resetStoresErp()
       this.clearSessionStorage()
+    },
+
+    marcarPasoAlcanzado(paso: number) {
+      const n = Math.min(4, Math.max(1, Math.trunc(paso)))
+      if (n <= this.pasoAlcanzado) return
+      this.pasoAlcanzado = n
+      this.persistToSessionStorage()
     },
 
     acceptTyc() {

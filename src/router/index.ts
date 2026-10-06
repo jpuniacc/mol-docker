@@ -16,6 +16,11 @@ import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import { useMockMatriculaContextStore } from '@/stores/mockMatriculaContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import { useContactoOtpConfigStore } from '@/stores/contactoOtpConfig'
+import {
+  indicePasoAlumno,
+  PASOS_ALUMNO_REMATRICULA,
+  pasoMaximoAlumno,
+} from '@/utils/pasoAlumnoRematricula'
 
 const MOCK_SELECCION_ROUTE = 'matricula-mock-seleccion-alumno'
 const MOCK_DATOS_ROUTE = 'matricula-mock-datos'
@@ -548,8 +553,12 @@ router.beforeEach(async (to) => {
     ) {
       return { name: ALUMNO_FORMA_PAGO_ROUTE, replace: true }
     }
-    if (to.name === 'matricula-alumno-resumen' && !alumnoCtx.firmaCompletada) {
-      return { name: 'matricula-alumno-firma', replace: true }
+    const destino = indicePasoAlumno(to.name)
+    if (destino > 0) {
+      const maximo = pasoMaximoAlumno(alumnoCtx)
+      if (destino > maximo) {
+        return { name: PASOS_ALUMNO_REMATRICULA[maximo - 1], replace: true }
+      }
     }
   }
 
