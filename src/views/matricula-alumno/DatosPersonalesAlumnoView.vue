@@ -5,7 +5,7 @@ import { AlertTriangle, Info } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useAuthStore } from '@/stores/auth'
 import { useContactoOtpConfigStore } from '@/stores/contactoOtpConfig'
-import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
+import { emailInstitucionalDesdeUsername, useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import { useMockContactoOtpUiStore } from '@/stores/mockContactoOtpUi'
 import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
@@ -39,7 +39,12 @@ import {
   registrarLogContactoOtp,
 } from '@/services/contactoOtpAuditLog'
 import { logMockContactoOtp } from '@/utils/mockContactoOtpDebug'
-import { solicitarOtpSmsTelefono, verificarOtpSmsTelefono } from '@/services/rematriculaOtpApi'
+import {
+  solicitarOtpEmailCorreoPersonal,
+  solicitarOtpSmsTelefono,
+  verificarOtpEmailCorreoPersonal,
+  verificarOtpSmsTelefono,
+} from '@/services/rematriculaOtpApi'
 import {
   extraerDigitosTelefonoChile,
   normalizarTelefonoChile,
@@ -126,10 +131,6 @@ const erpSyncIntentado = ref(false)
 /** Baseline ERP al cargar/resetear el paso (comparación “¿cambió?”). */
 const baselineMailErp = ref('')
 const baselineFonoDigitsErp = ref('')
-
-/** Código fijo solo en mock; en QA usar OTP real vía API. */
-const MOCK_OTP_CODE = '123456'
-const MOCK_OTP_MAX_INTENTOS = 3
 
 let telefonoOtpCountdownIntervalId: ReturnType<typeof setInterval> | null = null
 let correoOtpCountdownIntervalId: ReturnType<typeof setInterval> | null = null
@@ -305,25 +306,27 @@ const correoOtpAhoraMs = computed(() => {
   return 0
 })
 
-const correoOtpCountdownMmSs = computed(() => {
-  if (!correoOtpPendiente.value || correoOtpValidezDesdeMs.value == null) return '00:00'
-  const s = segundosValidezRestantes(
+function segundosRestantesCorreoOtp(ahoraMs: number): number {
+  const iso = correoOtpExpiresAt.value
+  if (iso) {
+    const fin = Date.parse(iso)
+    if (!Number.isNaN(fin)) return Math.max(0, Math.ceil((fin - ahoraMs) / 1000))
+  }
+  return segundosValidezRestantes(
     correoOtpValidezDesdeMs.value,
     otpConfig.emailSegundos,
-    correoOtpAhoraMs.value,
+    ahoraMs,
   )
-  return formatearMmSs(s)
+}
+
+const correoOtpCountdownMmSs = computed(() => {
+  if (!correoOtpPendiente.value || correoOtpValidezDesdeMs.value == null) return '00:00'
+  return formatearMmSs(segundosRestantesCorreoOtp(correoOtpAhoraMs.value))
 })
 
 const correoOtpCountdownAgotado = computed(() => {
   if (!correoOtpPendiente.value || correoOtpValidezDesdeMs.value == null) return false
-  return (
-    segundosValidezRestantes(
-      correoOtpValidezDesdeMs.value,
-      otpConfig.emailSegundos,
-      correoOtpAhoraMs.value,
-    ) <= 0
-  )
+  return segundosRestantesCorreoOtp(correoOtpAhoraMs.value) <= 0
 })
 
 function segundosRestantesHastaTimestamp(at: number | null, nowMs: number): number {
@@ -396,11 +399,7 @@ watch(
       const expiryActive =
         correoOtpPendiente.value &&
         correoOtpValidezDesdeMs.value != null &&
-        segundosValidezRestantes(
-          correoOtpValidezDesdeMs.value,
-          otpConfig.emailSegundos,
-          now,
-        ) > 0
+        segundosRestantesCorreoOtp(now) > 0
       const reintentoActive =
         correoOtpProximoReintentoAt.value != null && now < correoOtpProximoReintentoAt.value
       if (!expiryActive && !reintentoActive) clearCorreoOtpCountdown()
@@ -471,10 +470,13 @@ function segundosRestantesTelefonoOtp(ahoraMs: number): number {
 
 function identidadOtpAlumno(): { usuarioConexion: string; emailInstitucional: string } | null {
   const usuario = auth.username?.trim() ?? ''
+  if (!usuario) return null
   const instMostrado = fuente.correoInstitucionalMostrado.value
   const inst =
-    instMostrado && instMostrado !== '—' ? instMostrado.trim() : (auth.email?.trim() ?? '')
-  if (!usuario || !inst) return null
+    instMostrado && instMostrado !== '—'
+      ? instMostrado.trim()
+      : emailInstitucionalDesdeUsername(usuario)
+  if (!inst) return null
   return { usuarioConexion: usuario, emailInstitucional: inst }
 }
 
@@ -789,17 +791,29 @@ async function enviarCodigoCorreoOtp() {
     errorCorreo.value = 'El correo personal no tiene un formato válido.'
     return
   }
+  const identidad = identidadOtpAlumno()
+  if (!identidad) {
+    errorCorreo.value = 'No se pudo identificar la sesión. Vuelve a ingresar.'
+    return
+  }
 
   correoOtpEnviando.value = true
   try {
-    await new Promise((r) => setTimeout(r, 400))
+    const resultado = await solicitarOtpEmailCorreoPersonal({
+      ...identidad,
+      emailPersonal: em,
+      urlOrigen: typeof window !== 'undefined' ? window.location.href : null,
+    })
+    if (!resultado.ok) {
+      errorCorreo.value = resultado.message
+      logMockContactoOtp('ui.correo.enviar.error', { message: resultado.message })
+      return
+    }
     const ahora = Date.now()
     correoOtpPendiente.value = true
     correoOtpIntentosFallidos.value = 0
     correoOtpValidezDesdeMs.value = ahora
-    correoOtpExpiresAt.value = new Date(
-      ahora + otpConfig.emailSegundos * 1000,
-    ).toISOString()
+    correoOtpExpiresAt.value = resultado.expiresAt
     correoOtpProximoReintentoAt.value =
       ahora + otpConfig.emailReintentoSegundos * 1000
     correoOtpTick.value = ahora
@@ -814,7 +828,6 @@ async function enviarCodigoCorreoOtp() {
     )
     logMockContactoOtp('ui.correo.enviar.ok', {
       expiresAt: correoOtpExpiresAt.value,
-      validezSegundos: otpConfig.emailSegundos,
       reenvioCooldownSegundos: otpConfig.emailReintentoSegundos,
       proximoReintentoAt: correoOtpProximoReintentoAt.value,
       enviosRealizados: correoOtpEnviosRealizados.value,
@@ -840,26 +853,26 @@ async function confirmarCodigoCorreoOtp() {
     errorCorreo.value = 'Código caducado. Reenvía el correo.'
     return
   }
+  const identidad = identidadOtpAlumno()
+  if (!identidad) {
+    errorCorreo.value = 'No se pudo identificar la sesión. Vuelve a ingresar.'
+    return
+  }
 
   correoOtpVerificando.value = true
   try {
-    await new Promise((r) => setTimeout(r, 300))
-    if (codigo !== MOCK_OTP_CODE) {
+    const resultado = await verificarOtpEmailCorreoPersonal({
+      ...identidad,
+      emailPersonal: emailDraft.value.trim(),
+      codigo,
+      urlOrigen: typeof window !== 'undefined' ? window.location.href : null,
+    })
+    if (!resultado.ok) {
       correoOtpIntentosFallidos.value += 1
-      if (correoOtpIntentosFallidos.value >= MOCK_OTP_MAX_INTENTOS) {
-        correoOtpIntentosFallidos.value = 0
-        logMockContactoOtp('ui.correo.confirmar.maxIntentos', {
-          reintentoBloqueado: correoOtpReintentoBloqueado.value,
-        })
-        errorCorreo.value =
-          'Código incorrecto. Solicita un nuevo código con Reenviar cuando esté disponible.'
-        return
-      }
+      errorCorreo.value = resultado.message
       logMockContactoOtp('ui.correo.confirmar.incorrecto', {
-        intentos: correoOtpIntentosFallidos.value,
-        max: MOCK_OTP_MAX_INTENTOS,
+        message: resultado.message,
       })
-      errorCorreo.value = `Código incorrecto (${correoOtpIntentosFallidos.value}/${MOCK_OTP_MAX_INTENTOS} intentos).`
       void registrarEventoContactoOtp(
         'correo',
         'verificar_fallido',
