@@ -60,6 +60,7 @@ import { fetchMontoCaeAprobadoAlumno } from '@/services/fetchMnpEstadoCaeAlumnos
 import { contextoMolAuditoria, type ContextoMolAuditoriaOpciones } from '@/services/molAuditContext'
 import { ejecutarVerificacionCae } from '@/services/verificacionCae'
 import { registrarFormaPagoAudit } from '@/services/formaPagoAuditLog'
+import { rutSinDv } from '@/services/alumnoDeudaNetApi'
 import { crearWebpay, redirigirAWebpay } from '@/services/webpayPlusApi'
 import {
   beneficioSeleccionable,
@@ -84,6 +85,7 @@ import type { MnpMvBeneficioPeriodoRow } from '@/types/supabase'
 import {
   casoCertificadoConvenio,
   evaluarGateMatriculaConvenios,
+  planDocumentosConvenioDesdeCasos,
 } from '@/utils/convenioCertificadoGate'
 import { periodoCatalogoLabel } from '@/utils/periodoCatalogo'
 import { rutNorm } from '@/utils/rutNorm'
@@ -353,7 +355,7 @@ async function generarCuotasPagare() {
     n: totalCuotasActual(),
     rows: result.rows,
   })
-  toast.success('Cuotas generadas (correlativo preview ERP)')
+  toast.success('Plan de pagos generado correctamente.')
 }
 
 const resumenPagoMatricula = computed(() => {
@@ -597,20 +599,15 @@ async function refrescarCasosConvenio(): Promise<void> {
     return
   }
   casosConvenio.value = (data ?? []).filter((c) => c.tipo === 'CONVENIO_CERTIFICADO')
-  // Rehidratar docs desde payload/ref si el store no los tiene
-  for (const c of casosConvenio.value) {
-    const payload = (c.payload ?? {}) as Record<string, unknown>
-    const convenioId =
-      typeof payload.convenio_id === 'string' ? payload.convenio_id.trim() : ''
-    const path =
-      (typeof payload.storage_path === 'string' && payload.storage_path.trim()) ||
-      (c.ref_id ?? '').trim()
-    if (!convenioId || !path) continue
-    if (alumnoCtx.conveniosDocumentos[convenioId]) continue
-    const nombre = path.split('/').pop() || 'documento-convenio.pdf'
-    alumnoCtx.setConvenioDocumento(convenioId, {
-      storagePath: path,
-      nombreArchivo: nombre,
+  const plan = planDocumentosConvenioDesdeCasos(casosConvenio.value)
+  for (const convenioId of plan.quitar) {
+    alumnoCtx.removeConvenioDocumento(convenioId)
+  }
+  for (const doc of plan.poner) {
+    if (alumnoCtx.conveniosDocumentos[doc.convenioId]) continue
+    alumnoCtx.setConvenioDocumento(doc.convenioId, {
+      storagePath: doc.storagePath,
+      nombreArchivo: doc.nombreArchivo,
     })
   }
 }
@@ -661,8 +658,9 @@ async function onConvenioSubido(payload: {
   await refrescarCasosConvenio()
 }
 
-function onConvenioEliminado(payload: { convenioId: string }) {
+async function onConvenioEliminado(payload: { convenioId: string }) {
   alumnoCtx.removeConvenioDocumento(payload.convenioId)
+  await refrescarCasosConvenio()
 }
 
 function setBeneficioSeleccionado(slot: number, checked: boolean) {
@@ -1167,9 +1165,10 @@ function persistirMediosYMontosWebpay(): void {
 
 function contextoCrearWebpay(): { codcli: string; anio: number; periodo: 1 | 2 } | null {
   const periodo = periodoFormaPago()
-  if (!periodo) return null
+  const codcli = rutSinDv(fuente.rutMostrado.value)
+  if (!periodo || !/^\d{7,8}$/.test(codcli)) return null
   if (periodo.semestre !== 1 && periodo.semestre !== 2) return null
-  return { codcli: periodo.codcli, anio: periodo.anio, periodo: periodo.semestre }
+  return { codcli, anio: periodo.anio, periodo: periodo.semestre }
 }
 
 async function iniciarWebpay(concepto: 'matricula' | 'arancel'): Promise<void> {
@@ -1726,20 +1725,31 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
               <p v-else-if="resumenPagoMatricula" class="text-xs text-zinc-600">
                 Configurado: {{ resumenPagoMatricula }}
               </p>
-              <Button
-                type="button"
-                class="mt-2 w-full bg-uniacc-orange hover:bg-uniacc-orange/90"
-                :disabled="!puedeAbrirPagoMatricula"
-                @click="abrirPagoMatricula"
-              >
-                {{
-                  abriendoPagoMatricula || cargandoDeuda
-                    ? 'Validando…'
-                    : tieneDeuda
-                      ? 'Deuda pendiente'
-                      : 'Pagar matrícula'
-                }}
-              </Button>
+              <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                <Button
+                  type="button"
+                  class="w-full cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90"
+                  :disabled="!puedeAbrirPagoMatricula"
+                  @click="abrirPagoMatricula"
+                >
+                  {{
+                    abriendoPagoMatricula || cargandoDeuda
+                      ? 'Validando…'
+                      : tieneDeuda
+                        ? 'Deuda pendiente'
+                        : 'Realizar pago'
+                  }}
+                </Button>
+                <!-- <Button
+                  type="button"
+                  variant="outline"
+                  class="w-full cursor-pointer border-uniacc-orange text-uniacc-orange hover:bg-uniacc-orange/10"
+                  :disabled="!puedeAbrirPagoMatricula"
+                  @click="abrirPagoMatricula"
+                >
+                  Webpay
+                </Button> -->
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -1882,11 +1892,11 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
             </p>
             <div class="mt-3 grid gap-1.5 text-sm text-zinc-700 sm:grid-cols-2">
               <p class="flex justify-between gap-2 sm:block">
-                <span class="text-muted-foreground">Matrícula</span>
+                <span class="text-muted-foreground">Matrícula: </span>
                 <span class="font-medium tabular-nums">{{ fmt(montoNetoMatricula()) }}</span>
               </p>
               <p class="flex justify-between gap-2 sm:block">
-                <span class="text-muted-foreground">Arancel</span>
+                <span class="text-muted-foreground">Arancel: </span>
                 <span class="font-medium tabular-nums">{{ fmt(montoNetoArancel()) }}</span>
               </p>
             </div>

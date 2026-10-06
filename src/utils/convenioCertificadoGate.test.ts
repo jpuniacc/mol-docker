@@ -4,6 +4,7 @@ import {
   evaluarGateMatriculaConvenios,
   matchCasoConvenioCertificado,
   estadoCertificadoConvenio,
+  planDocumentosConvenioDesdeCasos,
 } from './convenioCertificadoGate'
 
 function caso(partial: Partial<MnpCasoRematriculaRow> & Pick<MnpCasoRematriculaRow, 'estado'>): MnpCasoRematriculaRow {
@@ -216,5 +217,41 @@ describe('evaluarGateMatriculaConvenios', () => {
     })
     expect(r.puedePagarPorConvenio).toBe(false)
     expect(r.motivo).toBe('en_revision')
+  })
+})
+
+describe('planDocumentosConvenioDesdeCasos', () => {
+  it('un caso cerrado no rehidrata el archivo y lo quita del store', () => {
+    const plan = planDocumentosConvenioDesdeCasos([
+      caso({
+        estado: 'CERRADO',
+        payload: { convenio_id: 'conv-1', storage_path: 'mock/a.pdf' },
+      }),
+    ])
+    expect(plan.poner).toEqual([])
+    expect(plan.quitar).toEqual(['conv-1'])
+  })
+
+  it('si hay un caso activo del mismo convenio, conserva ese archivo', () => {
+    const plan = planDocumentosConvenioDesdeCasos([
+      caso({
+        id: 'cerrado',
+        estado: 'CERRADO',
+        payload: { convenio_id: 'conv-1', storage_path: 'mock/viejo.pdf' },
+      }),
+      caso({
+        id: 'nuevo',
+        estado: 'EN_REVISION',
+        payload: { convenio_id: 'conv-1', storage_path: 'mock/nuevo.pdf' },
+      }),
+    ])
+    expect(plan.quitar).toEqual([])
+    expect(plan.poner).toEqual([
+      {
+        convenioId: 'conv-1',
+        storagePath: 'mock/nuevo.pdf',
+        nombreArchivo: 'nuevo.pdf',
+      },
+    ])
   })
 })

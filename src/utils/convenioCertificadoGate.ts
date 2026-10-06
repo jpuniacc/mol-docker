@@ -58,6 +58,56 @@ export function estadoCertificadoConvenio(
   return sorted[0]!.estado
 }
 
+export type DocConvenioDesdeCaso = {
+  convenioId: string
+  storagePath: string
+  nombreArchivo: string
+}
+
+function convenioIdDeCaso(caso: MnpCasoRematriculaRow): string {
+  const payload = (caso.payload ?? {}) as Record<string, unknown>
+  return payloadStr(payload, 'convenio_id') ?? ''
+}
+
+/**
+ * Un caso CERRADO ya no tiene archivo para revisar: no se rehidrata el
+ * documento y, si no queda otro caso activo del mismo convenio, se quita
+ * del store local.
+ */
+export function planDocumentosConvenioDesdeCasos(casos: MnpCasoRematriculaRow[]): {
+  quitar: string[]
+  poner: DocConvenioDesdeCaso[]
+} {
+  const activos = new Set(
+    casos
+      .filter((c) => c.tipo === 'CONVENIO_CERTIFICADO' && c.estado !== 'CERRADO')
+      .map(convenioIdDeCaso)
+      .filter((id) => id.length > 0),
+  )
+  const quitar: string[] = []
+  const poner: DocConvenioDesdeCaso[] = []
+
+  for (const caso of casos) {
+    if (caso.tipo !== 'CONVENIO_CERTIFICADO') continue
+    const convenioId = convenioIdDeCaso(caso)
+    if (!convenioId) continue
+    if (caso.estado === 'CERRADO') {
+      if (!activos.has(convenioId)) quitar.push(convenioId)
+      continue
+    }
+    const payload = (caso.payload ?? {}) as Record<string, unknown>
+    const path = payloadStr(payload, 'storage_path') || (caso.ref_id ?? '').trim()
+    if (!path) continue
+    poner.push({
+      convenioId,
+      storagePath: path,
+      nombreArchivo: path.split('/').pop() || 'documento-convenio.pdf',
+    })
+  }
+
+  return { quitar, poner }
+}
+
 export function casoCertificadoConvenio(
   casos: MnpCasoRematriculaRow[],
   convenio: ConvenioGateRef,

@@ -97,6 +97,7 @@ const motivo = ref('')
 const resolviendo = ref(false)
 const actualizandoApoderado = ref(false)
 const urlArchivo = ref<string | null>(null)
+const archivoConsultado = ref(false)
 const apoderadoRefrescado = ref<{
   nombre: string
   telefono: string
@@ -303,6 +304,7 @@ function onDetalleOpenChange(open: boolean) {
   if (!open) {
     seleccionado.value = null
     urlArchivo.value = null
+    archivoConsultado.value = false
     apoderadoRefrescado.value = null
     planApoderado.value = null
     motivo.value = ''
@@ -328,16 +330,20 @@ async function abrirDetalle(row: MnpCasoRematriculaRow) {
   seleccionado.value = row
   motivo.value = ''
   urlArchivo.value = null
+  archivoConsultado.value = false
   apoderadoRefrescado.value = null
   planApoderado.value = null
   detalleOpen.value = true
 
   const path = payloadTexto(row, 'storage_path')
-  if (row.tipo === 'CONVENIO_CERTIFICADO' && path) {
-    const { data, error } = await supabase.storage
-      .from(CONVENIO_DOC_BUCKET)
-      .createSignedUrl(path, 300)
-    if (!error) urlArchivo.value = data?.signedUrl ?? null
+  if (row.tipo === 'CONVENIO_CERTIFICADO') {
+    if (path) {
+      const { data, error } = await supabase.storage
+        .from(CONVENIO_DOC_BUCKET)
+        .createSignedUrl(path, 300)
+      if (!error) urlArchivo.value = data?.signedUrl ?? null
+    }
+    archivoConsultado.value = true
   }
   if (row.tipo === 'APODERADO_DATOS' && row.codcli) {
     void cargarPlanApoderado(row.codcli)
@@ -879,8 +885,22 @@ onMounted(() => {
           <p class="text-sm leading-relaxed text-foreground/90">
             {{ seleccionado.detalle }}
           </p>
-          <p v-if="seleccionado.motivo" class="text-sm text-red-700">
+          <p
+            v-if="seleccionado.motivo"
+            class="text-sm"
+            :class="seleccionado.estado === 'RECHAZADO' ? 'text-red-700' : 'text-muted-foreground'"
+          >
             Motivo: {{ seleccionado.motivo }}
+          </p>
+          <p
+            v-if="
+              seleccionado.tipo === 'CONVENIO_CERTIFICADO' &&
+              archivoConsultado &&
+              !urlArchivo
+            "
+            class="text-sm text-amber-800"
+          >
+            No hay archivo para revisar. El alumno eliminó el documento.
           </p>
 
           <!-- Apoderado: al abrir vs actual MOL -->

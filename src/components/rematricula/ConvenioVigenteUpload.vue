@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { FileUp, Loader2, Trash2 } from 'lucide-vue-next'
+import { CircleCheck, FileUp, Loader2, Trash2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import type { ConvenioAlumnoMatch } from '@/services/convenioAlumno'
 import {
   CONVENIO_DOC_ACCEPT,
@@ -35,6 +43,7 @@ const archivoSeleccionado = ref<File | null>(null)
 const subiendo = ref(false)
 const eliminando = ref(false)
 const error = ref<string | null>(null)
+const modalExitoAbierto = ref(false)
 
 function onArchivoChange(event: Event) {
   error.value = null
@@ -74,7 +83,7 @@ async function subir() {
       doc,
       documentoId: res.id,
     })
-    toast.success('Documento de vigencia subido correctamente.')
+    modalExitoAbierto.value = true
     archivoSeleccionado.value = null
     if (inputEl.value) inputEl.value.value = ''
   } finally {
@@ -104,7 +113,7 @@ async function eliminar() {
     }
 
     emit('eliminado', { convenioId: props.match.convenio.id })
-    toast.success('Documento eliminado. Puedes subir uno nuevo.')
+    toast.success('Documento eliminado. El caso salió de revisión. Puedes subir uno nuevo.')
   } finally {
     eliminando.value = false
   }
@@ -196,5 +205,38 @@ async function eliminar() {
     <p v-else class="mt-3 text-sm text-muted-foreground">
       Convenio informativo (no requiere documento de vigencia).
     </p>
+
+    <Dialog v-model:open="modalExitoAbierto">
+      <DialogContent
+        class="w-[calc(100%-2rem)] max-w-md gap-0 overflow-hidden p-0 sm:w-full"
+      >
+        <div class="h-1 bg-[#1E3A5F]" aria-hidden="true" />
+        <div class="space-y-4 p-5 sm:p-6">
+          <DialogHeader class="space-y-3 text-left">
+            <div
+              class="flex h-11 w-11 items-center justify-center rounded-full bg-[#1E3A5F]/10 text-[#1E3A5F]"
+            >
+              <CircleCheck class="h-6 w-6" aria-hidden="true" />
+            </div>
+            <DialogTitle class="text-lg font-semibold text-[#1E3A5F]">
+              Documento enviado
+            </DialogTitle>
+            <DialogDescription class="text-sm leading-relaxed text-zinc-700">
+              Has subido el documento correctamente. Tu consejero lo analizará y te avisaremos
+              por correo cuando ya se encuentre validado para que continúes con tu rematrícula.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter class="sm:justify-end">
+            <Button
+              type="button"
+              class="h-11 w-full cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
+              @click="modalExitoAbierto = false"
+            >
+              Entendido
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>

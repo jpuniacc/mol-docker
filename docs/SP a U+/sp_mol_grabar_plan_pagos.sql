@@ -5,10 +5,11 @@
 -- Cada beneficio además es un pago (MT_CTAPAG con la forma de pago del beneficio
 -- y MT_CTADEP contra esa boleta). El pagaré tipo 5 queda por el saldo.
 -- La jornada de pagos, depósitos, boleta y cargo es la de MT_ALUMNO para esa carrera.
--- La boleta 41 usa el apoderado de MT_CLIENT. Si no hay otro, queda el alumno.
--- FECHA y SEDE de la boleta, y MONTOINT / DEVENGO_SEM del cargo,
--- quedan como en la matrícula de producción. FECREG de la boleta es la fecha
--- de la caja abierta: la clave foránea pide esa pareja en MT_PARCAJA.
+-- Boleta, cuotas, pagarés y depósitos usan el apoderado de MT_CLIENT.
+-- Si no hay otro, queda el alumno. @codapod se conserva y no se escribe.
+-- FECHA y SEDE de la boleta y de las cuotas, y MONTOINT / DEVENGO_SEM del cargo,
+-- quedan como en la matrícula de producción. FECREG de la boleta y de las cuotas
+-- es la fecha de la caja abierta: la clave foránea pide esa pareja en MT_PARCAJA.
 -- POSBEN guarda 0 en interés y porcentaje parcial.
 -- Una tabla vacía no inserta beneficios. @codcli es el RUT sin dígito verificador.
 -- Después del COMMIT, MOL llama aparte a SP_MOL_ACTUALIZA_MATRICULA_FIRMADA
@@ -216,7 +217,7 @@ BEGIN
                 FECVEN, FECCANCEL, FECREG, FECHA, USUARIO, NUM_OPERACION, jornada
             )
             VALUES (
-                5, @corrpag, @codcli, @codcarr, @codapod, @monto, 0, 0,
+                5, @corrpag, @codcli, @codcarr, @codapod_boleta, @monto, 0, 0,
                 1, 'N', 0, 1, @ano, @periodo, @caja, @corrpag,
                 @fecha_inicio, @hoy, @hoy, @hoy, @usuario, @num_operacion, @jornada
             );
@@ -240,13 +241,15 @@ BEGIN
                     CTADOC, CTADOCNUM, CUOTA, NUMCUOT, CODCLI, CODAPOD, CODCARR,
                     MONTO, SALDO, SALDO_AD, ESTADO, RECIBIDO, CONTRATO, CAJA,
                     CTATRANS, FECVEN, VCTOORI, FECDEUDA, FECREP, UBICACION, TIPOCARR,
-                    ANO, PERIODO, GASTOSOP, USUARIO, CODBAN, NUM_OPERACION
+                    ANO, PERIODO, GASTOSOP, USUARIO, CODBAN, NUM_OPERACION,
+                    FECREG, FECHA, SEDE, jornada
                 )
                 VALUES (
-                    14, @folio, @i, @cuotas, @codcli, @codapod, @codcarr,
+                    14, @folio, @i, @cuotas, @codcli, @codapod_boleta, @codcarr,
                     @monto_cuota, @monto_cuota, 0, 2, 'S', @contrato, @caja,
                     @corrpag, @vence, @vence, @hoy, @hoy, 1, 1,
-                    @ano, @periodo, 0, @usuario, 0, @num_operacion
+                    @ano, @periodo, 0, @usuario, 0, @num_operacion,
+                    @fecreg_caja, @hoy, 'STGO', @jornada
                 );
 
                 SET @i = @i + 1;
@@ -258,7 +261,7 @@ BEGIN
                 CAJA, FECREG_DEP, ANO, jornada
             )
             VALUES (
-                41, @ctadocnum, 5, @corrpag, @codcli, @codcarr, @codapod,
+                41, @ctadocnum, 5, @corrpag, @codcli, @codcarr, @codapod_boleta,
                 @monto, 1, @usuario, 0, '1', @ctadocnum, @num_operacion,
                 @caja, @hoy, @ano, @jornada
             );
@@ -310,7 +313,7 @@ BEGIN
             b.corrpag,
             @codcli,
             @codcarr,
-            @codapod,
+            @codapod_boleta,
             b.monto,
             0,
             0,
@@ -344,7 +347,7 @@ BEGIN
             b.corrpag,
             @codcli,
             @codcarr,
-            @codapod,
+            @codapod_boleta,
             b.monto,
             1,
             @usuario,
