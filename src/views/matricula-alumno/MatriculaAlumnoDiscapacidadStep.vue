@@ -166,7 +166,7 @@ async function guardar() {
     }
     alumnoCtx.setDiscapacidad(respuesta)
     alumnoCtx.marcarPasoAlcanzado(2)
-    toast.message('Encuesta guardada (mock). En producción se alertaría al CRM institucional.')
+    toast.success('Encuesta guardada correctamente.')
     const rut = pickCampoAlumno(fuente.rutMostrado.value)
     const codcliErp = rut ? codcliMtClientDesdeRut(rut) : ''
     if (codcliErp && respuesta.tipo) {

@@ -99,9 +99,8 @@ onMounted(() => {
         <div class="space-y-1">
           <CardTitle class="text-xl text-zinc-900">Encuesta discapacidad</CardTitle>
           <CardDescription class="max-w-3xl text-zinc-600">
-            Cada fila es una respuesta guardada en Supabase. Al lado está el código que
+            Cada fila es una respuesta guardada en Base de datos. Al lado está el código que
             hoy tiene el alumno en U+. Van de la más reciente a la más antigua.
-            <span v-if="ambiente" class="font-medium text-zinc-900"> Ambiente {{ ambiente }}.</span>
           </CardDescription>
         </div>
         <Button type="button" variant="outline" class="gap-1.5" :disabled="loading" @click="cargar">
@@ -129,7 +128,7 @@ onMounted(() => {
           v-if="!erpOk"
           class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
         >
-          No se pudo leer U+. Las respuestas de Supabase sí están.
+          No se pudo leer U+. Las respuestas de Base de datos MOL sí están.
           <span v-if="erpError"> {{ erpError }}</span>
         </p>
         <p v-if="error" class="text-sm text-red-700">{{ error }}</p>
@@ -171,7 +170,7 @@ onMounted(() => {
               <TableRow>
                 <TableHead>Cuándo</TableHead>
                 <TableHead>Alumno</TableHead>
-                <TableHead>Supabase</TableHead>
+                <TableHead>Base de datos MOL</TableHead>
                 <TableHead>U+</TableHead>
                 <TableHead>Cruce</TableHead>
               </TableRow>
