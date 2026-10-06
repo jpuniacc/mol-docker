@@ -15,7 +15,6 @@ import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import {
   CheckCircle2,
   Circle,
-  GraduationCap,
   Phone,
   Sparkles,
 } from 'lucide-vue-next'
@@ -90,39 +89,9 @@ function pick(...vals: (string | null | undefined)[]): string {
         <div class="space-y-2 px-4 py-6 md:px-8 md:py-8">
           <h1 class="text-2xl font-bold tracking-tight text-zinc-900 md:text-3xl">Inicio</h1>
           <p class="mt-1 text-sm text-zinc-600 md:text-base">
-            Hola, <span class="font-semibold text-zinc-900">{{ saludo }}</span>. Desde aquí puedes
-            acceder al flujo de rematrícula y a las herramientas del portal.
+            Hola, <span class="font-semibold text-zinc-900">{{ saludo }}</span>. Desde aquí entras
+            a las herramientas del portal.
           </p>
-        </div>
-      </div>
-
-      <Alert v-if="bloqueoFueraCartera" class="border-red-300 bg-red-50 text-red-950">
-        <AlertTitle>{{ TITULO_FUERA_CARTERA_OFICIAL }}</AlertTitle>
-        <AlertDescription>{{ MSG_FUERA_CARTERA_OFICIAL }}</AlertDescription>
-      </Alert>
-
-      <div
-        v-else
-        class="rounded-2xl border border-uniacc-orange/30 bg-white p-6 shadow-md ring-1 ring-uniacc-orange/10"
-      >
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div class="flex gap-3">
-            <GraduationCap class="h-8 w-8 shrink-0 text-uniacc-orange" aria-hidden="true" />
-            <div>
-              <h2 class="text-lg font-semibold text-zinc-900">Simular rematrícula</h2>
-              <p class="mt-1 text-sm text-zinc-600">
-                Elige un alumno del periodo activo para probar el flujo completo.
-              </p>
-            </div>
-          </div>
-          <RouterLink :to="{ name: 'matricula-mock-seleccion-alumno' }" class="shrink-0">
-            <Button
-              type="button"
-              class="cursor-pointer rounded-full bg-uniacc-orange px-6 font-semibold text-white shadow-md transition-colors duration-200 hover:bg-uniacc-orange/90"
-            >
-              Iniciar simulación
-            </Button>
-          </RouterLink>
         </div>
       </div>
     </template>
