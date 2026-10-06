@@ -37,6 +37,18 @@ function isAlumnoFlowRoute(name: string | symbol | null | undefined): boolean {
   return typeof name === 'string' && name.startsWith('matricula-alumno-')
 }
 
+/** Enlaces cortos /matricula-alumno y /matricula-mock apuntan al flujo bajo /dashboard. */
+function rutaBajoDashboard(path: string): string | null {
+  const limpio = path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path
+  if (limpio === '/matricula-alumno' || limpio.startsWith('/matricula-alumno/')) {
+    return `/dashboard${limpio}`
+  }
+  if (limpio === '/matricula-mock' || limpio.startsWith('/matricula-mock/')) {
+    return `/dashboard${limpio}`
+  }
+  return null
+}
+
 function isSesionAlumnoRematricula(
   auth: ReturnType<typeof useAuthStore>,
   datosMnp: ReturnType<typeof useDatosAlumnoMnpStore>,
@@ -414,7 +426,16 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
   const datosMnp = useDatosAlumnoMnpStore()
+  const canonica = rutaBajoDashboard(to.path)
+  if (canonica) {
+    return { path: canonica, query: to.query, hash: to.hash, replace: true }
+  }
+
   const needsAuth = to.path.startsWith('/dashboard')
+
+  if (!auth.isAuthenticated && to.name === 'NotFound') {
+    return { name: 'login', replace: true }
+  }
 
   if (needsAuth && !auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }
