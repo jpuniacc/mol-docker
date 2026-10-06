@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Check, Circle, Download, Loader2, Mail } from 'lucide-vue-next'
+import { AppWindow, Check, Circle, Download, Loader2, Mail } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 
 import ContratoPrestacionServiciosPreview from '@/components/rematricula/ContratoPrestacionServiciosPreview.vue'
@@ -32,6 +32,8 @@ import { armarGrabarPlanPagos, postGrabarPlanPagos } from '@/services/grabarPlan
 const POLL_MS = 5000
 const PASO_ENVIO_MS = 2_000
 const AVISO_LENTO_MS = 30_000
+const ESPERA_ENLACE_MS = 1_000
+const REINTENTOS_ENLACE = 3
 
 type PasoEnvioFirma = 'generando' | 'enviando' | 'listo'
 type EstadoPasoEnvio = 'pendiente' | 'actual' | 'listo'
@@ -53,8 +55,13 @@ const alcanzoEnvio = ref(false)
 const errorFirma = ref<string | null>(null)
 const firmantes = ref<ContratoFirmaFirmanteEstado[]>([])
 const restaurandoFirma = ref(false)
-const abriendoFirma = ref<string | null>(null)
 const numOperacionFirma = ref<string | null>(null)
+const enlacesFirma = ref<Record<string, string>>({})
+const preparandoEnlaces = ref(false)
+const errorEnlaces = ref<string | null>(null)
+const segundosEspera = ref(0)
+const esperaOperacion = ref<string | null>(null)
+const firmaHabilitada = ref(false)
 const contratoFirmadoRegistrado = ref(false)
 const grabandoPlan = ref(false)
 const planGrabado = ref(false)
@@ -63,7 +70,17 @@ const errorGrabacion = ref<string | null>(null)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let timerEnviando: ReturnType<typeof setTimeout> | null = null
 let timerProcesando: ReturnType<typeof setTimeout> | null = null
+let timerEspera: ReturnType<typeof setInterval> | null = null
 let unmounted = false
+let abriendoFirma = false
+
+const hayApoderadoPendiente = computed(() =>
+  firmantes.value.some((firmante) => firmante.rol === 'apoderado' && !firmante.ready),
+)
+
+const enlacesListos = computed(
+  () => !preparandoEnlaces.value && (segundosEspera.value > 0 || firmaHabilitada.value),
+)
 
 const pasosEnvioVisibles = computed(() => {
   const paso = pasoEnvio.value
@@ -167,27 +184,104 @@ async function registrarPasoFirma(
   })
 }
 
-async function abrirFirma(email: string): Promise<void> {
-  const numOperacion = numOperacionFirma.value || viewModel.value?.numOperacion
-  if (!numOperacion || abriendoFirma.value) return
-  const ventana = window.open('about:blank', '_blank')
+function clearEsperaFirma(): void {
+  if (timerEspera !== null) {
+    clearInterval(timerEspera)
+    timerEspera = null
+  }
+}
+
+function esperar(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+function etiquetaBotonFirma(rol: ContratoFirmaFirmanteEstado['rol']): string {
+  if (rol === 'apoderado') return 'Haz click para que firme el apoderado'
+  return 'Haz click para que firme el alumno'
+}
+
+function puedeAbrirFirma(email: string): boolean {
+  return firmaHabilitada.value && Boolean(enlacesFirma.value[email])
+}
+
+function iniciarCuentaRegresiva(): void {
+  clearEsperaFirma()
+  segundosEspera.value = 2
+  firmaHabilitada.value = false
+  timerEspera = setInterval(() => {
+    if (segundosEspera.value <= 1) {
+      segundosEspera.value = 0
+      firmaHabilitada.value = true
+      clearEsperaFirma()
+      return
+    }
+    segundosEspera.value -= 1
+  }, ESPERA_ENLACE_MS)
+}
+
+async function prepararFirma(numOperacion: string): Promise<void> {
+  if (esperaOperacion.value === numOperacion) return
+  const pendientes = firmantes.value.filter((firmante) => !firmante.ready)
+  if (pendientes.length === 0) return
+  esperaOperacion.value = numOperacion
+  preparandoEnlaces.value = true
+  errorEnlaces.value = null
+  firmaHabilitada.value = false
+  segundosEspera.value = 0
+  const obtenidos: Record<string, string> = {}
+  let fallo: string | null = null
+  for (const firmante of pendientes) {
+    if (enlacesFirma.value[firmante.email]) {
+      obtenidos[firmante.email] = enlacesFirma.value[firmante.email]
+      continue
+    }
+    let enlace: string | null = null
+    let ultimoError = 'No se pudo preparar el enlace de firma.'
+    for (let intento = 0; intento < REINTENTOS_ENLACE && !enlace; intento += 1) {
+      if (intento > 0) await esperar(ESPERA_ENLACE_MS)
+      if (unmounted) return
+      const res = await getEnlaceFirmaFirmante(numOperacion, firmante.email)
+      if (res.ok) enlace = res.signatureLink
+      else ultimoError = res.error
+    }
+    if (!enlace) {
+      fallo = ultimoError
+      break
+    }
+    obtenidos[firmante.email] = enlace
+  }
+  if (unmounted) return
+  preparandoEnlaces.value = false
+  if (fallo) {
+    esperaOperacion.value = null
+    errorEnlaces.value = fallo
+    return
+  }
+  enlacesFirma.value = { ...enlacesFirma.value, ...obtenidos }
+  iniciarCuentaRegresiva()
+}
+
+function reintentarEnlaces(): void {
+  const num = numOperacionFirma.value
+  if (!num || preparandoEnlaces.value) return
+  esperaOperacion.value = null
+  void prepararFirma(num)
+}
+
+function abrirFirma(email: string): void {
+  if (abriendoFirma || !puedeAbrirFirma(email)) return
+  const link = enlacesFirma.value[email]
+  if (!link) return
+  abriendoFirma = true
+  const ventana = window.open(link, '_blank')
+  abriendoFirma = false
   if (!ventana) {
-    toast.error('El navegador bloqueó la ventana de firma. Permite ventanas emergentes e inténtalo de nuevo.')
-    return
+    toast.error(
+      'El navegador bloqueó la ventana de firma. Permite ventanas emergentes e inténtalo de nuevo.',
+    )
   }
-  abriendoFirma.value = email
-  const res = await getEnlaceFirmaFirmante(numOperacion, email)
-  abriendoFirma.value = null
-  if (unmounted) {
-    ventana.close()
-    return
-  }
-  if (!res.ok) {
-    ventana.close()
-    toast.error(res.error)
-    return
-  }
-  ventana.location.href = res.signatureLink
 }
 
 async function grabarPlanFirmado(): Promise<boolean> {
@@ -226,10 +320,13 @@ function aplicarEstadoOk(estado: Extract<ContratoFirmaEstadoResponse, { ok: true
     void registrarPasoFirma('firmado', estado.numOperacion)
   }
   if (estado.ready) {
+    clearEsperaFirma()
     void grabarPlanFirmado().then((ok) => {
       if (ok && !unmounted) completarYNavegar()
     })
+    return
   }
+  void prepararFirma(estado.numOperacion)
 }
 
 async function pollEstado(numOperacion: string): Promise<void> {
@@ -327,6 +424,7 @@ onUnmounted(() => {
   unmounted = true
   clearPoll()
   clearEnvioTimers()
+  clearEsperaFirma()
 })
 
 async function descargaBorrador(): Promise<void> {
@@ -515,10 +613,59 @@ async function descargaBorrador(): Promise<void> {
           <div v-if="firmantes.length > 0" class="space-y-3">
             <div class="flex items-center gap-2 text-sm text-muted-foreground">
               <Mail class="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>
-                Firmar desde el correo o con el botón de cada persona. Operación
-                {{ numOperacionFirma || viewModel?.numOperacion }}.
-              </span>
+              <span>Operación {{ numOperacionFirma || viewModel?.numOperacion }}.</span>
+            </div>
+            <p
+              v-if="preparandoEnlaces"
+              class="flex items-center gap-2 text-sm text-muted-foreground"
+              role="status"
+            >
+              <Loader2
+                class="h-4 w-4 shrink-0 animate-spin text-uniacc-orange motion-reduce:animate-none"
+                aria-hidden="true"
+              />
+              Preparando el enlace de firma…
+            </p>
+            <div v-else-if="errorEnlaces" class="space-y-2">
+              <p class="text-sm text-destructive">{{ errorEnlaces }}</p>
+              <Button type="button" variant="secondary" class="cursor-pointer" @click="reintentarEnlaces">
+                Reintentar
+              </Button>
+            </div>
+            <div
+              v-else-if="enlacesListos"
+              class="space-y-3 rounded-lg border border-uniacc-orange/40 bg-uniacc-orange/10 p-4 ring-1 ring-uniacc-orange/15"
+              role="note"
+            >
+              <p class="text-base font-semibold text-zinc-900">Antes de firmar</p>
+              <ul class="space-y-3">
+                <li
+                  v-if="hayApoderadoPendiente"
+                  class="flex items-start gap-3 text-sm leading-relaxed text-zinc-900"
+                >
+                  <Mail class="mt-0.5 h-5 w-5 shrink-0 text-uniacc-orange" aria-hidden="true" />
+                  <p>
+                    <span class="font-semibold">Si el apoderado no está contigo, no hay problema.</span>
+                    Le enviaremos un correo para que firme después.
+                  </p>
+                </li>
+                <li class="flex items-start gap-3 text-sm leading-relaxed text-zinc-900">
+                  <AppWindow class="mt-0.5 h-5 w-5 shrink-0 text-uniacc-orange" aria-hidden="true" />
+                  <p>
+                    <span class="font-semibold">Activa las ventanas emergentes.</span>
+                    El botón abre la firma en una ventana nueva del navegador.
+                  </p>
+                </li>
+              </ul>
+              <p
+                v-if="segundosEspera > 0"
+                class="text-sm font-semibold text-uniacc-orange"
+                role="timer"
+                aria-live="polite"
+              >
+                Podrás firmar en {{ segundosEspera }}
+                {{ segundosEspera === 1 ? 'segundo' : 'segundos' }}.
+              </p>
             </div>
             <ul class="divide-y rounded-md border" role="list">
               <li
@@ -536,11 +683,11 @@ async function descargaBorrador(): Promise<void> {
                     type="button"
                     size="sm"
                     variant="outline"
-                    class="cursor-pointer"
-                    :disabled="abriendoFirma === firmante.email"
+                    class="h-auto cursor-pointer justify-start whitespace-normal text-left"
+                    :disabled="!puedeAbrirFirma(firmante.email)"
                     @click="abrirFirma(firmante.email)"
                   >
-                    {{ abriendoFirma === firmante.email ? 'Abriendo…' : 'Firmar' }}
+                    {{ etiquetaBotonFirma(firmante.rol) }}
                   </Button>
                   <Badge :variant="firmante.ready ? 'success' : 'warning'">
                     {{ firmante.ready ? 'Firmado' : 'Pendiente' }}
