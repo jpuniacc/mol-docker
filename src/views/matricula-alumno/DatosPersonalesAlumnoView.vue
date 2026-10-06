@@ -906,11 +906,11 @@ async function enviarCodigoTelefonoOtp() {
   }
   const tel = telefonoDraft.value.trim()
   if (!tel) {
-    errorTelefono.value = 'Ingresa tu teléfono actual.'
+    errorTelefono.value = 'Ingresa tu teléfono móvil (celular).'
     return
   }
   if (!telefonoChileEsValido(tel)) {
-    errorTelefono.value = `El teléfono debe tener el formato ${TELEFONO_CHILE_PREFIJO} seguido de 8 dígitos.`
+    errorTelefono.value = `El teléfono móvil debe tener el formato ${TELEFONO_CHILE_PREFIJO} seguido de 8 dígitos.`
     return
   }
   const identidad = identidadOtpAlumno()
@@ -953,7 +953,7 @@ async function enviarCodigoTelefonoOtp() {
       proximoReintentoAt: telefonoOtpProximoReintentoAt.value,
       enviosRealizados: telefonoOtpEnviosRealizados.value,
     })
-    toast.message('Código enviado por SMS a tu teléfono.')
+    toast.message('Código enviado por SMS a tu teléfono móvil (celular).')
   } finally {
     telefonoOtpEnviando.value = false
   }
@@ -1154,25 +1154,11 @@ watch(
         <AlertTitle class="text-base font-semibold text-zinc-900 dark:text-zinc-50">
           Cómo validar tu contacto
         </AlertTitle>
-        <AlertDescription class="mt-2 space-y-3 text-zinc-800 dark:text-zinc-200">
-          <p class="font-medium text-zinc-900 dark:text-zinc-50">
-            Pulsa <strong class="text-uniacc-orange">Validar o actualizar</strong> en correo y en teléfono: se abrirá
-            un panel para completar cada validación.
+        <AlertDescription class="mt-2 space-y-2 text-base leading-relaxed text-zinc-800 dark:text-zinc-200">
+          <p>
+            Valida tu correo y tu teléfono móvil (celular). A cada uno te enviaremos un código de 6 dígitos.
           </p>
-          <ul class="list-none space-y-2 border-l-2 border-uniacc-orange/50 pl-4 text-sm leading-snug">
-            <li>
-              <span class="font-semibold text-uniacc-orange">Correo y teléfono.</span>
-              Te enviaremos un código de 6 dígitos a cada medio.
-              Validez del código: correo {{ otpConfig.emailSegundos }} s, SMS {{ otpConfig.smsSegundos }} s.
-              Entre cada reenvío debes esperar: correo {{ otpConfig.emailReintentoSegundos }} s,
-              SMS {{ otpConfig.smsReintentoSegundos }} s. Máximo 3 intentos incorrectos por código.
-              Puedes reenviar el código una vez. Si aún no lo recibes, podrás continuar con el dato ingresado.
-            </li>
-            <li>
-              <span class="font-semibold text-uniacc-orange">Importante.</span>
-              Si cambias un dato después de validarlo, tendrás que volver a validarlo.
-            </li>
-          </ul>
+          <p>Si cambias un dato después de validarlo, tendrás que validarlo de nuevo.</p>
         </AlertDescription>
       </Alert>
 
@@ -1212,7 +1198,7 @@ watch(
             class="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50/80 p-4 sm:flex-row sm:items-center sm:justify-between"
           >
             <div class="min-w-0 flex-1 space-y-2">
-              <Label class="text-base">Teléfono actual</Label>
+              <Label class="text-base">Teléfono móvil (celular)</Label>
               <p class="truncate text-sm font-medium text-foreground" :title="textoTelefonoResumen">
                 {{ textoTelefonoResumen }}
               </p>
@@ -1228,13 +1214,13 @@ watch(
               @click="otpUi.abrirModalTelefono()"
             >
               <span class="sm:hidden">Validar / actualizar</span>
-              <span class="hidden sm:inline">Validar o actualizar teléfono</span>
+              <span class="hidden sm:inline">Validar o actualizar celular</span>
             </Button>
           </div>
 
           <div v-if="!puedeContinuarDesdeContacto" class="border-t border-zinc-200 pt-4">
-            <p class="text-xs text-muted-foreground">
-              Debes validar correo y teléfono para continuar. Al completar ambos pasarás automáticamente a la encuesta.
+            <p class="text-sm text-muted-foreground">
+              Debes validar el correo y el teléfono móvil (celular) para continuar. Al completar ambos pasarás automáticamente a la encuesta.
             </p>
           </div>
           <div v-else class="flex justify-end border-t border-zinc-200 pt-4">
@@ -1255,10 +1241,12 @@ watch(
             <DialogTitle>Validar correo personal</DialogTitle>
             <DialogDescription>
               Te enviaremos un código de 6 dígitos a este correo.
-              El código es válido {{ otpConfig.emailSegundos }} segundos. Debes esperar
-              {{ otpConfig.emailReintentoSegundos }} segundos entre cada reenvío.
-              Puedes reenviar el código una vez. Si aún no lo recibes, podrás continuar con el dato ingresado.
             </DialogDescription>
+            <ul class="list-disc space-y-1 pl-5 text-left text-sm leading-relaxed text-muted-foreground">
+              <li>El código dura {{ otpConfig.emailSegundos }} s.</li>
+              <li>Puedes reenviarlo 1 vez, después de {{ otpConfig.emailReintentoSegundos }} s.</li>
+              <li>Tienes 3 intentos por código.</li>
+            </ul>
           </DialogHeader>
 
           <div v-if="mostrarContinuarSinOtpCorreo" class="space-y-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-950">
@@ -1399,17 +1387,19 @@ watch(
       <Dialog :open="modalContacto === 'telefono'" @update:open="cerrarModalTelefono">
         <DialogScrollContent class="max-h-[85vh] max-w-lg">
           <DialogHeader>
-            <DialogTitle>Validar teléfono actual</DialogTitle>
+            <DialogTitle>Validar teléfono móvil (celular)</DialogTitle>
             <DialogDescription>
-              Te enviaremos un código de 6 dígitos por SMS a este teléfono.
-              El código es válido {{ otpConfig.smsSegundos }} segundos. Debes esperar
-              {{ otpConfig.smsReintentoSegundos }} segundos entre cada reenvío.
-              Puedes reenviar el código una vez. Si aún no lo recibes, podrás continuar con el dato ingresado.
+              Te enviaremos un código de 6 dígitos por SMS a este teléfono móvil (celular).
             </DialogDescription>
+            <ul class="list-disc space-y-1 pl-5 text-left text-sm leading-relaxed text-muted-foreground">
+              <li>El código dura {{ otpConfig.smsSegundos }} s.</li>
+              <li>Puedes reenviarlo 1 vez, después de {{ otpConfig.smsReintentoSegundos }} s.</li>
+              <li>Tienes 3 intentos por código.</li>
+            </ul>
           </DialogHeader>
 
           <div v-if="mostrarContinuarSinOtpTelefono" class="space-y-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-950">
-            <p class="text-sm font-semibold">Continuar sin validar teléfono</p>
+            <p class="text-sm font-semibold">Continuar sin validar el celular</p>
             <p class="text-sm">{{ CONTACTO_OTP_SIN_VALIDAR_MENSAJE_TELEFONO }}</p>
             <div class="flex flex-wrap gap-2">
               <Button type="button" variant="outline" @click="cancelarContinuarSinOtpTelefono">
@@ -1426,7 +1416,7 @@ watch(
           </div>
 
           <div v-else class="space-y-3">
-            <Label for="telefono-mock-modal">Teléfono</Label>
+            <Label for="telefono-mock-modal">Teléfono móvil (celular)</Label>
             <div class="flex gap-2">
               <span
                 class="flex h-10 shrink-0 items-center rounded-md border border-input bg-muted px-3 text-sm font-mono text-muted-foreground"
@@ -1463,7 +1453,7 @@ watch(
               Ingresa 8 dígitos después de {{ TELEFONO_CHILE_PREFIJO }} (solo números, sin espacios ni símbolos).
             </p>
             <p v-if="telefonoFormatoInvalido" class="text-sm text-destructive">
-              El teléfono debe tener 8 dígitos después de {{ TELEFONO_CHILE_PREFIJO }}.
+              El teléfono móvil debe tener 8 dígitos después de {{ TELEFONO_CHILE_PREFIJO }}.
             </p>
             <p v-if="errorTelefono" class="text-sm font-medium text-destructive">{{ errorTelefono }}</p>
 
@@ -1559,7 +1549,7 @@ watch(
               class="w-full sm:w-auto"
               disabled
             >
-              Teléfono validado
+              Celular validado
             </Button>
           </div>
 

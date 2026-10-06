@@ -21,7 +21,7 @@ export const CONTACTO_OTP_SIN_VALIDAR_MENSAJE_CORREO =
   'Veo que tienes problemas al recibir el código en tu correo. Presiona Aceptar para seguir con el proceso; se mantendrá el dato ingresado.'
 
 export const CONTACTO_OTP_SIN_VALIDAR_MENSAJE_TELEFONO =
-  'Veo que tienes problemas al recibir el código en tu teléfono. Presiona Aceptar para seguir con el proceso; se mantendrá el dato ingresado.'
+  'Veo que tienes problemas al recibir el código en tu teléfono móvil (celular). Presiona Aceptar para seguir con el proceso; se mantendrá el dato ingresado.'
 
 export const CONTACTO_OTP_SIN_VALIDAR_ACEPTAR = 'Aceptar'
 
