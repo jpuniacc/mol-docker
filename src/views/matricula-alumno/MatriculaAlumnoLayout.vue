@@ -7,7 +7,6 @@ import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFu
 import { Button } from '@/components/ui/button'
 import {
   Stepper,
-  StepperDescription,
   StepperIndicator,
   StepperItem,
   StepperSeparator,
@@ -143,99 +142,78 @@ function reiniciarFlujo() {
           </div>
         </div>
 
-        <!-- Banda estudiante -->
-        <div
-          style="background: linear-gradient(90deg, #ff5b00 0%, #ee2183 50%, #4d98c5 100%)"
-          :class="[
-            'px-4 py-3 text-white transition-all duration-200 md:px-6',
-            isCompactHeader ? 'md:py-2' : 'md:py-3',
-          ]"
-        >
+        <div class="bg-[#1E3A5F] text-white">
           <div
-            :class="[
-              'mx-auto flex max-w-6xl flex-col gap-2 text-sm transition-all duration-200 md:flex-row md:flex-wrap md:items-center md:justify-between',
-              isCompactHeader ? 'md:gap-3' : 'md:gap-4',
-            ]"
-          >
-            <p class="font-medium">Rematrícula en línea — Periodo {{ periodoLabel }}</p>
-            <p class="flex flex-wrap gap-x-4 gap-y-1">
-              <span class="font-semibold">{{ headerNombre }}</span>
-              <span>RUT {{ headerRut }}</span>
-              <span>{{ headerCarrera }}</span>
-              <span>{{ headerCampus }}</span>
+            class="h-1 bg-gradient-to-r from-uniacc-orange via-uniacc-magenta to-uniacc-blue"
+            aria-hidden="true"
+          />
+          <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1.5 text-sm md:flex-nowrap md:px-6">
+            <p class="min-w-0 truncate font-semibold" :title="headerNombre">{{ headerNombre }}</p>
+            <p class="flex min-w-0 items-center gap-x-2 text-xs text-white/90">
+              <span class="shrink-0">RUT {{ headerRut }}</span>
+              <span aria-hidden="true">·</span>
+              <span class="truncate">{{ headerCarrera }}</span>
+              <span aria-hidden="true">·</span>
+              <span class="shrink-0">{{ headerCampus }}</span>
             </p>
-            <p class="text-white/80 md:text-right">
-              ¿Necesitas ayuda?
-              <span class="font-semibold text-white"> (+56 2) 26406000</span>
-            </p>
+            <p class="hidden text-xs text-white/80 lg:block">Periodo {{ periodoLabel }}</p>
+            <a
+              href="tel:+56226406000"
+              class="ml-auto shrink-0 cursor-pointer rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-medium ring-1 ring-white/30 transition-colors duration-200 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              Ayuda (+56 2) 26406000
+            </a>
           </div>
         </div>
       </header>
 
-      <div
-        :class="[
-          'mx-auto max-w-6xl overflow-x-auto border-b border-zinc-200 bg-zinc-100 px-4 py-4 transition-all duration-200 md:px-6',
-          isCompactHeader ? 'md:py-3' : 'md:py-6',
-        ]"
-      >
+      <div class="mx-auto max-w-6xl overflow-x-auto border-b border-zinc-200 bg-zinc-100 px-4 py-2 md:px-6">
         <Stepper
           v-model="stepModel"
           :linear="false"
-          class="flex w-full min-w-[520px] items-start gap-0 md:min-w-0"
+          class="flex w-full min-w-[28rem] items-start gap-0 md:min-w-0"
         >
         <StepperItem
           :step="1"
           :disabled="pasoBloqueado(1)"
           class="flex min-w-0 flex-1 flex-row items-start data-[disabled]:opacity-40"
         >
-          <StepperTrigger class="flex min-w-0 flex-1 flex-col items-center gap-1">
-            <StepperIndicator class="h-9 w-9 text-sm">1</StepperIndicator>
-            <div class="text-center">
-              <StepperTitle class="text-xs font-semibold md:text-sm">Datos personales</StepperTitle>
-              <StepperDescription class="hidden sm:block">Revisión</StepperDescription>
-            </div>
+          <StepperTrigger class="flex min-w-0 flex-1 flex-col items-center gap-0.5 p-1">
+            <StepperIndicator class="h-6 w-6 text-[11px]">1</StepperIndicator>
+            <StepperTitle class="text-[11px] font-medium leading-tight">Datos personales</StepperTitle>
           </StepperTrigger>
-          <StepperSeparator class="mx-1 mt-4 h-0.5 min-w-[1rem] flex-1 self-start bg-border md:mx-2" />
+          <StepperSeparator class="mx-1 mt-3 h-px min-w-[0.75rem] flex-1 self-start bg-border" />
         </StepperItem>
         <StepperItem
           :step="2"
           :disabled="pasoBloqueado(2)"
           class="flex min-w-0 flex-1 flex-row items-start data-[disabled]:opacity-40"
         >
-          <StepperTrigger class="flex min-w-0 flex-1 flex-col items-center gap-1">
-            <StepperIndicator class="h-9 w-9 text-sm">2</StepperIndicator>
-            <div class="text-center">
-              <StepperTitle class="text-xs font-semibold md:text-sm">Forma de pago</StepperTitle>
-              <StepperDescription class="hidden sm:block">Pago</StepperDescription>
-            </div>
+          <StepperTrigger class="flex min-w-0 flex-1 flex-col items-center gap-0.5 p-1">
+            <StepperIndicator class="h-6 w-6 text-[11px]">2</StepperIndicator>
+            <StepperTitle class="text-[11px] font-medium leading-tight">Forma de pago</StepperTitle>
           </StepperTrigger>
-          <StepperSeparator class="mx-1 mt-4 h-0.5 min-w-[1rem] flex-1 self-start bg-border md:mx-2" />
+          <StepperSeparator class="mx-1 mt-3 h-px min-w-[0.75rem] flex-1 self-start bg-border" />
         </StepperItem>
         <StepperItem
           :step="3"
           :disabled="pasoBloqueado(3)"
           class="flex min-w-0 flex-1 flex-row items-start data-[disabled]:opacity-40"
         >
-          <StepperTrigger class="flex min-w-0 flex-1 flex-col items-center gap-1">
-            <StepperIndicator class="h-9 w-9 text-sm">3</StepperIndicator>
-            <div class="text-center">
-              <StepperTitle class="text-xs font-semibold md:text-sm">Firma de contrato</StepperTitle>
-              <StepperDescription class="hidden sm:block">Revisión y FES</StepperDescription>
-            </div>
+          <StepperTrigger class="flex min-w-0 flex-1 flex-col items-center gap-0.5 p-1">
+            <StepperIndicator class="h-6 w-6 text-[11px]">3</StepperIndicator>
+            <StepperTitle class="text-[11px] font-medium leading-tight">Firma de contrato</StepperTitle>
           </StepperTrigger>
-          <StepperSeparator class="mx-1 mt-4 h-0.5 min-w-[1rem] flex-1 self-start bg-border md:mx-2" />
+          <StepperSeparator class="mx-1 mt-3 h-px min-w-[0.75rem] flex-1 self-start bg-border" />
         </StepperItem>
         <StepperItem
           :step="4"
           :disabled="pasoBloqueado(4)"
           class="flex min-w-0 flex-1 flex-col items-center data-[disabled]:opacity-40"
         >
-          <StepperTrigger class="flex flex-col items-center gap-1">
-            <StepperIndicator class="h-9 w-9 text-sm">4</StepperIndicator>
-            <div class="text-center">
-              <StepperTitle class="text-xs font-semibold md:text-sm">Resumen final</StepperTitle>
-              <StepperDescription class="hidden sm:block">Confirmación</StepperDescription>
-            </div>
+          <StepperTrigger class="flex flex-col items-center gap-0.5 p-1">
+            <StepperIndicator class="h-6 w-6 text-[11px]">4</StepperIndicator>
+            <StepperTitle class="text-[11px] font-medium leading-tight">Resumen final</StepperTitle>
           </StepperTrigger>
         </StepperItem>
         </Stepper>
