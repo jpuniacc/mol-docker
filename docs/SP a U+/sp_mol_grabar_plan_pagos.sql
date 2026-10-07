@@ -22,6 +22,7 @@
 -- MT_CTADEP solo si aplicaBoleta es true, contra la boleta 41 del concepto.
 -- Un concepto que llega en el JSON no genera pagaré tipo 5 ni cuotas 14.
 -- Sin POSBEN para el tipo 20. Sin JSON (NULL) el procedimiento se comporta como antes.
+-- El 809, el 810 y el 811 se insertan con saldo igual al monto y estado 2, porque tesorería los concilia después.
 
 DROP PROCEDURE IF EXISTS dbo.sp_mol_grabar_plan_pagos;
 GO
@@ -487,7 +488,7 @@ BEGIN
                 )
                 VALUES (
                     @ctadoc_json, @ctapagnum, @cuota_json, @numcuot_json, @codcli, @codapod_boleta, @codcarr,
-                    @monto_json, 0, 0, 1, 'S', @contrato, @caja,
+                    @monto_json, @monto_json, 0, 2, 'S', @contrato, @caja,
                     @ctapagnum, @fecven_json, @hoy, @hoy, 1, 1,
                     @ano, @periodo, 0, @usuario, 0, @num_operacion,
                     @fecreg_caja, @fecha_json, 'STGO', @jornada
