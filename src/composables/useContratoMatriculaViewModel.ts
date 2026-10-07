@@ -152,7 +152,9 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
     const contrato = (pago?.contrato ?? '').trim() || previewContrato || '—'
 
     return {
-      numOperacion: numeroOperacionContrato(pago?.numOperacion, ctx.numOperacionCuenta),
+      numOperacion: numeroOperacionContrato(pago?.numOperacion, ctx.numOperacionCuenta, {
+        ambosWebpay: matriculaWebpayOk && arancelWebpayOk,
+      }),
       contrato,
       fechaContratoLabel: fechaHoyLabel(),
       ciudadFirma: 'Santiago',

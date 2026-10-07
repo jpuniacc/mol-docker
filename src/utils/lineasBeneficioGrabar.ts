@@ -16,3 +16,27 @@ export function lineasBeneficioGrabar(input: {
   }
   return lineas
 }
+
+/**
+ * Líneas del plan de pagaré. Parten de las mismas que el grabado Webpay, pero el CAE y el
+ * descuento de matrícula van sin CODBEN: beneficiosDelPlan los omite, como antes del código 4.
+ * El CAE en cero se conserva en el plan de pagaré, antes del descuento de matrícula.
+ */
+export function lineasBeneficioPagare(input: {
+  lineasArancel: LineaParaDocumentoDescuento[]
+  descuentoMatricula: LineaParaDocumentoDescuento | null
+  cae: LineaParaDocumentoDescuento | null
+}): LineaParaDocumentoDescuento[] {
+  const sinCodben = (linea: LineaParaDocumentoDescuento): LineaParaDocumentoDescuento => {
+    const { codben: _codben, porc: _porc, montoSolicitado: _montoSolicitado, ...resto } = linea
+    return resto
+  }
+  const lineas = lineasBeneficioGrabar(input).map((linea) =>
+    linea === input.cae || linea === input.descuentoMatricula ? sinCodben(linea) : linea,
+  )
+  if (input.cae && input.cae.monto <= 0) {
+    const indice = lineas.findIndex((linea) => linea.concepto === 'matricula')
+    lineas.splice(indice === -1 ? lineas.length : indice, 0, sinCodben(input.cae))
+  }
+  return lineas
+}

@@ -108,4 +108,26 @@ describe('asignarDocumentosDescuento', () => {
       { documento: '90121338255', tipoDocumento: TIPO_DOC_CAE },
     ])
   })
+
+  it('con reservadosPagare 1 el primer beneficio es peek+1', () => {
+    const docs = asignarDocumentosDescuento({
+      peek: '90121338251',
+      vencimiento: '2026-10-07',
+      reservadosPagare: 1,
+      lineas: [
+        { concepto: 'matricula', flujo: 'DESCUENTO_MATRICULA', descripcion: 'Mes', monto: 50000 },
+        { concepto: 'arancel', flujo: 'CONVENIO', descripcion: 'Convenio', monto: 915000 },
+      ],
+    })
+    expect(docs.map((d) => d.documento)).toEqual(['90121338252', '90121338253'])
+  })
+
+  it('sin reservadosPagare el pagaré sigue reservando peek y peek+1', () => {
+    const docs = asignarDocumentosDescuento({
+      peek: '90121338251',
+      vencimiento: '29/12/2026',
+      lineas: [{ concepto: 'arancel', flujo: 'CONVENIO', descripcion: 'Convenio', monto: 1 }],
+    })
+    expect(docs[0]?.documento).toBe('90121338253')
+  })
 })

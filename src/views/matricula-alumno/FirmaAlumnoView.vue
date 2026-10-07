@@ -297,8 +297,46 @@ const ambosWebpay = computed(
     alumnoCtx.webpayArancelEstado === 'autorizada',
 )
 
+// Tras Transbank la SPA recarga y el preflight queda vacío. Se pide igual que en la forma de pago.
+async function asegurarPreflightWebpay(): Promise<string | null> {
+  const rut = fuente.rutMostrado.value
+  if (!rut || rut === '—') return 'Sin RUT para consultar correlativos ERP'
+  let codCarr = ''
+  const codcli = fuente.codcliMostrado.value.trim()
+  if (codcli && codcli !== '—' && periodoActivo.anio != null && periodoActivo.semestre != null) {
+    const { data } = await fetchPlanPagosMvByCodcli({
+      codcli,
+      anioMatricula: periodoActivo.anio,
+      periodoMatricula: periodoActivo.semestre,
+    })
+    codCarr = (data?.cod_carrera ?? '').trim()
+  }
+  if (!codCarr) codCarr = (alumnoMnp.primeraFila?.codigo_carrera ?? '').trim()
+  if (!codCarr) return 'Sin código de carrera para preflight ERP'
+  const ok = await preflight.fetchFromErp({ rutCompleto: rut, codCarr })
+  if (!ok || !(preflight.corrpagnumPreview ?? '').trim() || !(preflight.contratoPreview ?? '').trim()) {
+    return preflight.error || 'No se pudo obtener CORRPAGNUM del preflight ERP'
+  }
+  return null
+}
+
 async function grabarCuentaWebpay(cerrarFicha: boolean): Promise<boolean> {
   if (grabandoPlan.value) return false
+  if (!(preflight.contratoPreview ?? '').trim() || !(preflight.corrpagnumPreview ?? '').trim()) {
+    grabandoPlan.value = true
+    errorGrabacion.value = null
+    let errorPreflight: string | null
+    try {
+      errorPreflight = await asegurarPreflightWebpay()
+    } finally {
+      grabandoPlan.value = false
+    }
+    if (unmounted) return false
+    if (errorPreflight) {
+      errorGrabacion.value = errorPreflight
+      return false
+    }
+  }
   const peek = (preflight.corrpagnumPreview ?? '').trim()
   const lineas = alumnoCtx.lineasBeneficioGrabar
   const hayBeneficios = lineas.some((linea) => linea.monto > 0)
@@ -317,7 +355,8 @@ async function grabarCuentaWebpay(cerrarFicha: boolean): Promise<boolean> {
         peek,
         lineas,
         vencimiento: fechaInicio,
-        reservadosPagare: 0,
+        // El 5 % pide CORRPAGNUM dentro del procedimiento y recibe peek (Valor+1); el primer beneficio es peek+1.
+        reservadosPagare: 1,
       })
     : []
   const armado = armarGrabarCuentaWebpay({
@@ -487,6 +526,7 @@ async function enviarAFirmar(): Promise<void> {
     const numOperacionContrato = numeroOperacionContrato(
       vmFirmado.numOperacion,
       alumnoCtx.numOperacionCuenta,
+      { ambosWebpay: ambosWebpay.value },
     )
     if (ambosWebpay.value && numOperacionContrato === '—') {
       cerrarProgresoError()

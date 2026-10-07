@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { lineasBeneficioGrabar } from '@/utils/lineasBeneficioGrabar'
+import { lineasBeneficioGrabar, lineasBeneficioPagare } from '@/utils/lineasBeneficioGrabar'
 import type { LineaParaDocumentoDescuento } from '@/utils/documentosDescuentoContrato'
 
 const arancel: LineaParaDocumentoDescuento = {
@@ -59,5 +59,38 @@ describe('lineasBeneficioGrabar', () => {
       cae: null,
     })
     expect(lineas).toEqual([])
+  })
+})
+
+describe('lineasBeneficioPagare', () => {
+  const cae: LineaParaDocumentoDescuento = {
+    concepto: 'arancel',
+    flujo: 'CAE',
+    codben: '4',
+    descripcion: 'Crédito Aval del Estado',
+    monto: 1200000,
+  }
+
+  it('deja el CAE y el descuento de matrícula sin CODBEN y conserva el del arancel', () => {
+    const lineas = lineasBeneficioPagare({ lineasArancel: [arancel], descuentoMatricula, cae })
+    expect(lineas.map((l) => l.codben)).toEqual(['2039', undefined, undefined])
+    expect(lineas.find((l) => l.flujo === 'CAE')?.monto).toBe(1200000)
+    expect(lineas.find((l) => l.flujo === 'DESCUENTO_MATRICULA')?.monto).toBe(30000)
+  })
+
+  it('no altera las líneas del grabado Webpay', () => {
+    const entrada = { lineasArancel: [arancel], descuentoMatricula, cae }
+    lineasBeneficioPagare(entrada)
+    expect(lineasBeneficioGrabar(entrada).map((l) => l.codben)).toEqual(['2039', '4', '2100'])
+  })
+
+  it('conserva el CAE en cero, sin CODBEN, antes del descuento de matrícula', () => {
+    const lineas = lineasBeneficioPagare({
+      lineasArancel: [arancel],
+      descuentoMatricula,
+      cae: { ...cae, monto: 0 },
+    })
+    expect(lineas.map((l) => l.flujo)).toEqual(['INTERNA', 'CAE', 'DESCUENTO_MATRICULA'])
+    expect(lineas[1]?.codben).toBeUndefined()
   })
 })

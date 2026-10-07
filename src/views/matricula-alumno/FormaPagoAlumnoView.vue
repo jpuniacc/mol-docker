@@ -118,7 +118,7 @@ import {
   asignarDocumentosDescuento,
   type LineaParaDocumentoDescuento,
 } from '@/utils/documentosDescuentoContrato'
-import { lineasBeneficioGrabar } from '@/utils/lineasBeneficioGrabar'
+import { lineasBeneficioGrabar, lineasBeneficioPagare } from '@/utils/lineasBeneficioGrabar'
 import {
   buildPagareCuotasDraft,
   incrementPeek,
@@ -1504,13 +1504,8 @@ function descuentosParaContrato(): MockDescuentoPagare[] {
   if (!/^\d+$/.test(peek)) return []
   const anio = anioNotas.value
   const vencimiento = anio != null ? `29/12/${anio}` : '—'
-  const entrada = entradaBeneficiosGrabar()
-  const lineas = lineasBeneficioGrabar(entrada)
-  // El plan del pagaré conserva el CAE aunque su monto sea 0; el grabado de Webpay no.
-  if (entrada.cae && entrada.cae.monto <= 0) {
-    const indice = lineas.findIndex((linea) => linea.concepto === 'matricula')
-    lineas.splice(indice === -1 ? lineas.length : indice, 0, entrada.cae)
-  }
+  // Sin CODBEN en el CAE ni en el descuento de matrícula: el payload del pagaré no cambia.
+  const lineas = lineasBeneficioPagare(entradaBeneficiosGrabar())
   return asignarDocumentosDescuento({
     peek,
     vencimiento,
