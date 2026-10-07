@@ -18,6 +18,9 @@ export type GrabarPlanPagosPayload = {
   corrpagMatricula: string
   corrpagArancel: string
   beneficios: BeneficioPlanPagos[]
+  medioMatricula?: 'pagare' | 'webpay'
+  medioArancel?: 'pagare' | 'webpay'
+  cerrarFicha?: boolean
 }
 
 export type BeneficioPlanPagos = {
