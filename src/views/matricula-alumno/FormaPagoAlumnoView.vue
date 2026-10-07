@@ -81,6 +81,7 @@ import {
   type FilaBeneficioPromedio,
 } from '@/utils/beneficioPromedioVista'
 import { elegirPromedio } from '@/utils/resolucionBecaPromedio'
+import type { ContratoDescuentoLinea } from '@/types/contratoMatricula'
 import type { MnpMvBeneficioPeriodoRow } from '@/types/supabase'
 import {
   casoCertificadoConvenio,
@@ -1277,6 +1278,39 @@ function persistirMediosYMontosWebpay(): void {
   alumnoCtx.setMedioArancel(medioPagoArancel.value)
   alumnoCtx.setWebpayMontoMatricula(montoNetoMatricula())
   alumnoCtx.setWebpayMontoArancel(montoNetoArancel())
+  alumnoCtx.setDatosContratoWebpay({
+    valorMatriculaBruto: montoBrutoMatricula(),
+    valorArancelBruto: montoBrutoArancel(),
+    descuentosContrato: lineasBeneficioParaContratoWebpay(),
+  })
+}
+
+// Líneas que montoNetoMatricula/montoNetoArancel restan. No depende del correlativo del pagaré.
+function lineasBeneficioParaContratoWebpay(): ContratoDescuentoLinea[] {
+  const base = (
+    concepto: 'matricula' | 'arancel',
+    descripcion: string,
+    monto: number,
+  ): ContratoDescuentoLinea => ({
+    concepto,
+    documento: '—',
+    tipoDocumento: descripcion,
+    descripcion,
+    detalle: descripcion,
+    monto,
+    vencimiento: '—',
+  })
+  const lineas: ContratoDescuentoLinea[] = []
+  const montoMes = montoDescuentoMatriculaAplicado()
+  const descuentoMes = descuentoMatriculaMes.value
+  if (descuentoMes && montoMes > 0) {
+    lineas.push(base('matricula', descuentoMes.nombre, montoMes))
+  }
+  for (const fila of lineasDescuento.value) {
+    if (fila.flujo === 'CAE') continue
+    lineas.push(base('arancel', fila.descripcion, fila.monto))
+  }
+  return lineas
 }
 
 function contextoCrearWebpay(): { codcli: string; anio: number; periodo: 1 | 2 } | null {

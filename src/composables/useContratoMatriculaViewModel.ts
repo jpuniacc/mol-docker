@@ -8,7 +8,10 @@ import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import { useMockMatriculaContextStore } from '@/stores/mockMatriculaContext'
 import { useMatriculaFlujoPreflightStore } from '@/stores/datos_erp/matricula_flujo_preflight'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
-import type { ContratoMatriculaViewModel } from '@/types/contratoMatricula'
+import type {
+  ContratoDescuentoLinea,
+  ContratoMatriculaViewModel,
+} from '@/types/contratoMatricula'
 import {
   bloquesContrato,
   type ContratoMatriculaViewModelConMedio,
@@ -70,6 +73,9 @@ type MediosWebpayCtx = {
   webpayArancelEstado?: WebpayConceptoEstadoCtx
   webpayMontoMatricula?: number | null
   webpayMontoArancel?: number | null
+  valorMatriculaBruto?: number | null
+  valorArancelBruto?: number | null
+  descuentosContrato?: ContratoDescuentoLinea[]
 }
 
 export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'mock') {
@@ -107,8 +113,10 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
       .filter((c) => c.item === 2)
       .reduce((a, c) => a + (Number(c.monto) || 0), 0)
 
-    let valorMatricula = pago?.valorMatriculaBruto ?? (pago ? matSum : (ctx.webpayMontoMatricula ?? 0))
-    let valorArancel = pago?.valorArancelBruto ?? (pago ? araSum : (ctx.webpayMontoArancel ?? 0))
+    // Sin pagoMatricula el bruto viene del contexto persistido, nunca del saldo Webpay.
+    let valorMatricula =
+      pago?.valorMatriculaBruto ?? (pago ? matSum : (ctx.valorMatriculaBruto ?? 0))
+    let valorArancel = pago?.valorArancelBruto ?? (pago ? araSum : (ctx.valorArancelBruto ?? 0))
     if (pago && valorMatricula <= 0 && valorArancel <= 0 && pago.monto > 0) {
       valorArancel = pago.monto
     }
@@ -117,6 +125,10 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
     const descuentoFormaPagoArancel = Math.round(
       saldoWebpayArancel * PORC_DESCUENTO_FORMA_PAGO_WEBPAY,
     )
+    const descuentosContrato: ContratoDescuentoLinea[] =
+      pago?.descuentos && pago.descuentos.length > 0
+        ? pago.descuentos
+        : (ctx.descuentosContrato ?? [])
     const bloques = bloquesContrato({
       medioMatricula: matriculaWebpayOk ? 'webpay' : 'pagare',
       medioArancel: arancelWebpayOk ? 'webpay' : 'pagare',
@@ -171,7 +183,7 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
           : fuente.mailApoderadoMostrado.value,
       valorMatricula,
       valorArancel,
-      descuentos: (pago?.descuentos ?? []).map((d) => ({
+      descuentos: descuentosContrato.map((d) => ({
         concepto: d.concepto,
         documento: d.documento,
         tipoDocumento: d.tipoDocumento,

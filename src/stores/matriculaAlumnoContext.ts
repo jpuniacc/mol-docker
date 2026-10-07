@@ -11,6 +11,7 @@ import type {
   MockPagoMatricula,
   MockVerificacionCae,
 } from '@/stores/mockMatriculaContext'
+import type { ContratoDescuentoLinea } from '@/types/contratoMatricula'
 import type { MedioConcepto } from '@/utils/webpaySiguientePaso'
 
 const ALUMNO_CTX_STORAGE_KEY = 'rematricula-alumno-matricula'
@@ -38,6 +39,9 @@ type StoredAlumnoMatriculaContext = {
   webpayArancelEstado: WebpayConceptoEstado | null
   webpayMontoMatricula: number | null
   webpayMontoArancel: number | null
+  valorMatriculaBruto: number | null
+  valorArancelBruto: number | null
+  descuentosContrato: ContratoDescuentoLinea[]
   pasoAlcanzado: number
 }
 
@@ -85,6 +89,27 @@ function isWebpayConceptoEstado(v: unknown): v is WebpayConceptoEstado {
 function montoWebpayPersistido(v: unknown): number | null {
   if (typeof v !== 'number' || !Number.isInteger(v) || v <= 0) return null
   return v
+}
+
+function descuentosContratoPersistidos(v: unknown): ContratoDescuentoLinea[] {
+  if (!Array.isArray(v)) return []
+  const out: ContratoDescuentoLinea[] = []
+  for (const item of v) {
+    if (typeof item !== 'object' || item === null) continue
+    const d = item as Partial<ContratoDescuentoLinea>
+    if (d.concepto !== 'matricula' && d.concepto !== 'arancel') continue
+    if (typeof d.monto !== 'number' || !Number.isFinite(d.monto)) continue
+    out.push({
+      concepto: d.concepto,
+      documento: typeof d.documento === 'string' ? d.documento : '—',
+      tipoDocumento: typeof d.tipoDocumento === 'string' ? d.tipoDocumento : '—',
+      descripcion: typeof d.descripcion === 'string' ? d.descripcion : '—',
+      detalle: typeof d.detalle === 'string' ? d.detalle : '—',
+      monto: d.monto,
+      vencimiento: typeof d.vencimiento === 'string' ? d.vencimiento : '—',
+    })
+  }
+  return out
 }
 
 function hasAnyProgressPayload(parsed: Partial<StoredAlumnoMatriculaContext>): boolean {
@@ -143,6 +168,9 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
     webpayArancelEstado: null as WebpayConceptoEstado | null,
     webpayMontoMatricula: null as number | null,
     webpayMontoArancel: null as number | null,
+    valorMatriculaBruto: null as number | null,
+    valorArancelBruto: null as number | null,
+    descuentosContrato: [] as ContratoDescuentoLinea[],
     pasoAlcanzado: 1,
   }),
   actions: {
@@ -168,6 +196,9 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
         webpayArancelEstado: this.webpayArancelEstado,
         webpayMontoMatricula: this.webpayMontoMatricula,
         webpayMontoArancel: this.webpayMontoArancel,
+        valorMatriculaBruto: this.valorMatriculaBruto,
+        valorArancelBruto: this.valorArancelBruto,
+        descuentosContrato: this.descuentosContrato,
         pasoAlcanzado: this.pasoAlcanzado,
       }
       sessionStorage.setItem(ALUMNO_CTX_STORAGE_KEY, JSON.stringify(payload))
@@ -219,6 +250,9 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
           : null
         this.webpayMontoMatricula = montoWebpayPersistido(parsed.webpayMontoMatricula)
         this.webpayMontoArancel = montoWebpayPersistido(parsed.webpayMontoArancel)
+        this.valorMatriculaBruto = montoWebpayPersistido(parsed.valorMatriculaBruto)
+        this.valorArancelBruto = montoWebpayPersistido(parsed.valorArancelBruto)
+        this.descuentosContrato = descuentosContratoPersistidos(parsed.descuentosContrato)
         this.pasoAlcanzado =
           typeof parsed.pasoAlcanzado === 'number' &&
           parsed.pasoAlcanzado >= 1 &&
@@ -263,6 +297,9 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
       this.webpayArancelEstado = null
       this.webpayMontoMatricula = null
       this.webpayMontoArancel = null
+      this.valorMatriculaBruto = null
+      this.valorArancelBruto = null
+      this.descuentosContrato = []
       this.pasoAlcanzado = 1
       this.resetStoresErp()
       this.clearSessionStorage()
@@ -409,6 +446,18 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
 
     setWebpayMontoArancel(monto: number | null) {
       this.webpayMontoArancel = montoWebpayPersistido(monto)
+      this.persistToSessionStorage()
+    },
+
+    /** Guarda el bruto del ERP y las líneas de beneficio para el contrato tras el redirect de Transbank. */
+    setDatosContratoWebpay(datos: {
+      valorMatriculaBruto: number | null
+      valorArancelBruto: number | null
+      descuentosContrato: ContratoDescuentoLinea[]
+    }) {
+      this.valorMatriculaBruto = montoWebpayPersistido(datos.valorMatriculaBruto)
+      this.valorArancelBruto = montoWebpayPersistido(datos.valorArancelBruto)
+      this.descuentosContrato = descuentosContratoPersistidos(datos.descuentosContrato)
       this.persistToSessionStorage()
     },
   },
