@@ -52,6 +52,7 @@ import {
   TELEFONO_CHILE_PREFIJO,
   telefonoChileEsValido,
 } from '@/utils/telefonoChile'
+import { esCorreoDominioUniacc, MENSAJE_CORREO_PERSONAL_UNIACC } from '@/utils/correoPersonal'
 import {
   CONTACTO_OTP_MAX_ENVIOS,
   CONTACTO_OTP_SIN_VALIDAR_ACEPTAR,
@@ -178,6 +179,7 @@ function capturarBaselineContactoErp(): void {
 function correoPersistidoCoincide(valor: string): boolean {
   const guardado = alumnoCtx.contactoCorreoValidado
   if (!guardado) return false
+  if (esCorreoDominioUniacc(valor) || esCorreoDominioUniacc(guardado)) return false
   return valor.trim().toLowerCase() === guardado.trim().toLowerCase()
 }
 
@@ -651,15 +653,17 @@ function emailTieneFormatoValido(s: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim())
 }
 
+const emailEsInstitucional = computed(() => esCorreoDominioUniacc(emailDraft.value))
+
 const emailFormatoInvalido = computed(() => {
   const em = emailDraft.value.trim()
-  if (!emailTocado.value || !em) return false
+  if (!emailTocado.value || !em || emailEsInstitucional.value) return false
   return !emailTieneFormatoValido(em)
 })
 
 const puedeEnviarCorreoOtp = computed(() => {
   const em = emailDraft.value.trim()
-  return em.length > 0 && emailTieneFormatoValido(em)
+  return em.length > 0 && emailTieneFormatoValido(em) && !emailEsInstitucional.value
 })
 
 const telefonoFormatoInvalido = computed(() => {
@@ -717,6 +721,11 @@ function cancelarContinuarSinOtpCorreo() {
 }
 
 function aceptarContinuarSinOtpCorreo() {
+  if (esCorreoDominioUniacc(emailDraft.value)) {
+    mostrarContinuarSinOtpCorreo.value = false
+    errorCorreo.value = MENSAJE_CORREO_PERSONAL_UNIACC
+    return
+  }
   mostrarContinuarSinOtpCorreo.value = false
   alumnoCtx.marcarCorreoValidado(emailDraft.value)
   correoValidadoOk.value = true
@@ -789,6 +798,10 @@ async function enviarCodigoCorreoOtp() {
   }
   if (!emailTieneFormatoValido(em)) {
     errorCorreo.value = 'El correo personal no tiene un formato válido.'
+    return
+  }
+  if (esCorreoDominioUniacc(em)) {
+    errorCorreo.value = MENSAJE_CORREO_PERSONAL_UNIACC
     return
   }
   const identidad = identidadOtpAlumno()
@@ -1288,11 +1301,14 @@ watch(
               autocomplete="email"
               placeholder="correo@ejemplo.cl"
               :disabled="correoValidadoOk || datosCargando"
-              :class="emailFormatoInvalido ? 'border-destructive' : ''"
+              :class="emailFormatoInvalido || emailEsInstitucional ? 'border-destructive' : ''"
               @blur="emailTocado = true"
               @input="emailTocado = true"
             />
-            <p v-if="emailFormatoInvalido" class="text-sm text-destructive">
+            <p v-if="emailEsInstitucional" class="text-sm text-destructive">
+              {{ MENSAJE_CORREO_PERSONAL_UNIACC }}
+            </p>
+            <p v-else-if="emailFormatoInvalido" class="text-sm text-destructive">
               Ingresa un correo válido (ej. nombre@dominio.cl).
             </p>
             <p v-if="errorCorreo" class="text-sm font-medium text-destructive">{{ errorCorreo }}</p>
