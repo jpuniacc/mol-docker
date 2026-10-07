@@ -9,6 +9,11 @@ import { useMockMatriculaContextStore } from '@/stores/mockMatriculaContext'
 import { useMatriculaFlujoPreflightStore } from '@/stores/datos_erp/matricula_flujo_preflight'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import type { ContratoMatriculaViewModel } from '@/types/contratoMatricula'
+import {
+  bloquesContrato,
+  type ContratoMatriculaViewModelConMedio,
+  type MedioContrato,
+} from '@/utils/lineasContratoMedio'
 
 function dash(v: string | null | undefined): string {
   const t = (v ?? '').trim()
@@ -52,6 +57,21 @@ function domiciliadoPorGenero(genero: string): string {
 
 export type ContratoMatriculaFlow = 'mock' | 'alumno'
 
+/** Porcentaje de descuento por forma de pago del arancel pagado con Webpay. */
+const PORC_DESCUENTO_FORMA_PAGO_WEBPAY = 0.05
+
+type WebpayConceptoEstadoCtx = 'autorizada' | 'rechazada' | 'abortada' | null
+
+/** Medios y estados Webpay que solo guarda el contexto del alumno. */
+type MediosWebpayCtx = {
+  medioMatricula?: MedioContrato | null
+  medioArancel?: MedioContrato | null
+  webpayMatriculaEstado?: WebpayConceptoEstadoCtx
+  webpayArancelEstado?: WebpayConceptoEstadoCtx
+  webpayMontoMatricula?: number | null
+  webpayMontoArancel?: number | null
+}
+
 export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'mock') {
   const mockCtx =
     flow === 'alumno' ? useMatriculaAlumnoContextStore() : useMockMatriculaContextStore()
@@ -60,11 +80,17 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
   const periodoActivo = usePeriodoActivoStore()
   const { pagoMatricula } = storeToRefs(mockCtx)
 
-  const tienePlanConfirmado = computed(() => pagoMatricula.value != null)
-
-  const viewModel = computed((): ContratoMatriculaViewModel | null => {
+  const viewModel = computed((): ContratoMatriculaViewModelConMedio | null => {
     const pago = pagoMatricula.value
-    if (!pago) return null
+    // Solo el contexto del alumno guarda medios y estados Webpay.
+    const ctx: MediosWebpayCtx =
+      flow === 'alumno' ? (mockCtx as ReturnType<typeof useMatriculaAlumnoContextStore>) : {}
+    const matriculaWebpayOk =
+      ctx.medioMatricula === 'webpay' && ctx.webpayMatriculaEstado === 'autorizada'
+    const arancelWebpayOk =
+      ctx.medioArancel === 'webpay' && ctx.webpayArancelEstado === 'autorizada'
+    // Con los dos conceptos pagados por Webpay no hay plan de pagaré, pero el contrato se arma igual.
+    if (!pago && !(matriculaWebpayOk && arancelWebpayOk)) return null
 
     const asignaturasNuevo = false
 
@@ -73,7 +99,7 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
     const ciudad = dash(fuente.ciudadMostrada.value)
     const domicilioLinea = [direccion, comuna, ciudad].filter((x) => x !== '—').join(', ') || '—'
 
-    const cuotasDetalle = pago.cuotasDetalle ?? []
+    const cuotasDetalle = pago?.cuotasDetalle ?? []
     const matSum = cuotasDetalle
       .filter((c) => c.item === 1)
       .reduce((a, c) => a + (Number(c.monto) || 0), 0)
@@ -81,11 +107,23 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
       .filter((c) => c.item === 2)
       .reduce((a, c) => a + (Number(c.monto) || 0), 0)
 
-    let valorMatricula = pago.valorMatriculaBruto ?? matSum
-    let valorArancel = pago.valorArancelBruto ?? araSum
-    if (valorMatricula <= 0 && valorArancel <= 0 && pago.monto > 0) {
+    let valorMatricula = pago?.valorMatriculaBruto ?? (pago ? matSum : (ctx.webpayMontoMatricula ?? 0))
+    let valorArancel = pago?.valorArancelBruto ?? (pago ? araSum : (ctx.webpayMontoArancel ?? 0))
+    if (pago && valorMatricula <= 0 && valorArancel <= 0 && pago.monto > 0) {
       valorArancel = pago.monto
     }
+
+    const saldoWebpayArancel = arancelWebpayOk ? Math.max(0, ctx.webpayMontoArancel ?? 0) : 0
+    const descuentoFormaPagoArancel = Math.round(
+      saldoWebpayArancel * PORC_DESCUENTO_FORMA_PAGO_WEBPAY,
+    )
+    const bloques = bloquesContrato({
+      medioMatricula: matriculaWebpayOk ? 'webpay' : 'pagare',
+      medioArancel: arancelWebpayOk ? 'webpay' : 'pagare',
+      descuentoFormaPagoArancel,
+      montoWebpayMatricula: Math.max(0, ctx.webpayMontoMatricula ?? 0),
+      montoWebpayArancel: Math.max(0, saldoWebpayArancel - descuentoFormaPagoArancel),
+    })
 
     const preAno = preflight.steps?.contrato.ano
     const prePer = preflight.steps?.contrato.periodo
@@ -97,8 +135,8 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
     const sostRut = dash(fuente.rutApoderadoMostrado.value)
 
     return {
-      numOperacion: String(pago.numOperacion ?? '—'),
-      contrato: String(pago.contrato ?? '—'),
+      numOperacion: String(pago?.numOperacion ?? '—'),
+      contrato: String(pago?.contrato ?? 'webpay'),
       fechaContratoLabel: fechaHoyLabel(),
       ciudadFirma: 'Santiago',
       periodoAcademico,
@@ -133,7 +171,7 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
           : fuente.mailApoderadoMostrado.value,
       valorMatricula,
       valorArancel,
-      descuentos: (pago.descuentos ?? []).map((d) => ({
+      descuentos: (pago?.descuentos ?? []).map((d) => ({
         concepto: d.concepto,
         documento: d.documento,
         tipoDocumento: d.tipoDocumento,
@@ -157,8 +195,11 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
         rut: '',
       },
       asignaturasNuevo,
+      bloques,
     }
   })
+
+  const tienePlanConfirmado = computed(() => viewModel.value != null)
 
   return {
     clausulasFixture,

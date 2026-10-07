@@ -3,9 +3,10 @@ import { computed } from 'vue'
 
 import clausulasFixture from '@/assets/contrato/clausulas.json'
 import type { ContratoMatriculaViewModel } from '@/types/contratoMatricula'
+import type { BloquesContrato } from '@/utils/lineasContratoMedio'
 
 const props = defineProps<{
-  model: ContratoMatriculaViewModel
+  model: ContratoMatriculaViewModel & { bloques?: BloquesContrato }
 }>()
 
 function formatClp(n: number): string {
@@ -35,8 +36,34 @@ function fill(template: string): string {
 
 const preambulo = computed(() => fill(clausulasFixture.preambuloIntro))
 
-const cuotasMat = computed(() => props.model.cuotas.filter((c) => c.item === 1))
-const cuotasAra = computed(() => props.model.cuotas.filter((c) => c.item === 2))
+const bloques = computed(() => props.model.bloques ?? null)
+// Sin bloques (flujo mock) se conserva el contrato de siempre: cuotas y mandato.
+const muestraMandatoPagare = computed(() => bloques.value?.muestraMandatoPagare ?? true)
+const muestraCuotasMatricula = computed(() => bloques.value?.muestraCuotasMatricula ?? true)
+const muestraCuotasArancel = computed(() => bloques.value?.muestraCuotasArancel ?? true)
+const pagadoWebpayMatricula = computed(() =>
+  bloques.value?.muestraPagadoWebpayMatricula ? bloques.value.montoWebpayMatricula : 0,
+)
+const pagadoWebpayArancel = computed(() =>
+  bloques.value?.muestraPagadoWebpayArancel ? bloques.value.montoWebpayArancel : 0,
+)
+const descuentoFormaPagoArancel = computed(() => bloques.value?.descuentoFormaPagoArancel ?? 0)
+const hayWebpay = computed(
+  () => !!bloques.value?.muestraPagadoWebpayMatricula || !!bloques.value?.muestraPagadoWebpayArancel,
+)
+
+const clausulasVisibles = computed(() =>
+  clausulasFixture.clausulas.filter(
+    (cl) => cl.id !== 'decimo_quinto' || muestraMandatoPagare.value,
+  ),
+)
+
+const cuotasMat = computed(() =>
+  muestraCuotasMatricula.value ? props.model.cuotas.filter((c) => c.item === 1) : [],
+)
+const cuotasAra = computed(() =>
+  muestraCuotasArancel.value ? props.model.cuotas.filter((c) => c.item === 2) : [],
+)
 const descuentosMatricula = computed(() =>
   props.model.descuentos.filter((d) => d.concepto === 'matricula' && d.monto > 0),
 )
@@ -134,7 +161,7 @@ const vencimientoPagareArancel = computed(
     <p class="text-justify">{{ clausulasFixture.reglamentos }}</p>
 
     <section
-      v-for="cl in clausulasFixture.clausulas"
+      v-for="cl in clausulasVisibles"
       :key="cl.id"
       class="space-y-2"
     >
@@ -147,6 +174,30 @@ const vencimientoPagareArancel = computed(
           <div class="flex flex-wrap gap-6 font-semibold">
             <span>valor matrícula {{ formatClp(model.valorMatricula) }}</span>
             <span>valor arancel {{ formatClp(model.valorArancel) }}</span>
+          </div>
+          <div v-if="hayWebpay" class="overflow-x-auto">
+            <table class="w-full border-collapse text-left">
+              <tbody>
+                <tr
+                  v-if="bloques?.muestraPagadoWebpayMatricula"
+                  class="border-b border-zinc-200"
+                >
+                  <td class="py-1 pr-2">Matrícula — Pagado con Webpay</td>
+                  <td class="py-1 text-right font-semibold">{{ formatClp(pagadoWebpayMatricula) }}</td>
+                </tr>
+                <tr
+                  v-if="bloques?.muestraPagadoWebpayArancel"
+                  class="border-b border-zinc-200"
+                >
+                  <td class="py-1 pr-2">Arancel — Pagado con Webpay</td>
+                  <td class="py-1 text-right font-semibold">{{ formatClp(pagadoWebpayArancel) }}</td>
+                </tr>
+                <tr v-if="descuentoFormaPagoArancel > 0" class="border-b border-zinc-200">
+                  <td class="py-1 pr-2">Descuento por forma de pago</td>
+                  <td class="py-1 text-right font-semibold">{{ formatClp(descuentoFormaPagoArancel) }}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
           <div v-if="descuentosMatricula.length" class="overflow-x-auto">
             <p class="mb-1 font-semibold">Matrícula — Descuentos</p>
@@ -252,7 +303,7 @@ const vencimientoPagareArancel = computed(
               </tbody>
             </table>
           </div>
-          <p v-if="!model.cuotas.length" class="text-muted-foreground">
+          <p v-if="!model.cuotas.length && !hayWebpay" class="text-muted-foreground">
             Sin detalle de cuotas (medio {{ model.contrato }}).
           </p>
         </div>
