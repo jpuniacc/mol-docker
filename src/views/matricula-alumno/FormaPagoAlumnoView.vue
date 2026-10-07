@@ -109,7 +109,7 @@ import type {
 } from '@/stores/mockMatriculaContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import {
-  descuentoMatriculaParaPago,
+  descuentoMatriculaAplicado,
   fechaChileIso,
   FLUJO_DESCUENTO_MATRICULA,
   type ReservaDescuentoMatriculaAplicar,
@@ -518,8 +518,8 @@ const nombresBecaEstatal = computed(() =>
   beneficios.value.filter((b) => b.flujo === 'ESTATAL').map((b) => b.descripcion),
 )
 
-const descuentoMatriculaMes = computed(() =>
-  descuentoMatriculaParaPago({
+const descuentoMatriculaAplicadoConFila = computed(() =>
+  descuentoMatriculaAplicado({
     filas: descuentosMatriculaCatalogo.value,
     periodo: periodoActivoLabel.value ?? '',
     hoy: fechaChileIso(),
@@ -528,6 +528,19 @@ const descuentoMatriculaMes = computed(() =>
     reserva: reservaMatricula.value,
   }),
 )
+
+const descuentoMatriculaMes = computed(
+  () => descuentoMatriculaAplicadoConFila.value?.descuento ?? null,
+)
+
+// CODBEN del ERP de la fila del catálogo que se aplicó. Sin fila o sin entero positivo, no hay código.
+function codbenDescuentoMatricula(): string | undefined {
+  const id = descuentoMatriculaAplicadoConFila.value?.fila.id
+  if (id == null) return undefined
+  const fila = descuentosMatriculaCatalogo.value.find((item) => item.id === id)
+  const cod = Number(fila?.cod_beneficio)
+  return Number.isInteger(cod) && cod > 0 ? String(cod) : undefined
+}
 
 const textoReservaMatricula = computed(() => {
   const descuento = descuentoMatriculaMes.value
@@ -1316,6 +1329,7 @@ function entradaBeneficiosGrabar(): {
     ? {
         concepto: 'arancel',
         flujo: 'CAE',
+        codben: '4',
         descripcion: 'Crédito Aval del Estado',
         monto: montoCaeAprobado.value,
       }
@@ -1327,6 +1341,7 @@ function entradaBeneficiosGrabar(): {
       ? {
           concepto: 'matricula',
           flujo: FLUJO_DESCUENTO_MATRICULA,
+          codben: codbenDescuentoMatricula(),
           descripcion: descuentoMes.nombre,
           monto: montoDescuentoMes,
         }

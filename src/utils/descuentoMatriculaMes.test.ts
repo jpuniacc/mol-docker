@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  descuentoMatriculaAplicado,
   descuentoMatriculaParaPago,
   filaDescuentoMatriculaDelMes,
   type FilaDescuentoMatriculaMes,
@@ -130,5 +131,33 @@ describe('descuentoMatriculaParaPago', () => {
         reserva: null,
       }),
     ).toBeNull()
+  })
+})
+
+describe('descuentoMatriculaAplicado', () => {
+  it('devuelve la fila del mes elegida, no el reintegro', () => {
+    const filas = FILAS.map((f, i) => ({ ...f, id: i + 10 }))
+    const r = descuentoMatriculaAplicado({
+      filas,
+      periodo: '2027-1',
+      hoy: '2026-11-15',
+      tieneCae: false,
+      tieneBecaEstatal: false,
+      reserva: null,
+    })
+    expect(r?.fila.id).toBe(10)
+    expect(r?.descuento).toEqual({ nombre: 'Matricula Anticipada Noviembre', monto: 50000 })
+  })
+
+  it('con reserva vigente devuelve la fila reservada', () => {
+    const r = descuentoMatriculaAplicado({
+      filas: [FILA_NOVIEMBRE],
+      periodo: '2027-1',
+      hoy: '2027-01-10',
+      tieneCae: true,
+      tieneBecaEstatal: false,
+      reserva: { descuentoId: 2, nombre: 'Matricula Anticipada Noviembre', monto: 50000 },
+    })
+    expect(r?.fila.id).toBe(2)
   })
 })

@@ -54,6 +54,23 @@ export function filaDescuentoMatriculaDelMes(input: {
   tieneCae: boolean
   tieneBecaEstatal: boolean
 }): DescuentoMatriculaDelMes | null {
+  const sel = seleccionDelMes(input)
+  return sel ? sel.descuento : null
+}
+
+/** Descuento aplicado y la fila del catálogo que lo originó. */
+export type DescuentoMatriculaConFila = {
+  descuento: DescuentoMatriculaDelMes
+  fila: FilaDescuentoMatriculaMes
+}
+
+function seleccionDelMes(input: {
+  filas: FilaDescuentoMatriculaMes[]
+  periodo: string
+  hoy: string
+  tieneCae: boolean
+  tieneBecaEstatal: boolean
+}): DescuentoMatriculaConFila | null {
   if (input.tieneCae || input.tieneBecaEstatal) return null
   const periodo = input.periodo.trim()
   const hoy = ymd(input.hoy)
@@ -74,7 +91,7 @@ export function filaDescuentoMatriculaDelMes(input: {
   candidatos.sort((a, b) => ymd(a.vigencia_desde).localeCompare(ymd(b.vigencia_desde)))
   const fila = candidatos[0]
   if (!fila) return null
-  return { nombre: fila.nombre.trim(), monto: Number(fila.monto_descuento) }
+  return { descuento: { nombre: fila.nombre.trim(), monto: Number(fila.monto_descuento) }, fila }
 }
 
 /**
@@ -89,16 +106,28 @@ export function descuentoMatriculaParaPago(input: {
   tieneBecaEstatal: boolean
   reserva: ReservaDescuentoMatriculaAplicar | null
 }): DescuentoMatriculaDelMes | null {
+  return descuentoMatriculaAplicado(input)?.descuento ?? null
+}
+
+/** Igual que `descuentoMatriculaParaPago`, pero devuelve también la fila elegida. */
+export function descuentoMatriculaAplicado(input: {
+  filas: FilaDescuentoMatriculaMes[]
+  periodo: string
+  hoy: string
+  tieneCae: boolean
+  tieneBecaEstatal: boolean
+  reserva: ReservaDescuentoMatriculaAplicar | null
+}): DescuentoMatriculaConFila | null {
   const reservado = descuentoDesdeReserva(input.filas, input.hoy, input.reserva)
   if (reservado) return reservado
-  return filaDescuentoMatriculaDelMes(input)
+  return seleccionDelMes(input)
 }
 
 function descuentoDesdeReserva(
   filas: FilaDescuentoMatriculaMes[],
   hoy: string,
   reserva: ReservaDescuentoMatriculaAplicar | null,
-): DescuentoMatriculaDelMes | null {
+): DescuentoMatriculaConFila | null {
   if (!reserva || reserva.monto <= 0) return null
   const dia = ymd(hoy)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dia)) return null
@@ -108,5 +137,5 @@ function descuentoDesdeReserva(
   if (!/^\d{4}-\d{2}-\d{2}$/.test(hasta) || dia > hasta) return null
   const nombre = reserva.nombre.trim() || fila.nombre.trim()
   if (!nombre) return null
-  return { nombre, monto: Number(reserva.monto) }
+  return { descuento: { nombre, monto: Number(reserva.monto) }, fila }
 }
