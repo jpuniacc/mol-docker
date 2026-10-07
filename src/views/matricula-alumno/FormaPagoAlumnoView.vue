@@ -90,6 +90,7 @@ import {
 } from '@/utils/convenioCertificadoGate'
 import { periodoCatalogoLabel } from '@/utils/periodoCatalogo'
 import { rutNorm } from '@/utils/rutNorm'
+import { montoWebpayArancel } from '@/utils/descuentoFormaPagoWebpay'
 import { arancelHabilitado, puedeContinuar } from '@/utils/selectorMedioPago'
 import { siguientePaso } from '@/utils/webpaySiguientePaso'
 import { useConvenioInstitucionalStore } from '@/stores/convenioInstitucional'
@@ -1277,6 +1278,7 @@ function persistirMediosYMontosWebpay(): void {
   alumnoCtx.setMedioMatricula(medioPagoMatricula.value)
   alumnoCtx.setMedioArancel(medioPagoArancel.value)
   alumnoCtx.setWebpayMontoMatricula(montoNetoMatricula())
+  // Saldo antes del 5 %. El contrato y la cuenta calculan el descuento sobre este monto.
   alumnoCtx.setWebpayMontoArancel(montoNetoArancel())
   alumnoCtx.setDatosContratoWebpay({
     valorMatriculaBruto: montoBrutoMatricula(),
@@ -1328,7 +1330,8 @@ async function iniciarWebpay(concepto: 'matricula' | 'arancel'): Promise<boolean
     toast.error('Faltan codcli o periodo de matrícula para Webpay')
     return false
   }
-  const monto = concepto === 'matricula' ? montoNetoMatricula() : montoNetoArancel()
+  const monto =
+    concepto === 'matricula' ? montoNetoMatricula() : montoWebpayArancel(montoNetoArancel())
   if (!Number.isInteger(monto) || monto <= 0) {
     toast.error('El monto a pagar no es un entero mayor que cero')
     return false
@@ -2206,7 +2209,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
                 <span class="min-w-0 flex-1">
                   <span class="block text-sm font-semibold text-zinc-900">Webpay</span>
                   <span class="block text-xs text-muted-foreground">
-                    {{ arancelPagadoWebpay ? 'Pagado' : `Pago en línea · ${fmt(montoNetoArancel())}` }}
+                    {{ arancelPagadoWebpay ? 'Pagado' : `Pago en línea · ${fmt(montoWebpayArancel(montoNetoArancel()))}` }}
                   </span>
                 </span>
                 <span

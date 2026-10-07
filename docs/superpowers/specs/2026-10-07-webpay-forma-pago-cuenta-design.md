@@ -53,11 +53,20 @@ Si crear el pago falla antes de salir, la pestaña no se va. Vuelven las opcione
 
 ## Datos que Webpay tiene que dejar guardados
 
-Al autorizar se guardan, por concepto, el código de autorización, la fecha de la transacción, el tipo de tarjeta y la cantidad de cuotas. Hoy la cantidad de cuotas no se persiste. Hay que guardarla en ese momento.
+No se abre otra tabla. Cada cobro sigue en `mnp_webpay_transaccion`, una fila por orden. Esa fila ya guarda el monto, el estado, el código de autorización, la fecha, el tipo de tarjeta y los últimos 4 dígitos.
+
+Al confirmar se agregan dos columnas:
+
+| Columna | Qué guarda |
+| --- | --- |
+| `installments_number` | Las cuotas que informa Transbank. Cero o uno es crédito de una cuota. Dos o más arman el calendario. |
+| `respuesta` | El JSON completo de la confirmación. Conserva `vci`, `accounting_date` y lo que Transbank agregue después. |
+
+El token ya está en la fila. No se guarda la llave del API ni el número completo de la tarjeta.
 
 Si al firmar falta el código de autorización, la fecha o el tipo de tarjeta, no se graba la cuenta y la firma no sigue. Ese rechazo también inserta un `log_mol_intento` con tema `cuenta`, acción `grabar` y resultado `error`, antes de abrir la transacción de U+.
 
-Débito y prepago usan el camino de una sola fila. Crédito sin cuotas informadas, o con una cuota, usa el camino de una cuota. Crédito con dos o más cuotas agrega el calendario.
+Débito y prepago usan el camino de una sola fila. Crédito sin cuotas informadas, o con cero o una cuota, usa el camino de una cuota. Crédito con dos o más cuotas agrega el calendario.
 
 ## Contrato
 
