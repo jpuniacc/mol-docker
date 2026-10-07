@@ -38,6 +38,7 @@ type StoredAlumnoMatriculaContext = {
   webpayMatriculaEstado: WebpayConceptoEstado | null
   webpayArancelEstado: WebpayConceptoEstado | null
   webpayMontoMatricula: number | null
+  numOperacionCuenta: string | null
   webpayMontoArancel: number | null
   valorMatriculaBruto: number | null
   valorArancelBruto: number | null
@@ -84,6 +85,12 @@ function isMedioConcepto(v: unknown): v is MedioConcepto {
 
 function isWebpayConceptoEstado(v: unknown): v is WebpayConceptoEstado {
   return v === 'autorizada' || v === 'rechazada' || v === 'abortada'
+}
+
+function numOperacionPersistido(v: unknown): string | null {
+  if (typeof v !== 'string') return null
+  const t = v.trim()
+  return /^\d+$/.test(t) ? t : null
 }
 
 function montoWebpayPersistido(v: unknown): number | null {
@@ -167,6 +174,7 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
     webpayMatriculaEstado: null as WebpayConceptoEstado | null,
     webpayArancelEstado: null as WebpayConceptoEstado | null,
     webpayMontoMatricula: null as number | null,
+    numOperacionCuenta: null as string | null,
     webpayMontoArancel: null as number | null,
     valorMatriculaBruto: null as number | null,
     valorArancelBruto: null as number | null,
@@ -195,6 +203,7 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
         webpayMatriculaEstado: this.webpayMatriculaEstado,
         webpayArancelEstado: this.webpayArancelEstado,
         webpayMontoMatricula: this.webpayMontoMatricula,
+        numOperacionCuenta: this.numOperacionCuenta,
         webpayMontoArancel: this.webpayMontoArancel,
         valorMatriculaBruto: this.valorMatriculaBruto,
         valorArancelBruto: this.valorArancelBruto,
@@ -249,6 +258,7 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
           ? parsed.webpayArancelEstado
           : null
         this.webpayMontoMatricula = montoWebpayPersistido(parsed.webpayMontoMatricula)
+        this.numOperacionCuenta = numOperacionPersistido(parsed.numOperacionCuenta)
         this.webpayMontoArancel = montoWebpayPersistido(parsed.webpayMontoArancel)
         this.valorMatriculaBruto = montoWebpayPersistido(parsed.valorMatriculaBruto)
         this.valorArancelBruto = montoWebpayPersistido(parsed.valorArancelBruto)
@@ -296,6 +306,7 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
       this.webpayMatriculaEstado = null
       this.webpayArancelEstado = null
       this.webpayMontoMatricula = null
+      this.numOperacionCuenta = null
       this.webpayMontoArancel = null
       this.valorMatriculaBruto = null
       this.valorArancelBruto = null
@@ -441,6 +452,11 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
 
     setWebpayMontoMatricula(monto: number | null) {
       this.webpayMontoMatricula = montoWebpayPersistido(monto)
+      this.persistToSessionStorage()
+    },
+
+    setNumOperacionCuenta(valor: string | null) {
+      this.numOperacionCuenta = numOperacionPersistido(valor)
       this.persistToSessionStorage()
     },
 

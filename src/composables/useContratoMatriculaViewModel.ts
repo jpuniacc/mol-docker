@@ -12,6 +12,7 @@ import type {
   ContratoDescuentoLinea,
   ContratoMatriculaViewModel,
 } from '@/types/contratoMatricula'
+import { numeroOperacionContrato } from '@/utils/numeroOperacionContrato'
 import {
   bloquesContrato,
   type ContratoMatriculaViewModelConMedio,
@@ -72,6 +73,7 @@ type MediosWebpayCtx = {
   webpayMatriculaEstado?: WebpayConceptoEstadoCtx
   webpayArancelEstado?: WebpayConceptoEstadoCtx
   webpayMontoMatricula?: number | null
+  numOperacionCuenta?: string | null
   webpayMontoArancel?: number | null
   valorMatriculaBruto?: number | null
   valorArancelBruto?: number | null
@@ -146,9 +148,12 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
     const sostNombre = dash(fuente.nombreApoderadoMostrado.value)
     const sostRut = dash(fuente.rutApoderadoMostrado.value)
 
+    const previewContrato = (preflight.steps?.contrato.preview ?? '').trim()
+    const contrato = (pago?.contrato ?? '').trim() || previewContrato || '—'
+
     return {
-      numOperacion: String(pago?.numOperacion ?? '—'),
-      contrato: String(pago?.contrato ?? 'webpay'),
+      numOperacion: numeroOperacionContrato(pago?.numOperacion, ctx.numOperacionCuenta),
+      contrato,
       fechaContratoLabel: fechaHoyLabel(),
       ciudadFirma: 'Santiago',
       periodoAcademico,
