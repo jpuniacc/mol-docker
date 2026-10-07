@@ -28,6 +28,11 @@ import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import { useMatriculaFlujoPreflightStore } from '@/stores/datos_erp/matricula_flujo_preflight'
 import { esPropioSostenedor } from '@/utils/apoderadoResponsable'
 import { armarGrabarPlanPagos, postGrabarPlanPagos } from '@/services/grabarPlanPagosApi'
+import { asignarDocumentosDescuento } from '@/utils/documentosDescuentoContrato'
+import { armarGrabarCuentaWebpay } from '@/utils/grabarCuentaWebpay'
+import { numeroOperacionContrato } from '@/utils/numeroOperacionContrato'
+import { ordenGrabadoWebpay } from '@/utils/ordenGrabadoWebpay'
+import { hoyIsoLocal } from '@/utils/pagareCuotasDraft'
 
 const POLL_MS = 5000
 const PASO_ENVIO_MS = 2_000
@@ -284,8 +289,82 @@ function abrirFirma(email: string): void {
   }
 }
 
+const ambosWebpay = computed(
+  () =>
+    alumnoCtx.medioMatricula === 'webpay' &&
+    alumnoCtx.webpayMatriculaEstado === 'autorizada' &&
+    alumnoCtx.medioArancel === 'webpay' &&
+    alumnoCtx.webpayArancelEstado === 'autorizada',
+)
+
+async function grabarCuentaWebpay(cerrarFicha: boolean): Promise<boolean> {
+  if (grabandoPlan.value) return false
+  const peek = (preflight.corrpagnumPreview ?? '').trim()
+  const lineas = alumnoCtx.lineasBeneficioGrabar
+  const hayBeneficios = lineas.some((linea) => linea.monto > 0)
+  if (hayBeneficios && !/^\d+$/.test(peek)) {
+    errorGrabacion.value = 'Faltan los folios de los beneficios'
+    return false
+  }
+  const contrato = (preflight.contratoPreview ?? '').trim()
+  if (!contrato) {
+    errorGrabacion.value = 'Falta el número de contrato'
+    return false
+  }
+  const fechaInicio = hoyIsoLocal()
+  const descuentos = hayBeneficios
+    ? asignarDocumentosDescuento({
+        peek,
+        lineas,
+        vencimiento: fechaInicio,
+        reservadosPagare: 0,
+      })
+    : []
+  const armado = armarGrabarCuentaWebpay({
+    rut: fuente.rutMostrado.value,
+    codcliAcademico: fuente.codcliMostrado.value,
+    codigoCarrera: alumnoMnp.primeraFila?.codigo_carrera ?? '',
+    ano: periodoActivo.anio,
+    periodo: periodoActivo.semestre,
+    caja: preflight.steps?.caja.row?.caja ?? null,
+    contrato,
+    fechaInicio,
+    montoMatricula: alumnoCtx.webpayMontoMatricula ?? 0,
+    montoArancel: alumnoCtx.webpayMontoArancel ?? 0,
+    descuentos,
+    cerrarFicha,
+  })
+  if (!armado.ok) {
+    errorGrabacion.value = armado.error
+    return false
+  }
+  grabandoPlan.value = true
+  errorGrabacion.value = null
+  const res = await postGrabarPlanPagos(armado.payload)
+  grabandoPlan.value = false
+  if (unmounted) return false
+  if (!res.ok) {
+    errorGrabacion.value = res.error
+    return false
+  }
+  if (/^\d+$/.test(res.numOperacion)) alumnoCtx.setNumOperacionCuenta(res.numOperacion)
+  return true
+}
+
 async function grabarPlanFirmado(): Promise<boolean> {
   if (planGrabado.value || grabandoPlan.value) return planGrabado.value
+  if (ambosWebpay.value) {
+    const orden = ordenGrabadoWebpay({
+      ambosWebpay: true,
+      numOperacion: numeroOperacionContrato(null, alumnoCtx.numOperacionCuenta),
+      firmasListas: true,
+    })
+    // 'grabar' aquí solo ocurre si falta el número: se graba y cierra en una sola llamada.
+    const cerrarFicha = orden.tipo === 'cerrar-ficha' || orden.tipo === 'grabar'
+    if (!(await grabarCuentaWebpay(cerrarFicha))) return false
+    planGrabado.value = true
+    return true
+  }
   const armado = armarGrabarPlanPagos({
     rut: fuente.rutMostrado.value,
     codcliAcademico: fuente.codcliMostrado.value,
@@ -385,8 +464,38 @@ async function enviarAFirmar(): Promise<void> {
       if (mailPlan && mailPlan !== '—') emailApoderado = mailPlan
     }
     const incluirApoderado = !esPropioSostenedor(esResponsableFinanciero)
+
+    // Con los dos Webpay se graba antes, para que el PDF salga con el número de operación de U+.
+    const orden = ordenGrabadoWebpay({
+      ambosWebpay: ambosWebpay.value,
+      numOperacion: numeroOperacionContrato(null, alumnoCtx.numOperacionCuenta),
+      firmasListas: false,
+    })
+    if (orden.tipo === 'grabar') {
+      const grabado = await grabarCuentaWebpay(orden.cerrarFicha)
+      if (unmounted) {
+        clearEnvioTimers()
+        return
+      }
+      if (!grabado) {
+        cerrarProgresoError()
+        errorFirma.value = errorGrabacion.value ?? 'No se pudo grabar el plan de pagos.'
+        return
+      }
+    }
+    const vmFirmado = viewModel.value ?? vm
+    const numOperacionContrato = numeroOperacionContrato(
+      vmFirmado.numOperacion,
+      alumnoCtx.numOperacionCuenta,
+    )
+    if (ambosWebpay.value && numOperacionContrato === '—') {
+      cerrarProgresoError()
+      errorFirma.value = errorGrabacion.value ?? 'No se obtuvo el número de operación del contrato.'
+      return
+    }
     const res = await ensureContratoFirma({
-      ...vm,
+      ...vmFirmado,
+      numOperacion: numOperacionContrato,
       incluirApoderado,
       emailApoderado,
       codcli,
