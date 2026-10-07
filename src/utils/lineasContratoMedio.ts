@@ -39,7 +39,7 @@ export function bloquesContrato(input: {
     muestraCuotasArancel: input.medioArancel === 'pagare',
     muestraPagadoWebpayMatricula: input.medioMatricula === 'webpay',
     muestraPagadoWebpayArancel: input.medioArancel === 'webpay',
-    muestraMandatoPagare: input.medioMatricula === 'pagare' || input.medioArancel === 'pagare',
+    muestraMandatoPagare: true,
     descuentoFormaPagoArancel: input.medioArancel === 'webpay' ? input.descuentoFormaPagoArancel : 0,
     montoWebpayMatricula: input.medioMatricula === 'webpay' ? input.montoWebpayMatricula : 0,
     montoWebpayArancel: input.medioArancel === 'webpay' ? input.montoWebpayArancel : 0,

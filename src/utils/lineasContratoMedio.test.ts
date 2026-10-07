@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { bloquesContrato } from '@/utils/lineasContratoMedio'
 
 describe('bloquesContrato', () => {
-  it('los dos Webpay no llevan cuotas ni mandato, y el arancel lleva el 5 %', () => {
+  it('los dos Webpay no llevan cuotas, llevan el mandato y el arancel lleva el 5 %', () => {
     const bloques = bloquesContrato({
       medioMatricula: 'webpay',
       medioArancel: 'webpay',
@@ -14,7 +14,7 @@ describe('bloquesContrato', () => {
     expect(bloques.muestraCuotasArancel).toBe(false)
     expect(bloques.muestraPagadoWebpayMatricula).toBe(true)
     expect(bloques.muestraPagadoWebpayArancel).toBe(true)
-    expect(bloques.muestraMandatoPagare).toBe(false)
+    expect(bloques.muestraMandatoPagare).toBe(true)
     expect(bloques.descuentoFormaPagoArancel).toBe(133_350)
   })
 
