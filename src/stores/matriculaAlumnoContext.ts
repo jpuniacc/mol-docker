@@ -12,6 +12,7 @@ import type {
   MockVerificacionCae,
 } from '@/stores/mockMatriculaContext'
 import type { ContratoDescuentoLinea } from '@/types/contratoMatricula'
+import type { LineaParaDocumentoDescuento } from '@/utils/documentosDescuentoContrato'
 import type { MedioConcepto } from '@/utils/webpaySiguientePaso'
 
 const ALUMNO_CTX_STORAGE_KEY = 'rematricula-alumno-matricula'
@@ -43,6 +44,7 @@ type StoredAlumnoMatriculaContext = {
   valorMatriculaBruto: number | null
   valorArancelBruto: number | null
   descuentosContrato: ContratoDescuentoLinea[]
+  lineasBeneficioGrabar: LineaParaDocumentoDescuento[]
   pasoAlcanzado: number
 }
 
@@ -119,6 +121,30 @@ function descuentosContratoPersistidos(v: unknown): ContratoDescuentoLinea[] {
   return out
 }
 
+function lineasBeneficioGrabarPersistidas(v: unknown): LineaParaDocumentoDescuento[] {
+  if (!Array.isArray(v)) return []
+  const out: LineaParaDocumentoDescuento[] = []
+  for (const item of v) {
+    if (typeof item !== 'object' || item === null) continue
+    const d = item as Partial<LineaParaDocumentoDescuento>
+    if (d.concepto !== 'matricula' && d.concepto !== 'arancel') continue
+    if (typeof d.monto !== 'number' || !Number.isFinite(d.monto)) continue
+    out.push({
+      concepto: d.concepto,
+      flujo: typeof d.flujo === 'string' ? d.flujo : null,
+      descripcion: typeof d.descripcion === 'string' ? d.descripcion : '—',
+      monto: d.monto,
+      codben: typeof d.codben === 'string' && d.codben.trim() ? d.codben.trim() : null,
+      porc: typeof d.porc === 'number' && Number.isFinite(d.porc) ? d.porc : null,
+      montoSolicitado:
+        typeof d.montoSolicitado === 'number' && Number.isFinite(d.montoSolicitado)
+          ? d.montoSolicitado
+          : null,
+    })
+  }
+  return out
+}
+
 function hasAnyProgressPayload(parsed: Partial<StoredAlumnoMatriculaContext>): boolean {
   return (
     parsed.tycAccepted === true ||
@@ -179,6 +205,7 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
     valorMatriculaBruto: null as number | null,
     valorArancelBruto: null as number | null,
     descuentosContrato: [] as ContratoDescuentoLinea[],
+    lineasBeneficioGrabar: [] as LineaParaDocumentoDescuento[],
     pasoAlcanzado: 1,
   }),
   actions: {
@@ -208,6 +235,7 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
         valorMatriculaBruto: this.valorMatriculaBruto,
         valorArancelBruto: this.valorArancelBruto,
         descuentosContrato: this.descuentosContrato,
+        lineasBeneficioGrabar: this.lineasBeneficioGrabar,
         pasoAlcanzado: this.pasoAlcanzado,
       }
       sessionStorage.setItem(ALUMNO_CTX_STORAGE_KEY, JSON.stringify(payload))
@@ -263,6 +291,7 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
         this.valorMatriculaBruto = montoWebpayPersistido(parsed.valorMatriculaBruto)
         this.valorArancelBruto = montoWebpayPersistido(parsed.valorArancelBruto)
         this.descuentosContrato = descuentosContratoPersistidos(parsed.descuentosContrato)
+        this.lineasBeneficioGrabar = lineasBeneficioGrabarPersistidas(parsed.lineasBeneficioGrabar)
         this.pasoAlcanzado =
           typeof parsed.pasoAlcanzado === 'number' &&
           parsed.pasoAlcanzado >= 1 &&
@@ -311,6 +340,7 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
       this.valorMatriculaBruto = null
       this.valorArancelBruto = null
       this.descuentosContrato = []
+      this.lineasBeneficioGrabar = []
       this.pasoAlcanzado = 1
       this.resetStoresErp()
       this.clearSessionStorage()
@@ -474,6 +504,12 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
       this.valorMatriculaBruto = montoWebpayPersistido(datos.valorMatriculaBruto)
       this.valorArancelBruto = montoWebpayPersistido(datos.valorArancelBruto)
       this.descuentosContrato = descuentosContratoPersistidos(datos.descuentosContrato)
+      this.persistToSessionStorage()
+    },
+
+    /** Beneficios con CODBEN y sin folio, para grabarlos en la cuenta tras el pago Webpay. */
+    setLineasBeneficioGrabar(lineas: LineaParaDocumentoDescuento[]) {
+      this.lineasBeneficioGrabar = lineasBeneficioGrabarPersistidas(lineas)
       this.persistToSessionStorage()
     },
   },

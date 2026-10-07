@@ -114,7 +114,11 @@ import {
   FLUJO_DESCUENTO_MATRICULA,
   type ReservaDescuentoMatriculaAplicar,
 } from '@/utils/descuentoMatriculaMes'
-import { asignarDocumentosDescuento } from '@/utils/documentosDescuentoContrato'
+import {
+  asignarDocumentosDescuento,
+  type LineaParaDocumentoDescuento,
+} from '@/utils/documentosDescuentoContrato'
+import { lineasBeneficioGrabar } from '@/utils/lineasBeneficioGrabar'
 import {
   buildPagareCuotasDraft,
   incrementPeek,
@@ -1285,6 +1289,49 @@ function persistirMediosYMontosWebpay(): void {
     valorArancelBruto: montoBrutoArancel(),
     descuentosContrato: lineasBeneficioParaContratoWebpay(),
   })
+  // Con CODBEN y sin folio. El folio se asigna al grabar la cuenta.
+  alumnoCtx.setLineasBeneficioGrabar(lineasBeneficioGrabar(entradaBeneficiosGrabar()))
+}
+
+// Única fuente de los beneficios con CODBEN: la usan el pagaré y el grabado tras Webpay.
+function entradaBeneficiosGrabar(): {
+  lineasArancel: LineaParaDocumentoDescuento[]
+  descuentoMatricula: LineaParaDocumentoDescuento | null
+  cae: LineaParaDocumentoDescuento | null
+} {
+  const arancelBruto = montoBrutoArancel()
+  const lineasArancel = lineasDescuento.value.map((fila) => ({
+    concepto: 'arancel' as const,
+    flujo: fila.flujo,
+    descripcion: fila.descripcion,
+    monto: fila.monto,
+    codben: fila.codigo,
+    porc: fila.porcCatalogo,
+    montoSolicitado:
+      fila.porcCatalogo != null
+        ? Math.round((arancelBruto * fila.porcCatalogo) / 100)
+        : fila.monto,
+  }))
+  const cae: LineaParaDocumentoDescuento | null = tieneCae(plan.value)
+    ? {
+        concepto: 'arancel',
+        flujo: 'CAE',
+        descripcion: 'Crédito Aval del Estado',
+        monto: montoCaeAprobado.value,
+      }
+    : null
+  const descuentoMes = descuentoMatriculaMes.value
+  const montoDescuentoMes = montoDescuentoMatriculaAplicado()
+  const descuentoMatricula: LineaParaDocumentoDescuento | null =
+    descuentoMes && montoDescuentoMes > 0
+      ? {
+          concepto: 'matricula',
+          flujo: FLUJO_DESCUENTO_MATRICULA,
+          descripcion: descuentoMes.nombre,
+          monto: montoDescuentoMes,
+        }
+      : null
+  return { lineasArancel, descuentoMatricula, cae }
 }
 
 // Líneas que montoNetoMatricula/montoNetoArancel restan. No depende del correlativo del pagaré.
@@ -1442,36 +1489,12 @@ function descuentosParaContrato(): MockDescuentoPagare[] {
   if (!/^\d+$/.test(peek)) return []
   const anio = anioNotas.value
   const vencimiento = anio != null ? `29/12/${anio}` : '—'
-  const arancelBruto = montoBrutoArancel()
-  const lineas = lineasDescuento.value.map((fila) => ({
-    concepto: 'arancel' as const,
-    flujo: fila.flujo,
-    descripcion: fila.descripcion,
-    monto: fila.monto,
-    codben: fila.codigo,
-    porc: fila.porcCatalogo,
-    montoSolicitado:
-      fila.porcCatalogo != null
-        ? Math.round((arancelBruto * fila.porcCatalogo) / 100)
-        : fila.monto,
-  }))
-  if (tieneCae(plan.value)) {
-    lineas.push({
-      concepto: 'arancel',
-      flujo: 'CAE',
-      descripcion: 'Crédito Aval del Estado',
-      monto: montoCaeAprobado.value,
-    })
-  }
-  const descuentoMes = descuentoMatriculaMes.value
-  const montoDescuentoMes = montoDescuentoMatriculaAplicado()
-  if (descuentoMes && montoDescuentoMes > 0) {
-    lineas.push({
-      concepto: 'matricula',
-      flujo: FLUJO_DESCUENTO_MATRICULA,
-      descripcion: descuentoMes.nombre,
-      monto: montoDescuentoMes,
-    })
+  const entrada = entradaBeneficiosGrabar()
+  const lineas = lineasBeneficioGrabar(entrada)
+  // El plan del pagaré conserva el CAE aunque su monto sea 0; el grabado de Webpay no.
+  if (entrada.cae && entrada.cae.monto <= 0) {
+    const indice = lineas.findIndex((linea) => linea.concepto === 'matricula')
+    lineas.splice(indice === -1 ? lineas.length : indice, 0, entrada.cae)
   }
   return asignarDocumentosDescuento({
     peek,
