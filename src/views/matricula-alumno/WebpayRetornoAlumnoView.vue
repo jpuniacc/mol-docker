@@ -13,14 +13,18 @@ import {
   type ConceptoWebpay,
   type FilaPublica,
 } from '@/services/webpayPlusApi'
+import { useAuthStore } from '@/stores/auth'
+import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import {
   useMatriculaAlumnoContextStore,
   type WebpayConceptoEstado,
 } from '@/stores/matriculaAlumnoContext'
-import { siguientePaso } from '@/utils/webpaySiguientePaso'
+import { siguientePaso, type MedioConcepto } from '@/utils/webpaySiguientePaso'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
+const datosMnp = useDatosAlumnoMnpStore()
 const alumnoCtx = useMatriculaAlumnoContextStore()
 
 const cargando = ref(true)
@@ -48,18 +52,22 @@ function guardarEstadoConcepto(fila: FilaPublica): void {
   }
 }
 
-function irAFormaPago(plan?: ConceptoWebpay): void {
-  void router.push(
-    plan
-      ? { name: 'matricula-alumno-forma-pago', query: { plan } }
-      : { name: 'matricula-alumno-forma-pago' },
-  )
+function irAFormaPago(plan?: ConceptoWebpay, aviso?: 'abortada' | 'rechazada'): void {
+  const esAlumno =
+    auth.authSource === 'pixarron' &&
+    datosMnp.cantidadRegistros > 0 &&
+    !datosMnp.fueraCarteraOficial
+  const name = esAlumno ? 'matricula-alumno-forma-pago' : 'matricula-mock-forma-pago'
+  const query: Record<string, string> = {}
+  if (plan) query.plan = plan
+  if (aviso) query.aviso = aviso
+  void router.push(Object.keys(query).length > 0 ? { name, query } : { name })
 }
 
 async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
   const medioMatricula = alumnoCtx.medioMatricula
-  const medioArancel = alumnoCtx.medioArancel
-  if (medioMatricula == null || medioArancel == null) {
+  const medioArancel: MedioConcepto | null = alumnoCtx.medioArancel
+  if (medioMatricula == null) {
     mostrarReintentar.value = true
     return
   }
@@ -94,6 +102,11 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
     }
     redirigiendo.value = true
     redirigirAWebpay(creado.url, creado.token)
+    return
+  }
+
+  if (paso.tipo === 'elegir-arancel') {
+    irAFormaPago()
     return
   }
 
@@ -142,17 +155,17 @@ onMounted(async () => {
   }
 
   guardarEstadoConcepto(fila)
+
+  if (fila.estado === 'rechazada' || fila.estado === 'abortada') {
+    irAFormaPago(undefined, fila.estado)
+    return
+  }
+
   cargando.value = false
 
   if (fila.estado === 'autorizada') {
     mensaje.value = 'El pago quedó autorizado.'
     await avanzarSiAutorizada(fila)
-    return
-  }
-
-  if (fila.estado === 'rechazada' || fila.estado === 'abortada') {
-    mensaje.value = 'El pago no se completó.'
-    mostrarReintentar.value = true
     return
   }
 
