@@ -77,4 +77,25 @@ describe('siguientePaso', () => {
       }),
     ).toEqual({ tipo: 'firma' })
   })
+
+  it('matrícula Webpay sin arancel elegido vuelve al diálogo', () => {
+    expect(
+      siguientePaso({
+        ...base,
+        medioMatricula: 'webpay',
+        medioArancel: null,
+        matriculaAutorizada: true,
+      }),
+    ).toEqual({ tipo: 'elegir-arancel' })
+  })
+
+  it('matrícula Webpay sin autorizar sale a Webpay aunque el arancel no esté elegido', () => {
+    expect(
+      siguientePaso({
+        ...base,
+        medioMatricula: 'webpay',
+        medioArancel: null,
+      }),
+    ).toEqual({ tipo: 'webpay', concepto: 'matricula' })
+  })
 })

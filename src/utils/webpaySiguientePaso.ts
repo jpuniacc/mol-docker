@@ -3,11 +3,12 @@ export type PasoWebpay =
   | { tipo: 'flujo-pagare' }
   | { tipo: 'webpay'; concepto: 'matricula' | 'arancel' }
   | { tipo: 'plan-pagare'; concepto: 'matricula' | 'arancel' }
+  | { tipo: 'elegir-arancel' }
   | { tipo: 'firma' }
 
 export function siguientePaso(input: {
   medioMatricula: MedioConcepto
-  medioArancel: MedioConcepto
+  medioArancel: MedioConcepto | null
   matriculaAutorizada: boolean
   arancelAutorizado: boolean
   planListo: boolean
@@ -17,6 +18,9 @@ export function siguientePaso(input: {
   }
   if (input.medioMatricula === 'webpay' && !input.matriculaAutorizada) {
     return { tipo: 'webpay', concepto: 'matricula' }
+  }
+  if (input.medioArancel == null) {
+    return { tipo: 'elegir-arancel' }
   }
   if (input.medioArancel === 'webpay' && !input.arancelAutorizado) {
     return { tipo: 'webpay', concepto: 'arancel' }
