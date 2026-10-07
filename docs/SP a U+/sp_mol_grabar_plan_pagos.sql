@@ -15,6 +15,13 @@
 -- Después del COMMIT, MOL llama aparte a SP_MOL_ACTUALIZA_MATRICULA_FIRMADA
 -- con el código académico (MT_ALUMNO.CODCLI), no con este @codcli.
 -- Si esa segunda llamada falla, los pagarés y los beneficios quedan. Se reintenta solo la ficha.
+-- @documentos_webpay es un JSON array (DocumentoCuenta) con los documentos de la tarjeta Webpay.
+-- Se recorre con OPENJSON dentro de la misma transacción, antes del COMMIT.
+-- La base está en nivel de compatibilidad 100: OPENJSON se evalúa vía master.sys.sp_executesql.
+-- Folio null (tipo 20, el 5 %) pide CORRPAGNUM. Un folio presente es el de la tarjeta.
+-- MT_CTADEP solo si aplicaBoleta es true, contra la boleta 41 del concepto.
+-- Un concepto que llega en el JSON no genera pagaré tipo 5 ni cuotas 14.
+-- Sin POSBEN para el tipo 20. Sin JSON (NULL) el procedimiento se comporta como antes.
 
 DROP PROCEDURE IF EXISTS dbo.sp_mol_grabar_plan_pagos;
 GO
@@ -49,6 +56,7 @@ CREATE OR ALTER PROCEDURE dbo.sp_mol_grabar_plan_pagos
     @corrpag_matricula   decimal(20, 0),
     @corrpag_arancel     decimal(20, 0),
     @beneficios          dbo.mol_plan_beneficio READONLY,
+    @documentos_webpay   nvarchar(max) = NULL,
     @num_operacion       decimal(20, 0) OUTPUT
 AS
 BEGIN
@@ -138,6 +146,59 @@ BEGIN
     DECLARE @folio decimal(20, 0);
     DECLARE @vence date;
 
+    CREATE TABLE #docs_web (
+        orden       int IDENTITY(1, 1) NOT NULL,
+        concepto    varchar(20)    NULL,
+        ctapag      int            NULL,
+        ctadoc      int            NULL,
+        folio       varchar(30)    NULL,
+        monto       decimal(18, 2) NOT NULL,
+        fecha       date           NOT NULL,
+        fecven      date           NOT NULL,
+        cuota       int            NOT NULL,
+        numcuot     int            NOT NULL,
+        aplicaBoleta bit           NOT NULL
+    );
+
+    -- La base corre con nivel de compatibilidad 100 y OPENJSON pide 130.
+    -- El lote se ejecuta en el contexto de master (nivel 130) y escribe en #docs_web.
+    IF @documentos_webpay IS NOT NULL
+        EXEC master.sys.sp_executesql
+            N'INSERT INTO #docs_web (concepto, ctapag, ctadoc, folio, monto, fecha, fecven, cuota, numcuot, aplicaBoleta)
+              SELECT concepto, ctapag, ctadoc, folio, monto, fecha, fecven, cuota, numcuot, ISNULL(aplicaBoleta, 0)
+              FROM OPENJSON(@j)
+              WITH (
+                  concepto     varchar(20)    ''$.concepto'',
+                  ctapag       int            ''$.ctapag'',
+                  ctadoc       int            ''$.ctadoc'',
+                  folio        varchar(30)    ''$.folio'',
+                  monto        decimal(18, 2) ''$.monto'',
+                  fecha        date           ''$.fecha'',
+                  fecven       date           ''$.fecven'',
+                  cuota        int            ''$.cuota'',
+                  numcuot      int            ''$.numcuot'',
+                  aplicaBoleta bit            ''$.aplicaBoleta''
+              )',
+            N'@j nvarchar(max)',
+            @j = @documentos_webpay;
+
+    DECLARE @web_matricula bit = CASE WHEN EXISTS (SELECT 1 FROM #docs_web WHERE concepto = 'matricula') THEN 1 ELSE 0 END;
+    DECLARE @web_arancel bit = CASE WHEN EXISTS (SELECT 1 FROM #docs_web WHERE concepto = 'arancel') THEN 1 ELSE 0 END;
+    DECLARE @web_orden int;
+    DECLARE @concepto_json varchar(20);
+    DECLARE @ctadoc_json int;
+    DECLARE @cuota_json int;
+    DECLARE @numcuot_json int;
+    DECLARE @aplica_json bit;
+    DECLARE @folio_json varchar(30);
+    DECLARE @ctapag_json int;
+    DECLARE @monto_json decimal(18, 2);
+    DECLARE @fecha_json date;
+    DECLARE @fecven_json date;
+    DECLARE @ctapagnum decimal(20, 0);
+    DECLARE @ctadocnum_web decimal(20, 0);
+    DECLARE @ctadoc_boleta decimal(20, 0);
+
     BEGIN TRY
         BEGIN TRAN;
 
@@ -197,9 +258,13 @@ BEGIN
         );
 
         INSERT INTO @docs (orden, item, corrpag, monto, ctadocnum)
-        VALUES
-            (1, 1, @corrpag_matricula, @monto_matricula, @ctadoc_matricula),
-            (2, 2, @corrpag_arancel, @monto_arancel, @ctadoc_arancel);
+        SELECT orden, item, corrpag, monto, ctadocnum
+        FROM (
+            VALUES
+                (1, 1, @corrpag_matricula, @monto_matricula, @ctadoc_matricula, @web_matricula),
+                (2, 2, @corrpag_arancel, @monto_arancel, @ctadoc_arancel, @web_arancel)
+        ) AS v (orden, item, corrpag, monto, ctadocnum, es_web)
+        WHERE v.es_web = 0;
 
         DECLARE cur CURSOR LOCAL FAST_FORWARD FOR
             SELECT orden, item, corrpag, monto, ctadocnum
@@ -362,6 +427,81 @@ BEGIN
         FROM @beneficios b
         INNER JOIN dbo.MT_BENEFICIO ben ON ben.CODBEN = b.codben;
 
+        DECLARE cur_web CURSOR LOCAL FAST_FORWARD FOR
+            SELECT orden, concepto, ctapag, ctadoc, folio, monto, fecha, fecven, cuota, numcuot, aplicaBoleta
+            FROM #docs_web
+            ORDER BY orden;
+
+        OPEN cur_web;
+        FETCH NEXT FROM cur_web INTO
+            @web_orden, @concepto_json, @ctapag_json, @ctadoc_json, @folio_json,
+            @monto_json, @fecha_json, @fecven_json, @cuota_json, @numcuot_json, @aplica_json;
+
+        WHILE @@FETCH_STATUS = 0
+        BEGIN
+            SET @ctadoc_boleta = CASE WHEN @concepto_json = 'matricula' THEN @ctadoc_matricula ELSE @ctadoc_arancel END;
+            SET @ctapagnum = NULL;
+
+            IF @folio_json IS NULL
+                EXEC dbo.sp_parametro_transaccion_correlativo
+                    @tipo = 'CORRPAGNUM',
+                    @salida = @ctapagnum OUTPUT,
+                    @muestra = 'NO';
+            ELSE
+                SET @ctapagnum = CAST(@folio_json AS decimal(20, 0));
+
+            IF @ctapag_json IS NOT NULL
+            BEGIN
+                INSERT INTO dbo.MT_CTAPAG (
+                    CTAPAG, CTAPAGNUM, CODCLI, CODCARR, CODAPOD, MONTO, SALDO, SALDO_AD,
+                    ESTADO, RECIBIDO, CODBAN, TIPOCARR, ANO, PERIODO, CAJA, CTATRANS,
+                    FECVEN, FECCANCEL, FECREG, FECHA, USUARIO, NUM_OPERACION, jornada
+                )
+                VALUES (
+                    @ctapag_json, @ctapagnum, @codcli, @codcarr, @codapod_boleta, @monto_json, 0, 0,
+                    1, 'N', 0, 1, @ano, @periodo, @caja, @ctapagnum,
+                    @fecven_json, @hoy, @hoy, @fecha_json, @usuario, @num_operacion, @jornada
+                );
+
+                IF @aplica_json = 1
+                    INSERT INTO dbo.MT_CTADEP (
+                        CTADOC, CTADOCNUM, CTAPAG, CTAPAGNUM, CODCLI, CODCARR, CODAPOD,
+                        MONTO, TIPOCARR, USUARIO, CODBAN, ESTADO, CTATRANS, NUM_OPERACION,
+                        CAJA, FECREG_DEP, ANO, jornada
+                    )
+                    VALUES (
+                        41, @ctadoc_boleta, @ctapag_json, @ctapagnum, @codcli, @codcarr, @codapod_boleta,
+                        @monto_json, 1, @usuario, 0, '1', @ctadoc_boleta, @num_operacion,
+                        @caja, @hoy, @ano, @jornada
+                    );
+            END
+
+            IF @ctadoc_json IS NOT NULL
+            BEGIN
+                INSERT INTO dbo.MT_CTADOC (
+                    CTADOC, CTADOCNUM, CUOTA, NUMCUOT, CODCLI, CODAPOD, CODCARR,
+                    MONTO, SALDO, SALDO_AD, ESTADO, RECIBIDO, CONTRATO, CAJA,
+                    CTATRANS, FECVEN, FECDEUDA, FECREP, UBICACION, TIPOCARR,
+                    ANO, PERIODO, GASTOSOP, USUARIO, CODBAN, NUM_OPERACION,
+                    FECREG, FECHA, SEDE, jornada
+                )
+                VALUES (
+                    @ctadoc_json, @ctapagnum, @cuota_json, @numcuot_json, @codcli, @codapod_boleta, @codcarr,
+                    @monto_json, 0, 0, 1, 'S', @contrato, @caja,
+                    @ctapagnum, @fecven_json, @hoy, @hoy, 1, 1,
+                    @ano, @periodo, 0, @usuario, 0, @num_operacion,
+                    @fecreg_caja, @fecha_json, 'STGO', @jornada
+                );
+            END
+
+            FETCH NEXT FROM cur_web INTO
+                @web_orden, @concepto_json, @ctapag_json, @ctadoc_json, @folio_json,
+                @monto_json, @fecha_json, @fecven_json, @cuota_json, @numcuot_json, @aplica_json;
+        END
+
+        CLOSE cur_web;
+        DEALLOCATE cur_web;
+
         COMMIT TRAN;
     END TRY
     BEGIN CATCH
@@ -369,6 +509,12 @@ BEGIN
         BEGIN
             CLOSE cur;
             DEALLOCATE cur;
+        END
+
+        IF CURSOR_STATUS('local', 'cur_web') >= 0
+        BEGIN
+            CLOSE cur_web;
+            DEALLOCATE cur_web;
         END
 
         IF XACT_STATE() <> 0
