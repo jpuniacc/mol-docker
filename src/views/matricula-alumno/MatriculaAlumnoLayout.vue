@@ -51,10 +51,9 @@ const stepModel = computed({
 
 const headerRut = computed(() => fuente.rutMostrado.value)
 const headerCarrera = computed(() => fuente.carreraMostrada.value)
-const headerCampus = computed(() => fuente.campusMostrado.value)
 const headerNombre = computed(() => fuente.nombreMostrado.value)
 const tituloRematricula = computed(() => periodoActivo.tituloRematricula)
-const periodoLabel = computed(() => periodoActivo.label ?? '—')
+const periodoLabel = computed(() => periodoActivo.anio)
 const yScroll = ref(0)
 const isCompactHeader = computed(() => yScroll.value > 24)
 
@@ -73,11 +72,6 @@ onUnmounted(() => {
 
 function salirAlDashboard() {
   void router.push({ name: 'dashboard-home' })
-}
-
-function reiniciarFlujo() {
-  alumnoCtx.resetFlujo()
-  void router.push({ name: 'matricula-alumno-datos' })
 }
 </script>
 
@@ -122,16 +116,6 @@ function reiniciarFlujo() {
           </div>
           <div class="flex flex-wrap items-center gap-2 md:justify-end">
             <Button
-              v-if="!matriculaCerrada"
-              type="button"
-              variant="outline"
-              size="sm"
-              class="cursor-pointer border-uniacc-blue bg-uniacc-blue/10 text-uniacc-blue transition-colors duration-200 hover:bg-uniacc-blue/20"
-              @click="reiniciarFlujo"
-            >
-              Reiniciar
-            </Button>
-            <Button
               type="button"
               size="sm"
               class="cursor-pointer bg-uniacc-orange text-white transition-colors duration-200 hover:bg-uniacc-orange/90"
@@ -153,8 +137,6 @@ function reiniciarFlujo() {
               <span class="shrink-0">RUT {{ headerRut }}</span>
               <span aria-hidden="true">·</span>
               <span class="truncate">{{ headerCarrera }}</span>
-              <span aria-hidden="true">·</span>
-              <span class="shrink-0">{{ headerCampus }}</span>
             </p>
             <p class="hidden text-xs text-white/80 lg:block">Periodo {{ periodoLabel }}</p>
             <a
