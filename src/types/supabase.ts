@@ -253,6 +253,11 @@ export type MnpProgresoRematriculaRow = {
   actualizado_en: string;
 };
 
+export type KpiDosCarrerasDetalle = {
+  codcli: string;
+  nombre_carrera: string;
+};
+
 export type KpiProgresoRematricula = {
   total_cartera: number;
   excluidos_mol: number;
@@ -264,6 +269,16 @@ export type KpiProgresoRematricula = {
   forma_pago: number;
   firma: number;
   matriculado: number;
+  rematriculables: number;
+  no_rematriculables: number;
+  rut_dos_carreras: string | null;
+  detalle_dos_carreras: KpiDosCarrerasDetalle[] | null;
+  rematriculable_vigente: number;
+  rematriculable_suspendido: number;
+  rematriculable_eliminado: number;
+  no_rematriculable_vigente: number;
+  no_rematriculable_suspendido: number;
+  no_rematriculable_eliminado: number;
 };
 
 /** Documento de vigencia de convenio subido por el alumno (`mnp_convenio_documento`). */
