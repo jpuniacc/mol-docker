@@ -36,6 +36,7 @@ export type FilaPublica = {
   authorizationCode: string | null
   responseCode: number | null
   paymentTypeCode: string | null
+  installmentsNumber: number | null
   cardLast4: string | null
   transactionDate: string | null
   ambiente: 'integracion' | 'produccion'
@@ -98,6 +99,12 @@ function parseFilaPublica(body: Record<string, unknown>): FilaPublica | null {
         ? null
         : Number(body.responseCode),
     paymentTypeCode: textoONulo(body.paymentTypeCode),
+    installmentsNumber:
+      body.installmentsNumber == null || body.installmentsNumber === ''
+        ? null
+        : Number.isFinite(Number(body.installmentsNumber))
+          ? Number(body.installmentsNumber)
+          : null,
     cardLast4: textoONulo(body.cardLast4),
     transactionDate: textoONulo(body.transactionDate),
     ambiente: body.ambiente,

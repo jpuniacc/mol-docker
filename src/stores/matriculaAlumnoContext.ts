@@ -14,6 +14,7 @@ import type {
 import type { ContratoDescuentoLinea } from '@/types/contratoMatricula'
 import type { LineaParaDocumentoDescuento } from '@/utils/documentosDescuentoContrato'
 import type { MedioConcepto } from '@/utils/webpaySiguientePaso'
+import type { WebpayPagoDetalle } from '@/utils/webpayPagoDetalle'
 
 const ALUMNO_CTX_STORAGE_KEY = 'rematricula-alumno-matricula'
 
@@ -38,6 +39,8 @@ type StoredAlumnoMatriculaContext = {
   medioArancel: MedioConcepto | null
   webpayMatriculaEstado: WebpayConceptoEstado | null
   webpayArancelEstado: WebpayConceptoEstado | null
+  webpayMatriculaDetalle: WebpayPagoDetalle | null
+  webpayArancelDetalle: WebpayPagoDetalle | null
   webpayMontoMatricula: number | null
   numOperacionCuenta: string | null
   webpayMontoArancel: number | null
@@ -173,6 +176,16 @@ function hasAnyProgressPayload(parsed: Partial<StoredAlumnoMatriculaContext>): b
   )
 }
 
+function detalleWebpayPersistido(v: unknown): WebpayPagoDetalle | null {
+  if (typeof v !== 'object' || v === null) return null
+  const d = v as Partial<WebpayPagoDetalle>
+  if (d.forma !== 'debito' && d.forma !== 'credito') return null
+  if (typeof d.autorizacion !== 'string') return null
+  if (d.forma === 'debito') return { forma: 'debito', autorizacion: d.autorizacion.trim(), cuotas: null }
+  if (typeof d.cuotas !== 'number' || !Number.isInteger(d.cuotas) || d.cuotas < 1) return null
+  return { forma: 'credito', autorizacion: d.autorizacion.trim(), cuotas: d.cuotas }
+}
+
 function textoPersistido(v: unknown): string | null {
   if (typeof v !== 'string') return null
   const t = v.trim()
@@ -199,6 +212,8 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
     medioArancel: null as MedioConcepto | null,
     webpayMatriculaEstado: null as WebpayConceptoEstado | null,
     webpayArancelEstado: null as WebpayConceptoEstado | null,
+    webpayMatriculaDetalle: null as WebpayPagoDetalle | null,
+    webpayArancelDetalle: null as WebpayPagoDetalle | null,
     webpayMontoMatricula: null as number | null,
     numOperacionCuenta: null as string | null,
     webpayMontoArancel: null as number | null,
@@ -229,6 +244,8 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
         medioArancel: this.medioArancel,
         webpayMatriculaEstado: this.webpayMatriculaEstado,
         webpayArancelEstado: this.webpayArancelEstado,
+        webpayMatriculaDetalle: this.webpayMatriculaDetalle,
+        webpayArancelDetalle: this.webpayArancelDetalle,
         webpayMontoMatricula: this.webpayMontoMatricula,
         numOperacionCuenta: this.numOperacionCuenta,
         webpayMontoArancel: this.webpayMontoArancel,
@@ -285,6 +302,14 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
         this.webpayArancelEstado = isWebpayConceptoEstado(parsed.webpayArancelEstado)
           ? parsed.webpayArancelEstado
           : null
+        this.webpayMatriculaDetalle =
+          this.webpayMatriculaEstado === 'autorizada'
+            ? detalleWebpayPersistido(parsed.webpayMatriculaDetalle)
+            : null
+        this.webpayArancelDetalle =
+          this.webpayArancelEstado === 'autorizada'
+            ? detalleWebpayPersistido(parsed.webpayArancelDetalle)
+            : null
         this.webpayMontoMatricula = montoWebpayPersistido(parsed.webpayMontoMatricula)
         this.numOperacionCuenta = numOperacionPersistido(parsed.numOperacionCuenta)
         this.webpayMontoArancel = montoWebpayPersistido(parsed.webpayMontoArancel)
@@ -334,6 +359,8 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
       this.medioArancel = null
       this.webpayMatriculaEstado = null
       this.webpayArancelEstado = null
+      this.webpayMatriculaDetalle = null
+      this.webpayArancelDetalle = null
       this.webpayMontoMatricula = null
       this.numOperacionCuenta = null
       this.webpayMontoArancel = null
@@ -472,11 +499,23 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
 
     setWebpayMatriculaEstado(estado: WebpayConceptoEstado | null) {
       this.webpayMatriculaEstado = estado
+      if (estado !== 'autorizada') this.webpayMatriculaDetalle = null
       this.persistToSessionStorage()
     },
 
     setWebpayArancelEstado(estado: WebpayConceptoEstado | null) {
       this.webpayArancelEstado = estado
+      if (estado !== 'autorizada') this.webpayArancelDetalle = null
+      this.persistToSessionStorage()
+    },
+
+    setWebpayMatriculaDetalle(detalle: WebpayPagoDetalle | null) {
+      this.webpayMatriculaDetalle = detalle
+      this.persistToSessionStorage()
+    },
+
+    setWebpayArancelDetalle(detalle: WebpayPagoDetalle | null) {
+      this.webpayArancelDetalle = detalle
       this.persistToSessionStorage()
     },
 

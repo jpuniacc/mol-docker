@@ -19,6 +19,7 @@ import {
   useMatriculaAlumnoContextStore,
   type WebpayConceptoEstado,
 } from '@/stores/matriculaAlumnoContext'
+import { detalleDesdeWebpay } from '@/utils/webpayPagoDetalle'
 import { siguientePaso, type MedioConcepto } from '@/utils/webpaySiguientePaso'
 
 const route = useRoute()
@@ -45,10 +46,20 @@ function estadoPersistible(estado: FilaPublica['estado']): WebpayConceptoEstado 
 
 function guardarEstadoConcepto(fila: FilaPublica): void {
   const estado = estadoPersistible(fila.estado)
+  const detalle =
+    estado === 'autorizada'
+      ? detalleDesdeWebpay({
+          paymentTypeCode: fila.paymentTypeCode,
+          authorizationCode: fila.authorizationCode,
+          installmentsNumber: fila.installmentsNumber,
+        })
+      : null
   if (fila.concepto === 'matricula') {
     alumnoCtx.setWebpayMatriculaEstado(estado)
+    alumnoCtx.setWebpayMatriculaDetalle(detalle)
   } else {
     alumnoCtx.setWebpayArancelEstado(estado)
+    alumnoCtx.setWebpayArancelDetalle(detalle)
   }
 }
 

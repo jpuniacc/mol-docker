@@ -17,6 +17,8 @@ import type { MockDescuentoPagare, MockPagoMatricula } from '@/stores/mockMatric
 import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import { useMatriculaFlujoPreflightStore } from '@/stores/datos_erp/matricula_flujo_preflight'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
+import { etiquetaFormaPago } from '@/utils/etiquetaFormaPago'
+import { resumenPagosWebpay } from '@/utils/resumenPagosWebpay'
 
 const router = useRouter()
 const alumnoCtx = useMatriculaAlumnoContextStore()
@@ -65,11 +67,12 @@ watch(
   { immediate: true },
 )
 
-const formaPagoLabel = (): string => {
-  const m = alumnoCtx.formaPagoSeleccionada
-  if (!m) return 'No seleccionada'
-  return { webpay: 'WebPay', pagare: 'Pagaré', toku: 'TOKU' }[m]
-}
+const formaPagoLabel = (): string =>
+  etiquetaFormaPago({
+    medioMatricula: alumnoCtx.medioMatricula,
+    medioArancel: alumnoCtx.medioArancel,
+    formaPagoSeleccionada: alumnoCtx.formaPagoSeleccionada,
+  })
 
 type LineaPlan = {
   id: string
@@ -150,6 +153,17 @@ function bloquePlan(
   return { titulo, lineas, aPagar, cuotaHabitual, cuotaUltima }
 }
 
+const pagosWebpay = computed(() =>
+  resumenPagosWebpay({
+    medioMatricula: alumnoCtx.medioMatricula,
+    medioArancel: alumnoCtx.medioArancel,
+    montoMatricula: alumnoCtx.webpayMontoMatricula,
+    montoArancel: alumnoCtx.webpayMontoArancel,
+    detalleMatricula: alumnoCtx.webpayMatriculaDetalle,
+    detalleArancel: alumnoCtx.webpayArancelDetalle,
+  }),
+)
+
 const planResumen = computed(() => {
   const pago = alumnoCtx.pagoMatricula
   if (!pago) return null
@@ -224,7 +238,7 @@ async function descargarContrato(): Promise<void> {
           ¡Felicitaciones {{ fuente.nombreMostrado }}!
         </h1>
         <p class="text-center text-lg text-muted-foreground">
-          Has finalizado el proceso de matrícula. Descarga el contrato Presionando el botón más abajo.
+          Has finalizado el proceso de matrícula. Descarga el contrato presionando el botón más abajo.
         </p>
 
         <div class="mx-auto max-w-lg space-y-2 rounded-lg border bg-muted/40 px-4 py-4 text-sm">
@@ -237,6 +251,66 @@ async function descargarContrato(): Promise<void> {
             {{ alumnoCtx.discapacidad.tipo }}
           </p>
         </div>
+
+        <section
+          v-if="pagosWebpay"
+          class="mx-auto max-w-lg overflow-hidden rounded-lg border border-zinc-200"
+          aria-labelledby="pagos-webpay-titulo"
+        >
+          <div class="border-b border-zinc-200 bg-zinc-50 px-4 py-3">
+            <h2 id="pagos-webpay-titulo" class="text-base font-semibold text-zinc-900">
+              Pagos con Webpay
+            </h2>
+          </div>
+          <div
+            v-for="bloque in pagosWebpay.bloques"
+            :key="bloque.titulo"
+            class="border-b border-zinc-200 px-4 py-3"
+          >
+            <h3 class="text-sm font-semibold text-zinc-900">{{ bloque.titulo }}</h3>
+            <dl class="mt-2 space-y-1.5">
+              <div
+                v-if="bloque.saldo != null"
+                class="flex items-baseline justify-between gap-3 text-sm"
+              >
+                <dt class="text-zinc-700">Saldo</dt>
+                <dd class="shrink-0 tabular-nums text-zinc-900">{{ fmt(bloque.saldo) }}</dd>
+              </div>
+              <div
+                v-if="bloque.descuento != null && bloque.descuento > 0"
+                class="flex items-baseline justify-between gap-3 text-sm"
+              >
+                <dt class="text-zinc-700">Descuento Webpay 5 %</dt>
+                <dd class="shrink-0 tabular-nums text-zinc-900">−{{ fmt(bloque.descuento) }}</dd>
+              </div>
+              <div
+                class="flex items-baseline justify-between gap-3 text-sm"
+                :class="bloque.saldo != null ? 'border-t border-zinc-200 pt-1.5' : ''"
+              >
+                <dt class="font-medium text-zinc-900">Pagado</dt>
+                <dd class="shrink-0 font-medium tabular-nums text-zinc-900">{{ fmt(bloque.pagado) }}</dd>
+              </div>
+              <div class="flex items-baseline justify-between gap-3 text-sm">
+                <dt class="text-zinc-700">Tarjeta</dt>
+                <dd class="shrink-0 text-zinc-900">{{ bloque.tarjeta }}</dd>
+              </div>
+              <div class="flex items-baseline justify-between gap-3 text-sm">
+                <dt class="text-zinc-700">Cuotas</dt>
+                <dd class="shrink-0 text-zinc-900">{{ bloque.cuotas }}</dd>
+              </div>
+              <div class="flex items-baseline justify-between gap-3 text-sm">
+                <dt class="text-zinc-700">Autorización</dt>
+                <dd class="shrink-0 tabular-nums text-zinc-900">{{ bloque.autorizacion }}</dd>
+              </div>
+            </dl>
+          </div>
+          <div class="flex items-baseline justify-between gap-3 bg-uniacc-orange/10 px-4 py-3">
+            <p class="text-sm font-semibold text-zinc-900">Total pagado con Webpay</p>
+            <p class="shrink-0 text-base font-semibold tabular-nums text-zinc-900">
+              {{ fmt(pagosWebpay.total) }}
+            </p>
+          </div>
+        </section>
 
         <section
           v-if="planResumen"

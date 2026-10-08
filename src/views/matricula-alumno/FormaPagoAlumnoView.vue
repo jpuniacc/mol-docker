@@ -92,6 +92,7 @@ import { periodoCatalogoLabel } from '@/utils/periodoCatalogo'
 import { rutNorm } from '@/utils/rutNorm'
 import { montoWebpayArancel } from '@/utils/descuentoFormaPagoWebpay'
 import { arancelHabilitado, puedeContinuar } from '@/utils/selectorMedioPago'
+import { textoWebpayAprobado } from '@/utils/webpayPagoDetalle'
 import { siguientePaso } from '@/utils/webpaySiguientePaso'
 import { useConvenioInstitucionalStore } from '@/stores/convenioInstitucional'
 import { useMatriculaFlujoPreflightStore } from '@/stores/datos_erp/matricula_flujo_preflight'
@@ -2184,7 +2185,11 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
                 <span class="min-w-0 flex-1">
                   <span class="block text-sm font-semibold text-zinc-900">Webpay</span>
                   <span class="block text-xs text-muted-foreground">
-                    {{ matriculaPagadaWebpay ? 'Pagada' : `Pago en línea · ${fmt(montoNetoMatricula())}` }}
+                    {{
+                      matriculaPagadaWebpay
+                        ? textoWebpayAprobado('Pagada', alumnoCtx.webpayMatriculaDetalle)
+                        : `Pago en línea · ${fmt(montoNetoMatricula())}`
+                    }}
                   </span>
                 </span>
                 <span
@@ -2242,7 +2247,11 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
                 <span class="min-w-0 flex-1">
                   <span class="block text-sm font-semibold text-zinc-900">Webpay</span>
                   <span class="block text-xs text-muted-foreground">
-                    {{ arancelPagadoWebpay ? 'Pagado' : `Pago en línea · ${fmt(montoWebpayArancel(montoNetoArancel()))}` }}
+                    {{
+                      arancelPagadoWebpay
+                        ? textoWebpayAprobado('Pagado', alumnoCtx.webpayArancelDetalle)
+                        : `Pago en línea · ${fmt(montoWebpayArancel(montoNetoArancel()))}`
+                    }}
                   </span>
                 </span>
                 <span
@@ -2257,7 +2266,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
             </section>
 
             <p class="text-xs text-muted-foreground">
-              Elige Pagaré o Webpay en cada concepto. Si hay pagaré, después defines cuotas y vencimientos.
+              Elige Pagaré o Webpay en cada concepto. Si seleccionas Pagaré en cualquiera de los conceptos, después podrás generar el plan de pagos.
             </p>
           </template>
         </div>
