@@ -16,7 +16,7 @@ export function bytesVoucherWebpay(voucher: VoucherWebpay): Uint8Array {
     doc.text(linea.etiqueta, margen, y)
     doc.setFont('helvetica', 'bold')
     const valor = doc.splitTextToSize(linea.valor, 110) as string[]
-    doc.text(valor, 200 - margen, y, { align: 'right' })
+    doc.text(valor, doc.internal.pageSize.getWidth() - margen, y, { align: 'right' })
     y += 8 + (valor.length - 1) * 5
   }
   return new Uint8Array(doc.output('arraybuffer'))

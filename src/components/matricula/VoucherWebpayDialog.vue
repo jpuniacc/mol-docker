@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { DialogContent, DialogOverlay, DialogPortal } from 'radix-vue'
+import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogTitle } from 'radix-vue'
+import { Loader2 } from 'lucide-vue-next'
 
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -8,6 +9,7 @@ import type { VoucherWebpay } from '@/utils/voucherWebpay'
 defineProps<{
   voucher: VoucherWebpay
   mostrarVolver: boolean
+  ocupado: boolean
 }>()
 
 const emit = defineEmits<{
@@ -31,9 +33,12 @@ function frenar(evento: { preventDefault: () => void }): void {
         @interact-outside="frenar"
         @escape-key-down="frenar"
       >
-        <h2 class="shrink-0 pr-2 text-xl font-semibold text-zinc-900">
-          {{ voucher.titulo }}
-        </h2>
+        <DialogTitle as-child>
+          <h2 class="shrink-0 pr-2 text-xl font-semibold text-zinc-900">
+            {{ voucher.titulo }}
+          </h2>
+        </DialogTitle>
+        <DialogDescription class="sr-only">Resumen de la transacción</DialogDescription>
         <dl class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
           <div
             v-for="linea in voucher.lineas"
@@ -52,25 +57,34 @@ function frenar(evento: { preventDefault: () => void }): void {
             type="button"
             variant="outline"
             class="w-full cursor-pointer md:w-auto"
+            :disabled="ocupado"
             @click="emit('descargar')"
           >
             Descargar voucher
           </Button>
           <Button
-            v-if="voucher.descargable"
-            type="button"
-            class="w-full cursor-pointer rounded-full bg-uniacc-orange hover:bg-uniacc-orange/90 md:w-auto"
-            @click="emit('continuar')"
-          >
-            Continuar
-          </Button>
-          <Button
             v-if="!voucher.descargable || mostrarVolver"
             type="button"
-            class="w-full cursor-pointer rounded-full bg-uniacc-orange hover:bg-uniacc-orange/90 md:w-auto"
+            :variant="voucher.descargable && mostrarVolver ? 'outline' : 'default'"
+            :class="
+              voucher.descargable && mostrarVolver
+                ? 'w-full cursor-pointer md:w-auto'
+                : 'w-full cursor-pointer rounded-full bg-uniacc-orange hover:bg-uniacc-orange/90 md:w-auto'
+            "
+            :disabled="ocupado"
             @click="emit('volver')"
           >
             Volver a forma de pago
+          </Button>
+          <Button
+            v-if="voucher.descargable"
+            type="button"
+            class="w-full cursor-pointer rounded-full bg-uniacc-orange hover:bg-uniacc-orange/90 md:w-auto md:order-last"
+            :disabled="ocupado"
+            @click="emit('continuar')"
+          >
+            <Loader2 v-if="ocupado" class="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+            Continuar
           </Button>
         </div>
       </DialogContent>

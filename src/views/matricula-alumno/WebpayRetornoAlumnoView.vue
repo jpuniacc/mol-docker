@@ -38,6 +38,7 @@ const redirigiendo = ref(false)
 const voucher = ref<VoucherWebpay | null>(null)
 const filaVoucher = ref<FilaPublica | null>(null)
 const continuarFallido = ref(false)
+const continuando = ref(false)
 
 function primerQuery(v: unknown): string {
   if (typeof v === 'string') return v.trim()
@@ -85,6 +86,7 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
   const medioMatricula = alumnoCtx.medioMatricula
   const medioArancel: MedioConcepto | null = alumnoCtx.medioArancel
   if (medioMatricula == null) {
+    toast.error('No encontramos cómo seguir con el pago.')
     mostrarReintentar.value = true
     return
   }
@@ -151,9 +153,16 @@ function alDescargar(): void {
 }
 
 async function alContinuar(): Promise<void> {
-  if (!filaVoucher.value) return
-  await avanzarSiAutorizada(filaVoucher.value)
-  if (mostrarReintentar.value) continuarFallido.value = true
+  if (!filaVoucher.value || continuando.value) return
+  continuando.value = true
+  try {
+    await avanzarSiAutorizada(filaVoucher.value)
+    if (mostrarReintentar.value) continuarFallido.value = true
+  } finally {
+    if (!redirigiendo.value) {
+      continuando.value = false
+    }
+  }
 }
 
 function alVolver(): void {
@@ -232,9 +241,10 @@ onMounted(async () => {
       </CardContent>
     </Card>
     <VoucherWebpayDialog
-      v-if="voucher"
+      v-if="voucher && !redirigiendo"
       :voucher="voucher"
       :mostrar-volver="continuarFallido"
+      :ocupado="continuando"
       @descargar="alDescargar"
       @continuar="alContinuar"
       @volver="alVolver"

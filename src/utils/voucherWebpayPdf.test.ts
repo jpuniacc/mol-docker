@@ -1,7 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { VoucherWebpay } from '@/utils/voucherWebpay'
-import { bytesVoucherWebpay } from '@/utils/voucherWebpayPdf'
+import { bytesVoucherWebpay, descargarVoucherWebpay } from '@/utils/voucherWebpayPdf'
+
+vi.mock('@/utils/planPagoPdf', () => ({
+  downloadBlob: vi.fn(),
+}))
+
+import { downloadBlob } from '@/utils/planPagoPdf'
 
 const voucher: VoucherWebpay = {
   titulo: 'Tu transacción fue aprobada',
@@ -21,5 +27,18 @@ describe('bytesVoucherWebpay', () => {
     expect(bytes[2]).toBe(0x44)
     expect(bytes[3]).toBe(0x46)
     expect(bytes.byteLength).toBeGreaterThan(500)
+    const texto = new TextDecoder('latin1').decode(bytes)
+    const mediaBox = texto.match(/\/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]/)
+    expect(mediaBox).not.toBeNull()
+    expect(Number(mediaBox![1])).toBeCloseTo(595.28, 0)
+    expect(Number(mediaBox![2])).toBeCloseTo(841.89, 0)
+  })
+})
+
+describe('descargarVoucherWebpay', () => {
+  it('no llama a downloadBlob si descargable es false', () => {
+    vi.mocked(downloadBlob).mockClear()
+    descargarVoucherWebpay({ ...voucher, descargable: false })
+    expect(downloadBlob).not.toHaveBeenCalled()
   })
 })
