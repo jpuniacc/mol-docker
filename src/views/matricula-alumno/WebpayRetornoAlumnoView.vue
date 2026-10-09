@@ -21,6 +21,9 @@ import {
 } from '@/stores/matriculaAlumnoContext'
 import { detalleDesdeWebpay } from '@/utils/webpayPagoDetalle'
 import { siguientePaso, type MedioConcepto } from '@/utils/webpaySiguientePaso'
+import VoucherWebpayDialog from '@/components/matricula/VoucherWebpayDialog.vue'
+import { armarVoucherWebpay, type VoucherWebpay } from '@/utils/voucherWebpay'
+import { descargarVoucherWebpay } from '@/utils/voucherWebpayPdf'
 
 const route = useRoute()
 const router = useRouter()
@@ -32,6 +35,9 @@ const cargando = ref(true)
 const mensaje = ref('')
 const mostrarReintentar = ref(false)
 const redirigiendo = ref(false)
+const voucher = ref<VoucherWebpay | null>(null)
+const filaVoucher = ref<FilaPublica | null>(null)
+const continuarFallido = ref(false)
 
 function primerQuery(v: unknown): string {
   if (typeof v === 'string') return v.trim()
@@ -135,6 +141,27 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
   irAFormaPago()
 }
 
+function alDescargar(): void {
+  if (!voucher.value) return
+  try {
+    descargarVoucherWebpay(voucher.value)
+  } catch {
+    toast.error('No se pudo descargar el voucher.')
+  }
+}
+
+async function alContinuar(): Promise<void> {
+  if (!filaVoucher.value) return
+  await avanzarSiAutorizada(filaVoucher.value)
+  if (mostrarReintentar.value) continuarFallido.value = true
+}
+
+function alVolver(): void {
+  const estado = filaVoucher.value?.estado
+  const aviso = estado === 'rechazada' || estado === 'abortada' ? estado : undefined
+  irAFormaPago(undefined, aviso)
+}
+
 onMounted(async () => {
   const errorQuery = primerQuery(route.query.error)
   const buyOrder = primerQuery(route.query.buy_order)
@@ -167,21 +194,17 @@ onMounted(async () => {
 
   guardarEstadoConcepto(fila)
 
-  if (fila.estado === 'rechazada' || fila.estado === 'abortada') {
-    irAFormaPago(undefined, fila.estado)
+  const armado = armarVoucherWebpay(fila)
+  if (!armado) {
+    mensaje.value = 'No pudimos leer el resultado del pago.'
+    mostrarReintentar.value = true
+    cargando.value = false
     return
   }
 
+  filaVoucher.value = fila
+  voucher.value = armado
   cargando.value = false
-
-  if (fila.estado === 'autorizada') {
-    mensaje.value = 'El pago quedó autorizado.'
-    await avanzarSiAutorizada(fila)
-    return
-  }
-
-  mensaje.value = 'No pudimos leer el resultado del pago.'
-  mostrarReintentar.value = true
 })
 </script>
 
@@ -208,5 +231,13 @@ onMounted(async () => {
         </div>
       </CardContent>
     </Card>
+    <VoucherWebpayDialog
+      v-if="voucher"
+      :voucher="voucher"
+      :mostrar-volver="continuarFallido"
+      @descargar="alDescargar"
+      @continuar="alContinuar"
+      @volver="alVolver"
+    />
   </div>
 </template>
