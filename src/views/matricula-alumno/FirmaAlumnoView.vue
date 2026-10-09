@@ -58,6 +58,7 @@ const { viewModel, tienePlanConfirmado } = useContratoMatriculaViewModel('alumno
 const descargando = ref(false)
 const aceptado = ref(false)
 const enviando = ref(false)
+const envioIniciado = ref(false)
 const pasoEnvio = ref<PasoEnvioFirma | null>(null)
 const avisoLento = ref(false)
 const alcanzoEnvio = ref(false)
@@ -501,6 +502,10 @@ async function restaurarFirmaExistente(): Promise<void> {
   }
 }
 
+const anteriorDeshabilitado = computed(
+  () => envioIniciado.value || enviando.value || firmantes.value.length > 0,
+)
+
 async function enviarAFirmar(): Promise<void> {
   const vm = viewModel.value
   if (!vm || enviando.value) {
@@ -508,6 +513,7 @@ async function enviarAFirmar(): Promise<void> {
   }
 
   clearPoll()
+  envioIniciado.value = true
   enviando.value = true
   errorFirma.value = null
   iniciarProgresoEnvio()
@@ -895,7 +901,12 @@ async function descargaBorrador(): Promise<void> {
     </template>
 
     <div class="flex flex-wrap justify-between gap-3">
-      <Button variant="outline" @click="router.push({ name: 'matricula-alumno-forma-pago' })">
+      <Button
+        variant="outline"
+        type="button"
+        :disabled="anteriorDeshabilitado"
+        @click="router.push({ name: 'matricula-alumno-forma-pago' })"
+      >
         Anterior
       </Button>
     </div>
