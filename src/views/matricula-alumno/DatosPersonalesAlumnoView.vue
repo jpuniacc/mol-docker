@@ -845,7 +845,7 @@ async function enviarCodigoCorreoOtp() {
       proximoReintentoAt: correoOtpProximoReintentoAt.value,
       enviosRealizados: correoOtpEnviosRealizados.value,
     })
-    toast.message('Código enviado a tu correo. Revisa tu bandeja de entrada.')
+    toast.success('Código enviado a tu correo. Revisa tu bandeja de entrada. (Si no lo ves, revisa en el spam)')
   } finally {
     correoOtpEnviando.value = false
   }
@@ -979,7 +979,7 @@ async function enviarCodigoTelefonoOtp() {
       proximoReintentoAt: telefonoOtpProximoReintentoAt.value,
       enviosRealizados: telefonoOtpEnviosRealizados.value,
     })
-    toast.message('Código enviado por SMS a tu teléfono móvil (celular).')
+    toast.success('Código enviado por SMS a tu teléfono móvil (celular).')
   } finally {
     telefonoOtpEnviando.value = false
   }
