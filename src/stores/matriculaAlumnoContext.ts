@@ -176,14 +176,27 @@ function hasAnyProgressPayload(parsed: Partial<StoredAlumnoMatriculaContext>): b
   )
 }
 
+function textoDetalle(v: unknown): string | null {
+  if (typeof v !== 'string') return null
+  const t = v.trim()
+  return t.length > 0 ? t : null
+}
+
 function detalleWebpayPersistido(v: unknown): WebpayPagoDetalle | null {
   if (typeof v !== 'object' || v === null) return null
   const d = v as Partial<WebpayPagoDetalle>
   if (d.forma !== 'debito' && d.forma !== 'credito') return null
   if (typeof d.autorizacion !== 'string') return null
-  if (d.forma === 'debito') return { forma: 'debito', autorizacion: d.autorizacion.trim(), cuotas: null }
+  const digitos = (d.ultimos4 ?? '').replace(/\D/g, '')
+  const comun = {
+    autorizacion: d.autorizacion.trim(),
+    fecha: textoDetalle(d.fecha),
+    hora: textoDetalle(d.hora),
+    ultimos4: digitos.length >= 4 ? digitos.slice(-4) : null,
+  }
+  if (d.forma === 'debito') return { forma: 'debito', cuotas: null, ...comun }
   if (typeof d.cuotas !== 'number' || !Number.isInteger(d.cuotas) || d.cuotas < 1) return null
-  return { forma: 'credito', autorizacion: d.autorizacion.trim(), cuotas: d.cuotas }
+  return { forma: 'credito', cuotas: d.cuotas, ...comun }
 }
 
 function textoPersistido(v: unknown): string | null {

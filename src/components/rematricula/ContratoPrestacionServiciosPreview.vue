@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 import clausulasFixture from '@/assets/contrato/clausulas.json'
-import type { ContratoMatriculaViewModel } from '@/types/contratoMatricula'
+import type { ContratoMatriculaViewModel, PagoWebpayContrato } from '@/types/contratoMatricula'
 import type { BloquesContrato } from '@/utils/lineasContratoMedio'
 
 const props = defineProps<{
@@ -41,15 +41,31 @@ const bloques = computed(() => props.model.bloques ?? null)
 const muestraMandatoPagare = computed(() => bloques.value?.muestraMandatoPagare ?? true)
 const muestraCuotasMatricula = computed(() => bloques.value?.muestraCuotasMatricula ?? true)
 const muestraCuotasArancel = computed(() => bloques.value?.muestraCuotasArancel ?? true)
-const pagadoWebpayMatricula = computed(() =>
-  bloques.value?.muestraPagadoWebpayMatricula ? bloques.value.montoWebpayMatricula : 0,
-)
-const pagadoWebpayArancel = computed(() =>
-  bloques.value?.muestraPagadoWebpayArancel ? bloques.value.montoWebpayArancel : 0,
-)
 const descuentoFormaPagoArancel = computed(() => bloques.value?.descuentoFormaPagoArancel ?? 0)
+
+function columnasPago(pago: PagoWebpayContrato | null | undefined): { etiqueta: string; valor: string }[] {
+  if (!pago || pago.monto <= 0) return []
+  const cols: { etiqueta: string; valor: string }[] = []
+  const cuando = [pago.fecha, pago.hora].filter((v): v is string => !!v).join(' ')
+  if (cuando) cols.push({ etiqueta: 'Fecha', valor: cuando })
+  if (pago.autorizacion) cols.push({ etiqueta: 'Autorización', valor: pago.autorizacion })
+  const medio = pago.forma === 'debito' ? 'Débito' : pago.forma === 'credito' ? 'Crédito' : null
+  const tarjeta = [medio, pago.ultimos4 ? `···· ${pago.ultimos4}` : null].filter(Boolean).join(' ')
+  if (tarjeta) cols.push({ etiqueta: 'Tarjeta', valor: tarjeta })
+  if (pago.forma === 'credito' && pago.cuotas != null) {
+    cols.push({
+      etiqueta: 'Cuotas',
+      valor: pago.cuotas === 1 ? '1 cuota' : `${pago.cuotas} cuotas`,
+    })
+  }
+  cols.push({ etiqueta: 'Monto', valor: formatClp(pago.monto) })
+  return cols
+}
+
+const columnasWebpayMatricula = computed(() => columnasPago(props.model.pagoWebpayMatricula))
+const columnasWebpayArancel = computed(() => columnasPago(props.model.pagoWebpayArancel))
 const hayWebpay = computed(
-  () => !!bloques.value?.muestraPagadoWebpayMatricula || !!bloques.value?.muestraPagadoWebpayArancel,
+  () => columnasWebpayMatricula.value.length > 0 || columnasWebpayArancel.value.length > 0,
 )
 
 const clausulasVisibles = computed(() =>
@@ -167,40 +183,45 @@ const vencimientoPagareArancel = computed(
     >
       <h2 class="font-bold">{{ cl.titulo }}</h2>
       <template v-for="(p, idx) in cl.parrafos" :key="idx">
-        <div
-          v-if="p === '__PLAN_PAGO__'"
-          class="space-y-3 rounded border border-zinc-300 bg-zinc-50 p-3"
-        >
-          <div class="flex flex-wrap gap-6 font-semibold">
-            <span>valor matrícula {{ formatClp(model.valorMatricula) }}</span>
-            <span>valor arancel {{ formatClp(model.valorArancel) }}</span>
-          </div>
-          <div v-if="hayWebpay" class="overflow-x-auto">
+        <div v-if="p === '__PLAN_PAGO__'" class="space-y-3">
+          <p class="flex flex-wrap gap-x-6 gap-y-1">
+            <span>valor <span class="font-bold">matrícula</span> {{ formatClp(model.valorMatricula) }}</span>
+            <span>valor <span class="font-bold">arancel</span> {{ formatClp(model.valorArancel) }}</span>
+          </p>
+          <section class="space-y-3 rounded border border-zinc-300 bg-zinc-50 p-3">
+            <div class="flex items-baseline justify-between gap-3 border-b border-zinc-200 pb-2">
+              <p class="font-bold">Matrícula</p>
+              <p>{{ formatClp(model.valorMatricula) }}</p>
+            </div>
+          <div v-if="columnasWebpayMatricula.length" class="overflow-x-auto">
+            <p class="mb-1 font-semibold">Pagado con Webpay</p>
             <table class="w-full border-collapse text-left">
+              <thead>
+                <tr class="border-b border-zinc-300">
+                  <th
+                    v-for="col in columnasWebpayMatricula"
+                    :key="'hm-' + col.etiqueta"
+                    class="py-1 pr-2 font-semibold"
+                  >
+                    {{ col.etiqueta }}
+                  </th>
+                </tr>
+              </thead>
               <tbody>
-                <tr
-                  v-if="bloques?.muestraPagadoWebpayMatricula"
-                  class="border-b border-zinc-200"
-                >
-                  <td class="py-1 pr-2">Matrícula — Pagado con Webpay</td>
-                  <td class="py-1 text-right font-semibold">{{ formatClp(pagadoWebpayMatricula) }}</td>
-                </tr>
-                <tr
-                  v-if="bloques?.muestraPagadoWebpayArancel"
-                  class="border-b border-zinc-200"
-                >
-                  <td class="py-1 pr-2">Arancel — Pagado con Webpay</td>
-                  <td class="py-1 text-right font-semibold">{{ formatClp(pagadoWebpayArancel) }}</td>
-                </tr>
-                <tr v-if="descuentoFormaPagoArancel > 0" class="border-b border-zinc-200">
-                  <td class="py-1 pr-2">Descuento por forma de pago</td>
-                  <td class="py-1 text-right font-semibold">{{ formatClp(descuentoFormaPagoArancel) }}</td>
+                <tr class="border-b border-zinc-200">
+                  <td
+                    v-for="col in columnasWebpayMatricula"
+                    :key="'vm-' + col.etiqueta"
+                    class="py-1 pr-2"
+                  >
+                    {{ col.valor }}
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
           <div v-if="descuentosMatricula.length" class="overflow-x-auto">
-            <p class="mb-1 font-semibold">Matrícula — Descuentos</p>
+            <p class="mb-1 font-semibold">Descuentos</p>
             <table class="w-full border-collapse text-left">
               <thead>
                 <tr class="border-b border-zinc-300">
@@ -231,7 +252,7 @@ const vencimientoPagareArancel = computed(
             </table>
           </div>
           <div v-if="cuotasMat.length" class="overflow-x-auto">
-            <p class="mb-1 font-semibold">Matrícula — Plan de pago</p>
+            <p class="mb-1 font-semibold">Plan de pago</p>
             <table class="w-full border-collapse text-left">
               <thead>
                 <tr class="border-b border-zinc-300">
@@ -251,8 +272,14 @@ const vencimientoPagareArancel = computed(
               </tbody>
             </table>
           </div>
+          </section>
+          <section class="space-y-3 rounded border border-zinc-300 bg-zinc-50 p-3">
+            <div class="flex items-baseline justify-between gap-3 border-b border-zinc-200 pb-2">
+              <p class="font-bold">Arancel</p>
+              <p>{{ formatClp(model.valorArancel) }}</p>
+            </div>
           <div v-if="descuentosArancel.length" class="overflow-x-auto">
-            <p class="mb-1 font-semibold">Arancel — Descuentos</p>
+            <p class="mb-1 font-semibold">Descuentos</p>
             <table class="w-full border-collapse text-left">
               <thead>
                 <tr class="border-b border-zinc-300">
@@ -282,8 +309,41 @@ const vencimientoPagareArancel = computed(
               </tbody>
             </table>
           </div>
+          <div v-if="columnasWebpayArancel.length" class="overflow-x-auto">
+            <p class="mb-1 font-semibold">Pagado con Webpay</p>
+            <table class="w-full border-collapse text-left">
+              <thead>
+                <tr class="border-b border-zinc-300">
+                  <th
+                    v-for="col in columnasWebpayArancel"
+                    :key="'ha-' + col.etiqueta"
+                    class="py-1 pr-2 font-semibold"
+                  >
+                    {{ col.etiqueta }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-b border-zinc-200">
+                  <td
+                    v-for="col in columnasWebpayArancel"
+                    :key="'va-' + col.etiqueta"
+                    class="py-1 pr-2"
+                  >
+                    {{ col.valor }}
+                  </td>
+                </tr>
+                <tr v-if="descuentoFormaPagoArancel > 0" class="border-b border-zinc-200">
+                  <td class="py-1 pr-2" :colspan="Math.max(columnasWebpayArancel.length - 1, 1)">
+                    Descuento por forma de pago
+                  </td>
+                  <td class="py-1 pr-2 font-semibold">{{ formatClp(descuentoFormaPagoArancel) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           <div v-if="cuotasAra.length" class="overflow-x-auto">
-            <p class="mb-1 font-semibold">Arancel — Plan de pago</p>
+            <p class="mb-1 font-semibold">Plan de pago</p>
             <table class="w-full border-collapse text-left">
               <thead>
                 <tr class="border-b border-zinc-300">
@@ -303,6 +363,10 @@ const vencimientoPagareArancel = computed(
               </tbody>
             </table>
           </div>
+          <p v-if="!cuotasAra.length && !columnasWebpayArancel.length && !descuentosArancel.length" class="text-muted-foreground">
+            Sin detalle de cuotas.
+          </p>
+          </section>
           <p v-if="!model.cuotas.length && !hayWebpay" class="text-muted-foreground">
             Sin detalle de cuotas (medio {{ model.contrato }}).
           </p>

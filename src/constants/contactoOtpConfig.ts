@@ -26,3 +26,15 @@ export const CONTACTO_OTP_SIN_VALIDAR_MENSAJE_TELEFONO =
 export const CONTACTO_OTP_SIN_VALIDAR_ACEPTAR = 'Aceptar'
 
 export const CONTACTO_OTP_SIN_VALIDAR_CANCELAR = 'Cancelar'
+
+/** Texto para el alumno: 300 → "5 minutos", 60 → "1 minuto", 90 → "1 minuto y 30 segundos". */
+export function formatearDuracionOtp(totalSegundos: number): string {
+  const segundos = Math.max(0, Math.round(totalSegundos))
+  const minutos = Math.floor(segundos / 60)
+  const resto = segundos % 60
+  const etiquetaMinutos = minutos === 1 ? '1 minuto' : `${minutos} minutos`
+  const etiquetaSegundos = resto === 1 ? '1 segundo' : `${resto} segundos`
+  if (minutos === 0) return etiquetaSegundos
+  if (resto === 0) return etiquetaMinutos
+  return `${etiquetaMinutos} y ${etiquetaSegundos}`
+}

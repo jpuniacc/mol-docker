@@ -34,28 +34,34 @@ describe('armarVoucherWebpay', () => {
     const voucher = armarVoucherWebpay(fila({}))
     expect(voucher).toMatchObject({
       titulo: 'Tu transacción fue aprobada',
+      estado: 'autorizada',
       descargable: true,
       nombreArchivo: 'voucher-matricula-1415.pdf',
+      tipoTarjeta: 'TARJETA DE DÉBITO',
     })
     expect(voucher?.lineas.map((l) => l.etiqueta)).toEqual([
       'Concepto',
-      'Fecha y hora',
+      'Fecha',
+      'Hora',
+      'Número de tarjeta',
+      'Monto compra',
+      'Total',
+      'Número de operación',
       'Código de autorización',
-      'Monto',
-      'Tipo de tarjeta',
-      'Tarjeta',
     ])
     expect(valor(voucher!.lineas, 'Concepto')).toBe('Matrícula')
-    expect(valor(voucher!.lineas, 'Fecha y hora')).toBe('08-10-2026 17:40')
+    expect(valor(voucher!.lineas, 'Fecha')).toBe('08-10-2026')
+    expect(valor(voucher!.lineas, 'Hora')).toBe('17:40')
     expect(valor(voucher!.lineas, 'Código de autorización')).toBe('1415')
-    expect(valor(voucher!.lineas, 'Monto')).toBe('250.000')
-    expect(valor(voucher!.lineas, 'Tipo de tarjeta')).toBe('Débito')
-    expect(valor(voucher!.lineas, 'Tarjeta')).toBe('•••• 7763')
+    expect(valor(voucher!.lineas, 'Monto compra')).toBe('$250.000')
+    expect(valor(voucher!.lineas, 'Total')).toBe('$250.000')
+    expect(valor(voucher!.lineas, 'Número de tarjeta')).toBe('************7763')
+    expect(valor(voucher!.lineas, 'Número de operación')).toBe('197407692027-1-15')
   })
 
   it('trata el prepago como débito y sin cuotas', () => {
     const voucher = armarVoucherWebpay(fila({ paymentTypeCode: 'VP' }))
-    expect(valor(voucher!.lineas, 'Tipo de tarjeta')).toBe('Débito')
+    expect(voucher?.tipoTarjeta).toBe('TARJETA DE DÉBITO')
     expect(voucher!.lineas.some((l) => l.etiqueta === 'Cuotas')).toBe(false)
   })
 
@@ -64,9 +70,9 @@ describe('armarVoucherWebpay', () => {
       fila({ paymentTypeCode: 'VN', installmentsNumber: 0, concepto: 'arancel', monto: 3933000, authorizationCode: '1819' }),
     )
     expect(voucher?.nombreArchivo).toBe('voucher-arancel-1819.pdf')
+    expect(voucher?.tipoTarjeta).toBe('TARJETA DE CRÉDITO')
     expect(valor(voucher!.lineas, 'Concepto')).toBe('Arancel')
-    expect(valor(voucher!.lineas, 'Monto')).toBe('3.933.000')
-    expect(valor(voucher!.lineas, 'Tipo de tarjeta')).toBe('Crédito')
+    expect(valor(voucher!.lineas, 'Monto compra')).toBe('$3.933.000')
     expect(valor(voucher!.lineas, 'Cuotas')).toBe('1 cuota')
   })
 
@@ -75,7 +81,7 @@ describe('armarVoucherWebpay', () => {
     expect(valor(voucher!.lineas, 'Cuotas')).toBe('6 cuotas')
   })
 
-  it('el rechazo no se descarga y usa raya donde falta el dato', () => {
+  it('el rechazo no se descarga y omite los datos que no vinieron', () => {
     const voucher = armarVoucherWebpay(
       fila({
         estado: 'rechazada',
@@ -87,29 +93,47 @@ describe('armarVoucherWebpay', () => {
     )
     expect(voucher).toMatchObject({
       titulo: 'Tu transacción fue rechazada',
+      estado: 'rechazada',
       descargable: false,
+      tipoTarjeta: null,
       nombreArchivo: 'voucher-matricula-197407692027-1-15.pdf',
     })
-    expect(valor(voucher!.lineas, 'Código de autorización')).toBe('—')
-    expect(valor(voucher!.lineas, 'Fecha y hora')).toBe('—')
-    expect(valor(voucher!.lineas, 'Tarjeta')).toBe('—')
-    expect(valor(voucher!.lineas, 'Tipo de tarjeta')).toBe('—')
-    expect(valor(voucher!.lineas, 'Cuotas')).toBe('—')
-    expect(valor(voucher!.lineas, 'Monto')).toBe('250.000')
+    expect(voucher?.lineas.map((l) => l.etiqueta)).toEqual([
+      'Concepto',
+      'Monto compra',
+      'Total',
+      'Número de operación',
+    ])
     expect(valor(voucher!.lineas, 'Concepto')).toBe('Matrícula')
+    expect(valor(voucher!.lineas, 'Monto compra')).toBe('$250.000')
   })
 
-  it('la anulación tiene su título', () => {
-    const voucher = armarVoucherWebpay(fila({ estado: 'abortada', paymentTypeCode: 'VD' }))
+  it('la anulación no se descarga y omite los datos que no vinieron', () => {
+    const voucher = armarVoucherWebpay(
+      fila({
+        estado: 'abortada',
+        authorizationCode: null,
+        transactionDate: null,
+        cardLast4: null,
+        paymentTypeCode: null,
+      }),
+    )
     expect(voucher?.titulo).toBe('Tu transacción fue anulada')
+    expect(voucher?.estado).toBe('abortada')
     expect(voucher?.descargable).toBe(false)
-    expect(voucher?.lineas.some((l) => l.etiqueta === 'Cuotas')).toBe(false)
+    expect(voucher?.tipoTarjeta).toBeNull()
+    expect(voucher?.lineas.map((l) => l.etiqueta)).toEqual([
+      'Concepto',
+      'Monto compra',
+      'Total',
+      'Número de operación',
+    ])
   })
 
-  it('un tipo desconocido deja tipo y cuotas en raya', () => {
+  it('un tipo desconocido no muestra tipo ni cuotas', () => {
     const voucher = armarVoucherWebpay(fila({ paymentTypeCode: 'XX' }))
-    expect(valor(voucher!.lineas, 'Tipo de tarjeta')).toBe('—')
-    expect(valor(voucher!.lineas, 'Cuotas')).toBe('—')
+    expect(voucher?.tipoTarjeta).toBeNull()
+    expect(voucher!.lineas.some((l) => l.etiqueta === 'Cuotas')).toBe(false)
   })
 
   it('una transacción creada no arma voucher', () => {

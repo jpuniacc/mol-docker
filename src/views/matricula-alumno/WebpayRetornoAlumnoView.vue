@@ -59,6 +59,8 @@ function guardarEstadoConcepto(fila: FilaPublica): void {
           paymentTypeCode: fila.paymentTypeCode,
           authorizationCode: fila.authorizationCode,
           installmentsNumber: fila.installmentsNumber,
+          transactionDate: fila.transactionDate,
+          cardLast4: fila.cardLast4,
         })
       : null
   if (fila.concepto === 'matricula') {

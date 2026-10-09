@@ -54,11 +54,17 @@ import {
 } from '@/utils/telefonoChile'
 import { esCorreoDominioUniacc, MENSAJE_CORREO_PERSONAL_UNIACC } from '@/utils/correoPersonal'
 import {
+  guardarCanalOtpEnCurso,
+  leerOtpEnCurso,
+  limpiarCanalOtpEnCurso,
+} from '@/utils/contactoOtpEnCurso'
+import {
   CONTACTO_OTP_MAX_ENVIOS,
   CONTACTO_OTP_SIN_VALIDAR_ACEPTAR,
   CONTACTO_OTP_SIN_VALIDAR_CANCELAR,
   CONTACTO_OTP_SIN_VALIDAR_MENSAJE_CORREO,
   CONTACTO_OTP_SIN_VALIDAR_MENSAJE_TELEFONO,
+  formatearDuracionOtp,
 } from '@/constants/contactoOtpConfig'
 import {
   actualizarDatosMolErp,
@@ -209,17 +215,22 @@ function sincronizarDraftsContactoDesdeFuente(opciones?: { forzarResetValidacion
 
   restaurandoContacto.value = true
   if (opciones?.forzarResetValidacion) {
-    resetOtpEnCurso()
-    emailDraft.value = alumnoCtx.contactoCorreoValidado ?? valorInicialCorreoPersonal()
-    telefonoDigitosLocal.value =
-      alumnoCtx.contactoTelefonoValidado ?? valorInicialTelefonoDigitos()
-    sincronizarTelefonoDraftDesdeDigitos()
+    const guardado = leerOtpEnCurso()
+    if (guardado.correo || guardado.telefono) {
+      aplicarOtpEnCursoGuardado()
+    } else {
+      resetOtpEnCurso()
+      emailDraft.value = alumnoCtx.contactoCorreoValidado ?? valorInicialCorreoPersonal()
+      telefonoDigitosLocal.value =
+        alumnoCtx.contactoTelefonoValidado ?? valorInicialTelefonoDigitos()
+      sincronizarTelefonoDraftDesdeDigitos()
+    }
     capturarBaselineContactoErp()
   } else {
-    if (!correoValidadoOk.value && !correoPersistidoCoincide(emailDraft.value)) {
+    if (!correoOtpPendiente.value && !emailDraft.value.trim()) {
       emailDraft.value = alumnoCtx.contactoCorreoValidado ?? valorInicialCorreoPersonal()
     }
-    if (!telefonoValidadoOk.value && !telefonoPersistidoCoincide(telefonoDigitosLocal.value)) {
+    if (!telefonoOtpPendiente.value && !telefonoDigitosLocal.value.trim()) {
       telefonoDigitosLocal.value =
         alumnoCtx.contactoTelefonoValidado ?? valorInicialTelefonoDigitos()
       sincronizarTelefonoDraftDesdeDigitos()
@@ -275,6 +286,7 @@ function resetCorreoOtpUi() {
   clearCorreoOtpCountdown()
   correoOtpValidezDesdeMs.value = null
   otpUi.resetCorreoOtp()
+  limpiarCanalOtpEnCurso('correo')
 }
 
 /** Actualizado cada segundo mientras hay OTP pendiente; fuerza recomputo del contador. */
@@ -409,15 +421,11 @@ watch(
   },
 )
 
-function resetContactoModalYEstadoOtp() {
-  resetOtpEnCurso()
-  if (paso.value === 'contacto') aplicarMarcasContactoPersistidas()
-}
-
 function onPageShowRestaurarContacto(e: PageTransitionEvent) {
   logMockContactoOtp('ui.pageshow', { persisted: e.persisted })
   if (!e.persisted) return
-  resetContactoModalYEstadoOtp()
+  aplicarOtpEnCursoGuardado()
+  if (paso.value === 'contacto') aplicarMarcasContactoPersistidas()
   void otpConfig.ensureLoaded(true)
 }
 
@@ -428,7 +436,8 @@ onMounted(() => {
     correoPendiente: correoOtpPendiente.value,
     telefonoPendiente: telefonoOtpPendiente.value,
   })
-  resetContactoModalYEstadoOtp()
+  aplicarOtpEnCursoGuardado()
+  if (paso.value === 'contacto') aplicarMarcasContactoPersistidas()
   void otpConfig.ensureLoaded(true).then(() => {
     logMockContactoOtp('ui.onMounted.configCargada', {
       emailSegundos: otpConfig.emailSegundos,
@@ -558,6 +567,67 @@ function resetTelefonoOtpUi() {
   clearTelefonoOtpCountdown()
   telefonoOtpValidezDesdeMs.value = null
   otpUi.resetTelefonoOtp()
+  limpiarCanalOtpEnCurso('telefono')
+}
+
+function aplicarOtpEnCursoGuardado(): void {
+  const guardado = leerOtpEnCurso()
+  if (!guardado.correo && !guardado.telefono) return
+  restaurandoContacto.value = true
+  if (guardado.correo) {
+    emailDraft.value = guardado.correo.destino
+    otpUi.correoOtpPendiente = true
+    otpUi.correoOtpExpiresAt = guardado.correo.expiresAt
+    otpUi.correoOtpProximoReintentoAt = guardado.correo.proximoReintentoAt
+    otpUi.correoOtpEnviosRealizados = guardado.correo.envios
+    otpUi.correoOtpIntentosFallidos = guardado.correo.intentosFallidos
+    correoOtpValidezDesdeMs.value = guardado.correo.validezDesdeMs
+  }
+  if (guardado.telefono) {
+    telefonoDigitosLocal.value = guardado.telefono.destino
+    sincronizarTelefonoDraftDesdeDigitos()
+    otpUi.telefonoOtpPendiente = true
+    otpUi.telefonoOtpExpiresAt = guardado.telefono.expiresAt
+    otpUi.telefonoOtpProximoReintentoAt = guardado.telefono.proximoReintentoAt
+    otpUi.telefonoOtpEnviosRealizados = guardado.telefono.envios
+    otpUi.telefonoOtpIntentosFallidos = guardado.telefono.intentosFallidos
+    telefonoOtpValidezDesdeMs.value = guardado.telefono.validezDesdeMs
+  }
+  void nextTick(() => {
+    restaurandoContacto.value = false
+  })
+}
+
+function persistirCorreoOtpEnCurso(): void {
+  if (!correoOtpPendiente.value || correoOtpValidezDesdeMs.value == null || !correoOtpExpiresAt.value) {
+    return
+  }
+  guardarCanalOtpEnCurso('correo', {
+    destino: emailDraft.value.trim(),
+    validezDesdeMs: correoOtpValidezDesdeMs.value,
+    expiresAt: correoOtpExpiresAt.value,
+    proximoReintentoAt: correoOtpProximoReintentoAt.value,
+    envios: correoOtpEnviosRealizados.value,
+    intentosFallidos: correoOtpIntentosFallidos.value,
+  })
+}
+
+function persistirTelefonoOtpEnCurso(): void {
+  if (
+    !telefonoOtpPendiente.value ||
+    telefonoOtpValidezDesdeMs.value == null ||
+    !telefonoOtpExpiresAt.value
+  ) {
+    return
+  }
+  guardarCanalOtpEnCurso('telefono', {
+    destino: telefonoDigitosLocal.value,
+    validezDesdeMs: telefonoOtpValidezDesdeMs.value,
+    expiresAt: telefonoOtpExpiresAt.value,
+    proximoReintentoAt: telefonoOtpProximoReintentoAt.value,
+    envios: telefonoOtpEnviosRealizados.value,
+    intentosFallidos: telefonoOtpIntentosFallidos.value,
+  })
 }
 
 watch(
@@ -585,7 +655,7 @@ watch(
 )
 
 watch(emailDraft, () => {
-  if (paso.value !== 'contacto') return
+  if (paso.value !== 'contacto' || restaurandoContacto.value) return
   if (correoPersistidoCoincide(emailDraft.value)) {
     correoValidadoOk.value = true
     return
@@ -597,7 +667,7 @@ watch(emailDraft, () => {
 })
 
 watch(telefonoDigitosLocal, () => {
-  if (paso.value !== 'contacto') return
+  if (paso.value !== 'contacto' || restaurandoContacto.value) return
   sincronizarTelefonoDraftDesdeDigitos()
   if (telefonoPersistidoCoincide(telefonoDigitosLocal.value)) {
     telefonoValidadoOk.value = true
@@ -735,6 +805,7 @@ function aceptarContinuarSinOtpCorreo() {
     'continuar_sin_otp',
     emailDraft.value.trim(),
   )
+  resetCorreoOtpUi()
   otpUi.cerrarModalCorreo()
 }
 
@@ -760,6 +831,7 @@ function aceptarContinuarSinOtpTelefono() {
     'continuar_sin_otp',
     telefonoDraft.value.trim(),
   )
+  resetTelefonoOtpUi()
   otpUi.cerrarModalTelefono()
 }
 
@@ -832,6 +904,7 @@ async function enviarCodigoCorreoOtp() {
     correoOtpTick.value = ahora
     correoOtpCodigo.value = ''
     correoOtpEnviosRealizados.value += 1
+    persistirCorreoOtpEnCurso()
     const numEnvio = correoOtpEnviosRealizados.value
     void registrarEventoContactoOtp(
       'correo',
@@ -882,6 +955,7 @@ async function confirmarCodigoCorreoOtp() {
     })
     if (!resultado.ok) {
       correoOtpIntentosFallidos.value += 1
+      persistirCorreoOtpEnCurso()
       errorCorreo.value = resultado.message
       logMockContactoOtp('ui.correo.confirmar.incorrecto', {
         message: resultado.message,
@@ -897,6 +971,7 @@ async function confirmarCodigoCorreoOtp() {
     correoValidadoOk.value = true
     void registrarEventoContactoOtp('correo', 'verificar_ok', emailDraft.value.trim())
     logMockContactoOtp('ui.correo.confirmar.ok')
+    resetCorreoOtpUi()
     otpUi.cerrarModalCorreo()
   } finally {
     correoOtpVerificando.value = false
@@ -966,6 +1041,7 @@ async function enviarCodigoTelefonoOtp() {
     telefonoOtpTick.value = ahora
     telefonoOtpCodigo.value = ''
     telefonoOtpEnviosRealizados.value += 1
+    persistirTelefonoOtpEnCurso()
     const numEnvio = telefonoOtpEnviosRealizados.value
     void registrarEventoContactoOtp(
       'telefono',
@@ -1016,6 +1092,7 @@ async function confirmarCodigoTelefonoOtp() {
     })
     if (!resultado.ok) {
       telefonoOtpIntentosFallidos.value += 1
+      persistirTelefonoOtpEnCurso()
       errorTelefono.value = resultado.message
       logMockContactoOtp('ui.telefono.confirmar.incorrecto', {
         message: resultado.message,
@@ -1031,6 +1108,7 @@ async function confirmarCodigoTelefonoOtp() {
     telefonoValidadoOk.value = true
     void registrarEventoContactoOtp('telefono', 'verificar_ok', telefonoDraft.value.trim())
     logMockContactoOtp('ui.telefono.confirmar.ok')
+    resetTelefonoOtpUi()
     otpUi.cerrarModalTelefono()
   } finally {
     telefonoOtpVerificando.value = false
@@ -1182,7 +1260,7 @@ watch(
         </AlertTitle>
         <AlertDescription class="mt-2 space-y-2 text-base leading-relaxed text-zinc-800 dark:text-zinc-200">
           <p>
-            Valida tu correo y tu teléfono móvil (celular). A cada uno te enviaremos un código de 6 dígitos.
+            Valida tu correo personal y tu teléfono móvil (celular). A cada uno te enviaremos un código de 6 dígitos.
           </p>
           <p>Si cambias un dato después de validarlo, tendrás que validarlo de nuevo.</p>
         </AlertDescription>
@@ -1206,6 +1284,7 @@ watch(
               </p>
               <div class="flex flex-wrap items-center gap-2">
                 <Badge v-if="correoValidadoOk" variant="success">Validado</Badge>
+                <Badge v-else-if="correoOtpPendiente" variant="outline">Código enviado</Badge>
                 <Badge v-else variant="outline">Pendiente</Badge>
               </div>
             </div>
@@ -1215,8 +1294,10 @@ watch(
               :disabled="datosCargando || correoValidadoOk"
               @click="otpUi.abrirModalCorreo()"
             >
-              <span class="sm:hidden">Validar / actualizar</span>
-              <span class="hidden sm:inline">Validar o actualizar correo</span>
+              <span class="sm:hidden">{{ correoOtpPendiente ? 'Ingresar código' : 'Validar / actualizar' }}</span>
+              <span class="hidden sm:inline">{{
+                correoOtpPendiente ? 'Ingresar código' : 'Validar o actualizar correo'
+              }}</span>
             </Button>
           </div>
 
@@ -1230,6 +1311,7 @@ watch(
               </p>
               <div class="flex flex-wrap items-center gap-2">
                 <Badge v-if="telefonoValidadoOk" variant="success">Validado</Badge>
+                <Badge v-else-if="telefonoOtpPendiente" variant="outline">Código enviado</Badge>
                 <Badge v-else variant="outline">Pendiente</Badge>
               </div>
             </div>
@@ -1239,8 +1321,10 @@ watch(
               :disabled="datosCargando || telefonoValidadoOk"
               @click="otpUi.abrirModalTelefono()"
             >
-              <span class="sm:hidden">Validar / actualizar</span>
-              <span class="hidden sm:inline">Validar o actualizar celular</span>
+              <span class="sm:hidden">{{ telefonoOtpPendiente ? 'Ingresar código' : 'Validar / actualizar' }}</span>
+              <span class="hidden sm:inline">{{
+                telefonoOtpPendiente ? 'Ingresar código' : 'Validar o actualizar celular'
+              }}</span>
             </Button>
           </div>
 
@@ -1269,8 +1353,8 @@ watch(
               Te enviaremos un código de 6 dígitos a este correo.
             </DialogDescription>
             <ul class="list-disc space-y-1 pl-5 text-left text-sm leading-relaxed text-muted-foreground">
-              <li>El código dura {{ otpConfig.emailSegundos }} s.</li>
-              <li>Puedes reenviarlo 1 vez, después de {{ otpConfig.emailReintentoSegundos }} s.</li>
+              <li>El código dura {{ formatearDuracionOtp(otpConfig.emailSegundos) }}.</li>
+              <li>Puedes reenviarlo 1 vez, después de {{ formatearDuracionOtp(otpConfig.emailReintentoSegundos) }}.</li>
               <li>Tienes 3 intentos por código.</li>
             </ul>
           </DialogHeader>
@@ -1421,8 +1505,8 @@ watch(
               Te enviaremos un código de 6 dígitos por SMS a este teléfono móvil (celular).
             </DialogDescription>
             <ul class="list-disc space-y-1 pl-5 text-left text-sm leading-relaxed text-muted-foreground">
-              <li>El código dura {{ otpConfig.smsSegundos }} s.</li>
-              <li>Puedes reenviarlo 1 vez, después de {{ otpConfig.smsReintentoSegundos }} s.</li>
+              <li>El código dura {{ formatearDuracionOtp(otpConfig.smsSegundos) }}.</li>
+              <li>Puedes reenviarlo 1 vez, después de {{ formatearDuracionOtp(otpConfig.smsReintentoSegundos) }}.</li>
               <li>Tienes 3 intentos por código.</li>
             </ul>
           </DialogHeader>

@@ -11,11 +11,13 @@ import { downloadBlob } from '@/utils/planPagoPdf'
 
 const voucher: VoucherWebpay = {
   titulo: 'Tu transacción fue aprobada',
+  estado: 'autorizada',
   descargable: true,
   nombreArchivo: 'voucher-matricula-1415.pdf',
+  tipoTarjeta: 'TARJETA DE DÉBITO',
   lineas: [
     { etiqueta: 'Concepto', valor: 'Matrícula' },
-    { etiqueta: 'Monto', valor: '250.000' },
+    { etiqueta: 'Monto compra', valor: '$250.000' },
   ],
 }
 

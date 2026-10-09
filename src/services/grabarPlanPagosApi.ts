@@ -120,6 +120,88 @@ export function armarGrabarPlanPagos(input: {
   }
 }
 
+/** Un concepto ya autorizado en Webpay y el otro en pagaré. El de tarjeta viaja con folio 0. */
+export function armarGrabarCuentaMixta(input: {
+  rut: string
+  codcliAcademico: string
+  codigoCarrera: string
+  ano: number | null
+  periodo: number | null
+  caja: number | null
+  pago: MockPagoMatricula | null
+  medioMatricula: 'pagare' | 'webpay'
+  medioArancel: 'pagare' | 'webpay'
+  montoWebpayMatricula: number | null
+  montoWebpayArancel: number | null
+}): { ok: true; payload: GrabarPlanPagosPayload } | { ok: false; error: string } {
+  const { medioMatricula, medioArancel } = input
+  const mixto =
+    (medioMatricula === 'webpay' && medioArancel === 'pagare') ||
+    (medioMatricula === 'pagare' && medioArancel === 'webpay')
+  if (!mixto) {
+    return { ok: false, error: 'El plan mixto necesita un concepto en Webpay y el otro en pagaré' }
+  }
+  const pago = input.pago
+  if (!pago || pago.medio !== 'pagare') {
+    return { ok: false, error: 'Falta el plan de cuotas del pagaré' }
+  }
+  const codcli = rutSinDv(input.rut)
+  if (!/^\d{7,8}$/.test(codcli)) {
+    return { ok: false, error: 'Falta el RUT del alumno para grabar el plan' }
+  }
+  const codcliAcademico = input.codcliAcademico.trim()
+  if (!/^[0-9A-Za-z]{10,20}$/.test(codcliAcademico) || !/[A-Za-z]/.test(codcliAcademico)) {
+    return { ok: false, error: 'Falta el código académico del alumno para cerrar la ficha' }
+  }
+  const codcarr = input.codigoCarrera.trim()
+  const contrato = (pago.contrato ?? '').trim()
+  const fechaInicio = (pago.fechaInicio ?? '').trim()
+  const cuotas = pago.cuotas
+  if (!codcarr || !contrato || !fechaInicio || (cuotas !== 10 && cuotas !== 12)) {
+    return { ok: false, error: 'Faltan carrera, contrato, cuotas o fecha de inicio del plan' }
+  }
+  if (input.ano == null || (input.periodo !== 1 && input.periodo !== 2)) {
+    return { ok: false, error: 'Falta el periodo académico para grabar el plan' }
+  }
+  const montoWebpay = medioMatricula === 'webpay' ? input.montoWebpayMatricula : input.montoWebpayArancel
+  if (montoWebpay == null || !Number.isInteger(montoWebpay) || montoWebpay <= 0) {
+    return { ok: false, error: 'Falta el monto pagado con Webpay' }
+  }
+  const itemPagare: 1 | 2 = medioMatricula === 'pagare' ? 1 : 2
+  const montoPagare = sumaItem(pago, itemPagare)
+  const folioPagare = folioItem(pago, itemPagare)
+  if (montoPagare <= 0) {
+    return { ok: false, error: 'Falta el monto del pagaré' }
+  }
+  if (!/^\d+$/.test(folioPagare) || folioPagare === '0') {
+    return { ok: false, error: 'Falta el folio CORRPAGNUM del pagaré' }
+  }
+  const caja = input.caja != null && input.caja > 0 ? input.caja : 997
+  return {
+    ok: true,
+    payload: {
+      codcli,
+      codcliAcademico,
+      codcarr,
+      ano: input.ano,
+      periodo: input.periodo,
+      contrato,
+      caja,
+      codapod: codcli,
+      montoMatricula: medioMatricula === 'webpay' ? montoWebpay : montoPagare,
+      montoArancel: medioArancel === 'webpay' ? montoWebpay : montoPagare,
+      cuotas,
+      fechaInicio,
+      corrpagMatricula: medioMatricula === 'webpay' ? '0' : folioPagare,
+      corrpagArancel: medioArancel === 'webpay' ? '0' : folioPagare,
+      beneficios: beneficiosDelPlan(pago),
+      medioMatricula,
+      medioArancel,
+      cerrarFicha: true,
+    },
+  }
+}
+
 function beneficiosDelPlan(pago: MockPagoMatricula): BeneficioPlanPagos[] {
   const vistos = new Set<number>()
   const beneficios: BeneficioPlanPagos[] = []

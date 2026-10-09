@@ -11,7 +11,9 @@ import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import type {
   ContratoDescuentoLinea,
   ContratoMatriculaViewModel,
+  PagoWebpayContrato,
 } from '@/types/contratoMatricula'
+import type { WebpayPagoDetalle } from '@/utils/webpayPagoDetalle'
 import { numeroOperacionContrato } from '@/utils/numeroOperacionContrato'
 import {
   bloquesContrato,
@@ -53,6 +55,22 @@ function formatFecven(iso: string): string {
   return `${m[3]}/${m[2]}/${m[1]}`
 }
 
+function pagoWebpayContrato(
+  detalle: WebpayPagoDetalle | null | undefined,
+  monto: number,
+): PagoWebpayContrato | null {
+  if (monto <= 0) return null
+  return {
+    fecha: detalle?.fecha ?? null,
+    hora: detalle?.hora ?? null,
+    autorizacion: detalle?.autorizacion?.trim() || null,
+    forma: detalle?.forma ?? null,
+    ultimos4: detalle?.ultimos4 ?? null,
+    cuotas: detalle?.forma === 'credito' ? (detalle.cuotas ?? 1) : null,
+    monto,
+  }
+}
+
 function domiciliadoPorGenero(genero: string): string {
   const g = genero.trim().toUpperCase()
   if (g === 'F' || g === 'FEMENINO' || g === 'MUJER') return 'domiciliada'
@@ -73,6 +91,8 @@ type MediosWebpayCtx = {
   webpayMatriculaEstado?: WebpayConceptoEstadoCtx
   webpayArancelEstado?: WebpayConceptoEstadoCtx
   webpayMontoMatricula?: number | null
+  webpayMatriculaDetalle?: WebpayPagoDetalle | null
+  webpayArancelDetalle?: WebpayPagoDetalle | null
   numOperacionCuenta?: string | null
   webpayMontoArancel?: number | null
   valorMatriculaBruto?: number | null
@@ -199,6 +219,18 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
         monto: d.monto,
         vencimiento: d.vencimiento,
       })),
+      pagoWebpayMatricula: matriculaWebpayOk
+        ? pagoWebpayContrato(
+            ctx.webpayMatriculaDetalle,
+            Math.max(0, ctx.webpayMontoMatricula ?? 0),
+          )
+        : null,
+      pagoWebpayArancel: arancelWebpayOk
+        ? pagoWebpayContrato(
+            ctx.webpayArancelDetalle,
+            Math.max(0, saldoWebpayArancel - descuentoFormaPagoArancel),
+          )
+        : null,
       cuotas: cuotasDetalle.map((c) => ({
         documento: c.correlativo || c.documento,
         tipoDocumento: c.documento,

@@ -3,8 +3,22 @@ import { describe, expect, it } from 'vitest'
 import { resumenPagosWebpay } from '@/utils/resumenPagosWebpay'
 import type { WebpayPagoDetalle } from '@/utils/webpayPagoDetalle'
 
-const debito: WebpayPagoDetalle = { forma: 'debito', autorizacion: '1415', cuotas: null }
-const credito: WebpayPagoDetalle = { forma: 'credito', autorizacion: '555', cuotas: 6 }
+const debito: WebpayPagoDetalle = {
+  forma: 'debito',
+  autorizacion: '1415',
+  cuotas: null,
+  fecha: null,
+  hora: null,
+  ultimos4: null,
+}
+const credito: WebpayPagoDetalle = {
+  forma: 'credito',
+  autorizacion: '555',
+  cuotas: 6,
+  fecha: null,
+  hora: null,
+  ultimos4: null,
+}
 
 describe('resumenPagosWebpay', () => {
   it('muestra lo cobrado, débito sin cuotas y cada autorización', () => {
@@ -63,7 +77,14 @@ describe('resumenPagosWebpay', () => {
       medioArancel: null,
       montoMatricula: 100,
       montoArancel: null,
-      detalleMatricula: { forma: 'credito', autorizacion: '9', cuotas: 1 },
+      detalleMatricula: {
+        forma: 'credito',
+        autorizacion: '9',
+        cuotas: 1,
+        fecha: null,
+        hora: null,
+        ultimos4: null,
+      },
       detalleArancel: null,
     })
     expect(resumen?.bloques[0]?.cuotas).toBe('1 cuota')

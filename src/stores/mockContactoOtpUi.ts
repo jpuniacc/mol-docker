@@ -88,33 +88,39 @@ export const useMockContactoOtpUiStore = defineStore('mockContactoOtpUi', {
     },
 
     abrirModalCorreo() {
-      logMockContactoOtp('store.abrirModalCorreo')
+      logMockContactoOtp('store.abrirModalCorreo', { pendiente: this.correoOtpPendiente })
       this.modalContacto = 'correo'
       this.errorCorreo = null
-      this.resetCorreoOtp()
+      if (!this.correoOtpPendiente) this.resetCorreoOtp()
     },
 
     abrirModalTelefono() {
-      logMockContactoOtp('store.abrirModalTelefono')
+      logMockContactoOtp('store.abrirModalTelefono', { pendiente: this.telefonoOtpPendiente })
       this.modalContacto = 'telefono'
       this.errorTelefono = null
-      this.resetTelefonoOtp()
+      if (!this.telefonoOtpPendiente) this.resetTelefonoOtp()
     },
 
     cerrarModalCorreo() {
-      logMockContactoOtp('store.cerrarModalCorreo', { modalActual: this.modalContacto })
+      logMockContactoOtp('store.cerrarModalCorreo', {
+        modalActual: this.modalContacto,
+        pendiente: this.correoOtpPendiente,
+      })
       if (this.modalContacto !== 'correo') return
       this.modalContacto = null
       this.errorCorreo = null
-      this.resetCorreoOtp()
+      this.mostrarContinuarSinOtpCorreo = false
     },
 
     cerrarModalTelefono() {
-      logMockContactoOtp('store.cerrarModalTelefono', { modalActual: this.modalContacto })
+      logMockContactoOtp('store.cerrarModalTelefono', {
+        modalActual: this.modalContacto,
+        pendiente: this.telefonoOtpPendiente,
+      })
       if (this.modalContacto !== 'telefono') return
       this.modalContacto = null
       this.errorTelefono = null
-      this.resetTelefonoOtp()
+      this.mostrarContinuarSinOtpTelefono = false
     },
   },
 })

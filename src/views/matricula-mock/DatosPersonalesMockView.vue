@@ -53,6 +53,7 @@ import {
   CONTACTO_OTP_SIN_VALIDAR_CANCELAR,
   CONTACTO_OTP_SIN_VALIDAR_MENSAJE_CORREO,
   CONTACTO_OTP_SIN_VALIDAR_MENSAJE_TELEFONO,
+  formatearDuracionOtp,
 } from '@/constants/contactoOtpConfig'
 import {
   actualizarDatosMolErp,
@@ -1082,9 +1083,9 @@ watch(
             <li>
               <span class="font-semibold text-uniacc-orange">Correo y teléfono (mock).</span>
               Sin envío real: usa el código de prueba <strong>{{ MOCK_OTP_CODE }}</strong>.
-              Validez del código: correo {{ otpConfig.emailSegundos }} s, SMS {{ otpConfig.smsSegundos }} s.
-              Entre cada reenvío debes esperar: correo {{ otpConfig.emailReintentoSegundos }} s,
-              SMS {{ otpConfig.smsReintentoSegundos }} s. Máximo 3 intentos incorrectos por código.
+              Validez del código: correo {{ formatearDuracionOtp(otpConfig.emailSegundos) }}, SMS {{ formatearDuracionOtp(otpConfig.smsSegundos) }}.
+              Entre cada reenvío debes esperar: correo {{ formatearDuracionOtp(otpConfig.emailReintentoSegundos) }},
+              SMS {{ formatearDuracionOtp(otpConfig.smsReintentoSegundos) }}. Máximo 3 intentos incorrectos por código.
               Puedes reenviar el código una vez. Si aún no lo recibes, podrás continuar con el dato ingresado.
             </li>
             <li>
@@ -1165,8 +1166,8 @@ watch(
             <DialogTitle>Validar correo personal</DialogTitle>
             <DialogDescription>
               Simula la validación sin enviar correo real. Código de prueba: {{ MOCK_OTP_CODE }}.
-              El código es válido {{ otpConfig.emailSegundos }} segundos. Debes esperar
-              {{ otpConfig.emailReintentoSegundos }} segundos entre cada reenvío.
+              El código es válido {{ formatearDuracionOtp(otpConfig.emailSegundos) }}. Debes esperar
+              {{ formatearDuracionOtp(otpConfig.emailReintentoSegundos) }} entre cada reenvío.
               Puedes reenviar el código una vez. Si aún no lo recibes, podrás continuar con el dato ingresado.
             </DialogDescription>
           </DialogHeader>
@@ -1315,8 +1316,8 @@ watch(
             <DialogTitle>Validar teléfono actual</DialogTitle>
             <DialogDescription>
               Simula validación SMS sin envío real. Código de prueba: {{ MOCK_OTP_CODE }}.
-              El código es válido {{ otpConfig.smsSegundos }} segundos. Debes esperar
-              {{ otpConfig.smsReintentoSegundos }} segundos entre cada reenvío.
+              El código es válido {{ formatearDuracionOtp(otpConfig.smsSegundos) }}. Debes esperar
+              {{ formatearDuracionOtp(otpConfig.smsReintentoSegundos) }} entre cada reenvío.
               Puedes reenviar el código una vez. Si aún no lo recibes, podrás continuar con el dato ingresado.
             </DialogDescription>
           </DialogHeader>

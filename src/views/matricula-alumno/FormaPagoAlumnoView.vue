@@ -37,7 +37,7 @@ import {
 import ConvenioVigenteUpload from '@/components/rematricula/ConvenioVigenteUpload.vue'
 import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
 import { tieneCae } from '@/constants/verificacionCae'
-import { Check, CreditCard, FileText, GraduationCap, TriangleAlert } from 'lucide-vue-next'
+import { BadgePercent, Check, CreditCard, FileText, GraduationCap, TriangleAlert } from 'lucide-vue-next'
 import { abrirCasoRematricula, consultarCasosAlumno } from '@/services/casoRematriculaApi'
 import {
   consultarCarteraBeneficios,
@@ -90,7 +90,7 @@ import {
 } from '@/utils/convenioCertificadoGate'
 import { periodoCatalogoLabel } from '@/utils/periodoCatalogo'
 import { rutNorm } from '@/utils/rutNorm'
-import { montoWebpayArancel } from '@/utils/descuentoFormaPagoWebpay'
+import { descuentoFormaPagoArancel, montoWebpayArancel } from '@/utils/descuentoFormaPagoWebpay'
 import { arancelHabilitado, puedeContinuar } from '@/utils/selectorMedioPago'
 import { textoWebpayAprobado } from '@/utils/webpayPagoDetalle'
 import { siguientePaso } from '@/utils/webpaySiguientePaso'
@@ -2205,6 +2205,17 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
 
             <section class="space-y-2">
               <h3 class="text-sm font-semibold text-zinc-900">Arancel</h3>
+              <p
+                v-if="descuentoFormaPagoArancel(montoNetoArancel()) > 0"
+                class="flex items-center gap-1.5 text-sm text-emerald-700"
+              >
+                <BadgePercent class="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>
+                  Pagando con Webpay obtienes un
+                  <span class="font-semibold">5% de descuento</span>
+                  en tu arancel.
+                </span>
+              </p>
               <div class="grid gap-2 sm:grid-cols-2">
               <button
                 type="button"

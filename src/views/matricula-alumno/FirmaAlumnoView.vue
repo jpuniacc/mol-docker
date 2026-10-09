@@ -27,7 +27,11 @@ import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import { useMatriculaFlujoPreflightStore } from '@/stores/datos_erp/matricula_flujo_preflight'
 import { esPropioSostenedor } from '@/utils/apoderadoResponsable'
-import { armarGrabarPlanPagos, postGrabarPlanPagos } from '@/services/grabarPlanPagosApi'
+import {
+  armarGrabarCuentaMixta,
+  armarGrabarPlanPagos,
+  postGrabarPlanPagos,
+} from '@/services/grabarPlanPagosApi'
 import { asignarDocumentosDescuento } from '@/utils/documentosDescuentoContrato'
 import { armarGrabarCuentaWebpay } from '@/utils/grabarCuentaWebpay'
 import { numeroOperacionContrato } from '@/utils/numeroOperacionContrato'
@@ -404,15 +408,36 @@ async function grabarPlanFirmado(): Promise<boolean> {
     planGrabado.value = true
     return true
   }
-  const armado = armarGrabarPlanPagos({
-    rut: fuente.rutMostrado.value,
-    codcliAcademico: fuente.codcliMostrado.value,
-    codigoCarrera: alumnoMnp.primeraFila?.codigo_carrera ?? '',
-    ano: periodoActivo.anio,
-    periodo: periodoActivo.semestre,
-    caja: preflight.steps?.caja.row?.caja ?? null,
-    pago: alumnoCtx.pagoMatricula,
-  })
+  const medioMat = alumnoCtx.medioMatricula
+  const medioAra = alumnoCtx.medioArancel
+  const matriculaConTarjeta =
+    medioMat === 'webpay' && alumnoCtx.webpayMatriculaEstado === 'autorizada'
+  const arancelConTarjeta = medioAra === 'webpay' && alumnoCtx.webpayArancelEstado === 'autorizada'
+  const mixto =
+    (matriculaConTarjeta && medioAra === 'pagare') || (arancelConTarjeta && medioMat === 'pagare')
+  const armado = mixto
+    ? armarGrabarCuentaMixta({
+        rut: fuente.rutMostrado.value,
+        codcliAcademico: fuente.codcliMostrado.value,
+        codigoCarrera: alumnoMnp.primeraFila?.codigo_carrera ?? '',
+        ano: periodoActivo.anio,
+        periodo: periodoActivo.semestre,
+        caja: preflight.steps?.caja.row?.caja ?? null,
+        pago: alumnoCtx.pagoMatricula,
+        medioMatricula: matriculaConTarjeta ? 'webpay' : 'pagare',
+        medioArancel: arancelConTarjeta ? 'webpay' : 'pagare',
+        montoWebpayMatricula: alumnoCtx.webpayMontoMatricula,
+        montoWebpayArancel: alumnoCtx.webpayMontoArancel,
+      })
+    : armarGrabarPlanPagos({
+        rut: fuente.rutMostrado.value,
+        codcliAcademico: fuente.codcliMostrado.value,
+        codigoCarrera: alumnoMnp.primeraFila?.codigo_carrera ?? '',
+        ano: periodoActivo.anio,
+        periodo: periodoActivo.semestre,
+        caja: preflight.steps?.caja.row?.caja ?? null,
+        pago: alumnoCtx.pagoMatricula,
+      })
   if (!armado.ok) {
     errorGrabacion.value = armado.error
     return false

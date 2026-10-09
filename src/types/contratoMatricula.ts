@@ -36,6 +36,17 @@ export type ContratoPersonaBloque = {
   domiciliadoLabel: string
 }
 
+/** Pago Webpay de un concepto, para el recuadro de aranceles del contrato. */
+export type PagoWebpayContrato = {
+  fecha: string | null
+  hora: string | null
+  autorizacion: string | null
+  forma: 'debito' | 'credito' | null
+  ultimos4: string | null
+  cuotas: number | null
+  monto: number
+}
+
 export type ContratoMatriculaViewModel = {
   numOperacion: string
   contrato: string
@@ -53,6 +64,8 @@ export type ContratoMatriculaViewModel = {
   valorArancel: number
   descuentos: ContratoDescuentoLinea[]
   cuotas: ContratoCuotaLinea[]
+  pagoWebpayMatricula?: PagoWebpayContrato | null
+  pagoWebpayArancel?: PagoWebpayContrato | null
   representante: {
     nombre: string
     rut: string

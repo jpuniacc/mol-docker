@@ -10,7 +10,14 @@ describe('detalleDesdeWebpay', () => {
         authorizationCode: '1213',
         installmentsNumber: 0,
       }),
-    ).toEqual({ forma: 'debito', autorizacion: '1213', cuotas: null })
+    ).toEqual({
+      forma: 'debito',
+      autorizacion: '1213',
+      cuotas: null,
+      fecha: null,
+      hora: null,
+      ultimos4: null,
+    })
   })
 
   it('crédito de una cuota', () => {
@@ -20,7 +27,14 @@ describe('detalleDesdeWebpay', () => {
         authorizationCode: '99',
         installmentsNumber: 0,
       }),
-    ).toEqual({ forma: 'credito', autorizacion: '99', cuotas: 1 })
+    ).toEqual({
+      forma: 'credito',
+      autorizacion: '99',
+      cuotas: 1,
+      fecha: null,
+      hora: null,
+      ultimos4: null,
+    })
   })
 
   it('crédito en varias cuotas', () => {
@@ -51,8 +65,28 @@ describe('textoWebpayAprobado', () => {
         forma: 'debito',
         autorizacion: '1213',
         cuotas: null,
+        fecha: null,
+        hora: null,
+        ultimos4: null,
       }),
     ).toBe('Pagada · Débito · Autorización 1213')
+  })
+
+  it('guarda fecha, hora y últimos 4 dígitos', () => {
+    expect(
+      detalleDesdeWebpay({
+        paymentTypeCode: 'VN',
+        authorizationCode: '1213',
+        installmentsNumber: 1,
+        transactionDate: '2026-10-09T17:16:00.000Z',
+        cardLast4: '6623',
+      }),
+    ).toMatchObject({
+      fecha: '09-10-2026',
+      hora: '14:16',
+      ultimos4: '6623',
+      cuotas: 1,
+    })
   })
 
   it('arma crédito con cuotas', () => {
@@ -61,6 +95,9 @@ describe('textoWebpayAprobado', () => {
         forma: 'credito',
         autorizacion: '555',
         cuotas: 6,
+        fecha: null,
+        hora: null,
+        ultimos4: null,
       }),
     ).toBe('Pagado · Crédito · 6 cuotas · Autorización 555')
   })
