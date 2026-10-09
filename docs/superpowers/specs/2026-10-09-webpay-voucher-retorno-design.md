@@ -37,6 +37,20 @@ Refrescar la página de retorno vuelve a mostrar el modal de esa misma transacci
 
 Si Continuar no logra abrir el siguiente pago, el modal permanece, se muestra el aviso que ya existe y aparece «Volver a forma de pago».
 
+## Pantalla
+
+El modal es usable en el teléfono, en la tablet y en el escritorio. Se revisa en 375, 768 y 1024 px de ancho.
+
+En el teléfono ocupa el ancho de la ventana, con un margen chico a los lados. Desde la tablet queda centrado, con un ancho máximo que no se estira en una pantalla grande. Nunca aparece un scroll horizontal.
+
+Si la ventana es baja, como un teléfono en horizontal, el título y los botones siguen visibles y las líneas del voucher se desplazan por dentro del modal.
+
+Cada línea muestra la etiqueta y el valor. El valor puede pasar a la línea siguiente. Un código largo no se sale del cuadro.
+
+En 375 px los botones van uno bajo el otro y ocupan el ancho del modal. Descargar queda arriba y Continuar abajo. Desde 768 px pueden ir en la misma fila, Continuar a la derecha. El botón de un rechazo o una anulación ocupa el ancho en el teléfono y se alinea a la derecha desde la tablet.
+
+El PDF no imita el ancho de la pantalla. Es una hoja fija, la misma en el teléfono y en el escritorio.
+
 ## Contenido
 
 Las líneas van en este orden:
@@ -85,6 +99,8 @@ La función del voucher se prueba sola, sin pantalla ni Transbank:
 - El nombre del archivo: `voucher-matricula-1415.pdf` o `voucher-arancel-1819.pdf`.
 
 El modal no se abre si el resultado no se pudo leer o la transacción sigue creada. El avance al siguiente pago y la vuelta a forma de pago no se reescriben. No se prueba un cobro real.
+
+El ajuste a 375, 768 y 1024 px se revisa en el navegador. No lo cubre la prueba de la función.
 
 ## Fuera de alcance
 
