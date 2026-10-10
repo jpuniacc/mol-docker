@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
 import { VERIFICACION_ESTATAL_UI } from '@/constants/verificacionEstatal'
 
 const props = defineProps<{
@@ -89,19 +90,29 @@ const codcliDisplay = computed(() => props.codcli?.trim() || '—')
         </ul>
       </section>
 
-      <div class="flex flex-col gap-3 border-t border-zinc-200 pt-4 sm:flex-row">
-        <Button
-          type="button"
-          class="w-full bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
-          :disabled="reintentando"
-          @click="emit('reintentar')"
-        >
-          {{ reintentando ? ui.reintentando : ui.reintentar }}
-        </Button>
-        <Button type="button" variant="outline" class="w-full sm:w-auto" :disabled="reintentando" @click="emit('volver')">
-          {{ ui.volver }}
-        </Button>
-      </div>
+      <AccionesFlujo class="border-t border-zinc-200 pt-4">
+        <template #secundaria>
+          <Button
+            type="button"
+            variant="outline"
+            class="w-full sm:w-auto"
+            :disabled="reintentando"
+            @click="emit('volver')"
+          >
+            {{ ui.volver }}
+          </Button>
+        </template>
+        <template #primaria>
+          <Button
+            type="button"
+            class="w-full bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
+            :disabled="reintentando"
+            @click="emit('reintentar')"
+          >
+            {{ reintentando ? ui.reintentando : ui.reintentar }}
+          </Button>
+        </template>
+      </AccionesFlujo>
     </CardContent>
   </Card>
 </template>
