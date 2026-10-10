@@ -24,6 +24,7 @@ import {
 import { cn } from '@/composables/utils'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
 import MatriculaAlumnoApoderadoStep from '@/views/matricula-alumno/MatriculaAlumnoApoderadoStep.vue'
 import MatriculaAlumnoDiscapacidadStep from '@/views/matricula-alumno/MatriculaAlumnoDiscapacidadStep.vue'
 import MatriculaAlumnoTyCStep from '@/views/matricula-alumno/MatriculaAlumnoTyCStep.vue'
@@ -1362,18 +1363,27 @@ watch(
           <div v-if="mostrarContinuarSinOtpCorreo" class="space-y-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-950">
             <p class="text-sm font-semibold">Continuar sin validar correo</p>
             <p class="text-sm">{{ CONTACTO_OTP_SIN_VALIDAR_MENSAJE_CORREO }}</p>
-            <div class="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" @click="cancelarContinuarSinOtpCorreo">
-                {{ CONTACTO_OTP_SIN_VALIDAR_CANCELAR }}
-              </Button>
-              <Button
-                type="button"
-                class="bg-uniacc-orange hover:bg-uniacc-orange/90"
-                @click="aceptarContinuarSinOtpCorreo"
-              >
-                {{ CONTACTO_OTP_SIN_VALIDAR_ACEPTAR }}
-              </Button>
-            </div>
+            <AccionesFlujo>
+              <template #secundaria>
+                <Button
+                  type="button"
+                  variant="outline"
+                  class="w-full sm:w-auto"
+                  @click="cancelarContinuarSinOtpCorreo"
+                >
+                  {{ CONTACTO_OTP_SIN_VALIDAR_CANCELAR }}
+                </Button>
+              </template>
+              <template #primaria>
+                <Button
+                  type="button"
+                  class="w-full bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
+                  @click="aceptarContinuarSinOtpCorreo"
+                >
+                  {{ CONTACTO_OTP_SIN_VALIDAR_ACEPTAR }}
+                </Button>
+              </template>
+            </AccionesFlujo>
           </div>
 
           <div v-else class="space-y-3">
@@ -1456,34 +1466,38 @@ watch(
                   @keydown="onCorreoOtpCodigoKeydown"
                   @compositionend="onCorreoOtpCodigoDomInput"
                 />
-                <div class="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    class="w-full bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
-                    :disabled="
-                      correoOtpVerificando ||
-                      correoOtpEnviando ||
-                      correoOtpCountdownAgotado
-                    "
-                    @click="confirmarCodigoCorreoOtp"
-                  >
-                    {{ correoOtpVerificando ? 'Verificando…' : 'Confirmar código' }}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    class="w-full sm:w-auto"
-                    :disabled="
-                      correoOtpEnviando ||
-                      correoOtpVerificando ||
-                      correoOtpReintentoBloqueado ||
-                      !puedeEnviarCorreoOtp
-                    "
-                    @click="enviarCodigoCorreoOtp"
-                  >
-                    {{ correoOtpEnviando ? 'Enviando…' : 'Reenviar código' }}
-                  </Button>
-                </div>
+                <AccionesFlujo>
+                  <template #secundaria>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      class="w-full sm:w-auto"
+                      :disabled="
+                        correoOtpEnviando ||
+                        correoOtpVerificando ||
+                        correoOtpReintentoBloqueado ||
+                        !puedeEnviarCorreoOtp
+                      "
+                      @click="enviarCodigoCorreoOtp"
+                    >
+                      {{ correoOtpEnviando ? 'Enviando…' : 'Reenviar código' }}
+                    </Button>
+                  </template>
+                  <template #primaria>
+                    <Button
+                      type="button"
+                      class="w-full bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
+                      :disabled="
+                        correoOtpVerificando ||
+                        correoOtpEnviando ||
+                        correoOtpCountdownAgotado
+                      "
+                      @click="confirmarCodigoCorreoOtp"
+                    >
+                      {{ correoOtpVerificando ? 'Verificando…' : 'Confirmar código' }}
+                    </Button>
+                  </template>
+                </AccionesFlujo>
                 <p v-if="correoOtpReintentoBloqueado" class="text-xs text-muted-foreground">
                   Reenvío disponible en {{ correoOtpReintentoMmSs }}
                 </p>
@@ -1514,18 +1528,27 @@ watch(
           <div v-if="mostrarContinuarSinOtpTelefono" class="space-y-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-950">
             <p class="text-sm font-semibold">Continuar sin validar el celular</p>
             <p class="text-sm">{{ CONTACTO_OTP_SIN_VALIDAR_MENSAJE_TELEFONO }}</p>
-            <div class="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" @click="cancelarContinuarSinOtpTelefono">
-                {{ CONTACTO_OTP_SIN_VALIDAR_CANCELAR }}
-              </Button>
-              <Button
-                type="button"
-                class="bg-uniacc-orange hover:bg-uniacc-orange/90"
-                @click="aceptarContinuarSinOtpTelefono"
-              >
-                {{ CONTACTO_OTP_SIN_VALIDAR_ACEPTAR }}
-              </Button>
-            </div>
+            <AccionesFlujo>
+              <template #secundaria>
+                <Button
+                  type="button"
+                  variant="outline"
+                  class="w-full sm:w-auto"
+                  @click="cancelarContinuarSinOtpTelefono"
+                >
+                  {{ CONTACTO_OTP_SIN_VALIDAR_CANCELAR }}
+                </Button>
+              </template>
+              <template #primaria>
+                <Button
+                  type="button"
+                  class="w-full bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
+                  @click="aceptarContinuarSinOtpTelefono"
+                >
+                  {{ CONTACTO_OTP_SIN_VALIDAR_ACEPTAR }}
+                </Button>
+              </template>
+            </AccionesFlujo>
           </div>
 
           <div v-else class="space-y-3">
@@ -1623,33 +1646,37 @@ watch(
                   "
                   @input="onTelefonoOtpCodigoDomInput"
                 />
-                <div class="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    class="w-full bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
-                    :disabled="
-                      telefonoOtpVerificando ||
-                      telefonoOtpCountdownAgotado
-                    "
-                    @click="confirmarCodigoTelefonoOtp"
-                  >
-                    {{ telefonoOtpVerificando ? 'Verificando…' : 'Confirmar código SMS' }}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    class="w-full sm:w-auto"
-                    :disabled="
-                      telefonoOtpEnviando ||
-                      telefonoOtpVerificando ||
-                      telefonoOtpReintentoBloqueado ||
-                      !puedeEnviarTelefonoOtp
-                    "
-                    @click="enviarCodigoTelefonoOtp"
-                  >
-                    Reenviar SMS
-                  </Button>
-                </div>
+                <AccionesFlujo>
+                  <template #secundaria>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      class="w-full sm:w-auto"
+                      :disabled="
+                        telefonoOtpEnviando ||
+                        telefonoOtpVerificando ||
+                        telefonoOtpReintentoBloqueado ||
+                        !puedeEnviarTelefonoOtp
+                      "
+                      @click="enviarCodigoTelefonoOtp"
+                    >
+                      Reenviar SMS
+                    </Button>
+                  </template>
+                  <template #primaria>
+                    <Button
+                      type="button"
+                      class="w-full bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
+                      :disabled="
+                        telefonoOtpVerificando ||
+                        telefonoOtpCountdownAgotado
+                      "
+                      @click="confirmarCodigoTelefonoOtp"
+                    >
+                      {{ telefonoOtpVerificando ? 'Verificando…' : 'Confirmar código SMS' }}
+                    </Button>
+                  </template>
+                </AccionesFlujo>
                 <p v-if="telefonoOtpReintentoBloqueado" class="text-xs text-muted-foreground">
                   Reenvío disponible en {{ telefonoOtpReintentoMmSs }}
                 </p>
