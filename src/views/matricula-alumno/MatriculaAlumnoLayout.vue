@@ -6,8 +6,16 @@ import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
 import { Button } from '@/components/ui/button'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   Stepper,
-  StepperIndicator,
   StepperItem,
   StepperSeparator,
   StepperTitle,
@@ -16,8 +24,11 @@ import {
 import { MessageCircle } from 'lucide-vue-next'
 import {
   PASOS_ALUMNO_REMATRICULA,
+  accionAlPulsarPaso,
+  NOMBRES_PASO_ALUMNO,
   pasoBloqueadoTrasEnvio,
   pasoMaximoAlumno,
+  textoAvisoPasoCerrado,
 } from '@/utils/pasoAlumnoRematricula'
 
 const STEP_NAMES = PASOS_ALUMNO_REMATRICULA
@@ -44,10 +55,28 @@ function pasoBloqueado(step: number): boolean {
   })
 }
 
+const avisoPasoAbierto = ref(false)
+const avisoPasoTexto = ref('')
+
+function nombrePaso(step: number): string {
+  return NOMBRES_PASO_ALUMNO[step - 1] ?? ''
+}
+
 const stepModel = computed({
   get: () => routeNameToStep(route.name),
   set: (v: number | undefined) => {
-    if (v === undefined || pasoBloqueado(v)) return
+    const actual = routeNameToStep(route.name)
+    const accion = accionAlPulsarPaso({
+      step: v,
+      pasoActual: actual,
+      cerrado: v !== undefined && pasoBloqueado(v),
+    })
+    if (accion === 'nada' || v === undefined) return
+    if (accion === 'aviso') {
+      avisoPasoTexto.value = textoAvisoPasoCerrado(nombrePaso(actual), nombrePaso(v))
+      avisoPasoAbierto.value = true
+      return
+    }
     const n = STEP_NAMES[v - 1]
     if (n) void router.push({ name: n })
   },
@@ -157,51 +186,83 @@ function salirAlDashboard() {
         <Stepper
           v-model="stepModel"
           :linear="false"
-          class="flex w-full min-w-[28rem] items-start gap-0 md:min-w-0"
+          class="flex w-full min-w-[28rem] items-center gap-0 md:min-w-0"
         >
-        <StepperItem
-          :step="1"
-          :disabled="pasoBloqueado(1)"
-          class="flex min-w-0 flex-1 flex-row items-start data-[disabled]:opacity-40"
-        >
-          <StepperTrigger class="flex min-w-0 flex-1 flex-col items-center gap-0.5 p-1">
-            <StepperIndicator class="h-6 w-6 text-[11px]">1</StepperIndicator>
-            <StepperTitle class="text-[11px] font-medium leading-tight">Datos personales</StepperTitle>
-          </StepperTrigger>
-          <StepperSeparator class="mx-1 mt-3 h-px min-w-[0.75rem] flex-1 self-start bg-border" />
-        </StepperItem>
-        <StepperItem
-          :step="2"
-          :disabled="pasoBloqueado(2)"
-          class="flex min-w-0 flex-1 flex-row items-start data-[disabled]:opacity-40"
-        >
-          <StepperTrigger class="flex min-w-0 flex-1 flex-col items-center gap-0.5 p-1">
-            <StepperIndicator class="h-6 w-6 text-[11px]">2</StepperIndicator>
-            <StepperTitle class="text-[11px] font-medium leading-tight">Forma de pago</StepperTitle>
-          </StepperTrigger>
-          <StepperSeparator class="mx-1 mt-3 h-px min-w-[0.75rem] flex-1 self-start bg-border" />
-        </StepperItem>
-        <StepperItem
-          :step="3"
-          :disabled="pasoBloqueado(3)"
-          class="flex min-w-0 flex-1 flex-row items-start data-[disabled]:opacity-40"
-        >
-          <StepperTrigger class="flex min-w-0 flex-1 flex-col items-center gap-0.5 p-1">
-            <StepperIndicator class="h-6 w-6 text-[11px]">3</StepperIndicator>
-            <StepperTitle class="text-[11px] font-medium leading-tight">Firma de contrato</StepperTitle>
-          </StepperTrigger>
-          <StepperSeparator class="mx-1 mt-3 h-px min-w-[0.75rem] flex-1 self-start bg-border" />
-        </StepperItem>
-        <StepperItem
-          :step="4"
-          :disabled="pasoBloqueado(4)"
-          class="flex min-w-0 flex-1 flex-col items-center data-[disabled]:opacity-40"
-        >
-          <StepperTrigger class="flex flex-col items-center gap-0.5 p-1">
-            <StepperIndicator class="h-6 w-6 text-[11px]">4</StepperIndicator>
-            <StepperTitle class="text-[11px] font-medium leading-tight">Resumen final</StepperTitle>
-          </StepperTrigger>
-        </StepperItem>
+          <StepperItem
+            :step="1"
+            class="flex min-w-0 flex-1 flex-row items-center"
+            :class="pasoBloqueado(1) ? 'opacity-40' : ''"
+          >
+            <StepperTrigger class="flex min-w-0 flex-1 flex-row items-center justify-center gap-1.5 p-1">
+              <span
+                class="text-[11px] leading-tight"
+                :class="stepModel === 1 ? 'font-semibold text-uniacc-orange' : 'font-medium'"
+              >1</span>
+              <StepperTitle
+                class="text-[11px] leading-tight"
+                :class="stepModel === 1 ? 'font-semibold text-uniacc-orange' : 'font-medium'"
+              >
+                {{ NOMBRES_PASO_ALUMNO[0] }}
+              </StepperTitle>
+            </StepperTrigger>
+            <StepperSeparator class="mx-1 h-px min-w-[0.75rem] flex-1 bg-border" />
+          </StepperItem>
+          <StepperItem
+            :step="2"
+            class="flex min-w-0 flex-1 flex-row items-center"
+            :class="pasoBloqueado(2) ? 'opacity-40' : ''"
+          >
+            <StepperTrigger class="flex min-w-0 flex-1 flex-row items-center justify-center gap-1.5 p-1">
+              <span
+                class="text-[11px] leading-tight"
+                :class="stepModel === 2 ? 'font-semibold text-uniacc-orange' : 'font-medium'"
+              >2</span>
+              <StepperTitle
+                class="text-[11px] leading-tight"
+                :class="stepModel === 2 ? 'font-semibold text-uniacc-orange' : 'font-medium'"
+              >
+                {{ NOMBRES_PASO_ALUMNO[1] }}
+              </StepperTitle>
+            </StepperTrigger>
+            <StepperSeparator class="mx-1 h-px min-w-[0.75rem] flex-1 bg-border" />
+          </StepperItem>
+          <StepperItem
+            :step="3"
+            class="flex min-w-0 flex-1 flex-row items-center"
+            :class="pasoBloqueado(3) ? 'opacity-40' : ''"
+          >
+            <StepperTrigger class="flex min-w-0 flex-1 flex-row items-center justify-center gap-1.5 p-1">
+              <span
+                class="text-[11px] leading-tight"
+                :class="stepModel === 3 ? 'font-semibold text-uniacc-orange' : 'font-medium'"
+              >3</span>
+              <StepperTitle
+                class="text-[11px] leading-tight"
+                :class="stepModel === 3 ? 'font-semibold text-uniacc-orange' : 'font-medium'"
+              >
+                {{ NOMBRES_PASO_ALUMNO[2] }}
+              </StepperTitle>
+            </StepperTrigger>
+            <StepperSeparator class="mx-1 h-px min-w-[0.75rem] flex-1 bg-border" />
+          </StepperItem>
+          <StepperItem
+            :step="4"
+            class="flex min-w-0 flex-1 flex-row items-center"
+            :class="pasoBloqueado(4) ? 'opacity-40' : ''"
+          >
+            <StepperTrigger class="flex min-w-0 flex-1 flex-row items-center justify-center gap-1.5 p-1">
+              <span
+                class="text-[11px] leading-tight"
+                :class="stepModel === 4 ? 'font-semibold text-uniacc-orange' : 'font-medium'"
+              >4</span>
+              <StepperTitle
+                class="text-[11px] leading-tight"
+                :class="stepModel === 4 ? 'font-semibold text-uniacc-orange' : 'font-medium'"
+              >
+                {{ NOMBRES_PASO_ALUMNO[3] }}
+              </StepperTitle>
+            </StepperTrigger>
+          </StepperItem>
         </Stepper>
       </div>
     </div>
@@ -222,6 +283,22 @@ function salirAlDashboard() {
     >
       <MessageCircle class="h-7 w-7" />
     </a>
+
+    <AlertDialog v-model:open="avisoPasoAbierto">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Paso no disponible</AlertDialogTitle>
+          <AlertDialogDescription class="text-left">
+            {{ avisoPasoTexto }}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction class="bg-uniacc-orange hover:bg-uniacc-orange/90">
+            Entendido
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
 
