@@ -49,6 +49,7 @@ type StoredAlumnoMatriculaContext = {
   descuentosContrato: ContratoDescuentoLinea[]
   lineasBeneficioGrabar: LineaParaDocumentoDescuento[]
   pasoAlcanzado: number
+  envioFirmaIniciado: boolean
 }
 
 function sanitizeConveniosDocumentos(v: unknown): Record<string, MockConvenioDocumento> {
@@ -172,7 +173,8 @@ function hasAnyProgressPayload(parsed: Partial<StoredAlumnoMatriculaContext>): b
     parsed.medioArancel != null ||
     parsed.webpayMatriculaEstado != null ||
     parsed.webpayArancelEstado != null ||
-    (typeof parsed.pasoAlcanzado === 'number' && parsed.pasoAlcanzado > 1)
+    (typeof parsed.pasoAlcanzado === 'number' && parsed.pasoAlcanzado > 1) ||
+    parsed.envioFirmaIniciado === true
   )
 }
 
@@ -235,6 +237,7 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
     descuentosContrato: [] as ContratoDescuentoLinea[],
     lineasBeneficioGrabar: [] as LineaParaDocumentoDescuento[],
     pasoAlcanzado: 1,
+    envioFirmaIniciado: false,
   }),
   actions: {
     persistToSessionStorage() {
@@ -267,6 +270,7 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
         descuentosContrato: this.descuentosContrato,
         lineasBeneficioGrabar: this.lineasBeneficioGrabar,
         pasoAlcanzado: this.pasoAlcanzado,
+        envioFirmaIniciado: this.envioFirmaIniciado,
       }
       sessionStorage.setItem(ALUMNO_CTX_STORAGE_KEY, JSON.stringify(payload))
     },
@@ -336,6 +340,7 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
           parsed.pasoAlcanzado <= 4
             ? Math.trunc(parsed.pasoAlcanzado)
             : 1
+        this.envioFirmaIniciado = parsed.envioFirmaIniciado === true
       } catch {
         sessionStorage.removeItem(ALUMNO_CTX_STORAGE_KEY)
       }
@@ -382,6 +387,7 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
       this.descuentosContrato = []
       this.lineasBeneficioGrabar = []
       this.pasoAlcanzado = 1
+      this.envioFirmaIniciado = false
       this.resetStoresErp()
       this.clearSessionStorage()
     },
@@ -390,6 +396,12 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
       const n = Math.min(4, Math.max(1, Math.trunc(paso)))
       if (n <= this.pasoAlcanzado) return
       this.pasoAlcanzado = n
+      this.persistToSessionStorage()
+    },
+
+    marcarEnvioFirmaIniciado() {
+      if (this.envioFirmaIniciado) return
+      this.envioFirmaIniciado = true
       this.persistToSessionStorage()
     },
 
