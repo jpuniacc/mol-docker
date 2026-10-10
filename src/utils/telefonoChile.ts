@@ -1,19 +1,22 @@
-export const TELEFONO_CHILE_PREFIJO = '+569'
-export const TELEFONO_CHILE_DIGITOS_TRAS_PREFIJO = 8
+export const TELEFONO_CHILE_PREFIJO = '+56'
+export const TELEFONO_CHILE_DIGITOS_TRAS_PREFIJO = 9
+export const TELEFONO_CHILE_INPUT_MAX = 20
 
-/** Extrae solo los 8 dígitos del abonado (sin prefijo país). */
+const DIGITOS_CON_PAIS = 11
+
+/** Dígitos nacionales. Quita 56 solo si el pegado trae 11 dígitos. */
 export function extraerDigitosTelefonoChile(raw: string): string {
   const digitos = raw.replace(/\D/g, '')
-  if (digitos.startsWith('569')) {
-    return digitos.slice(3, 3 + TELEFONO_CHILE_DIGITOS_TRAS_PREFIJO)
+  if (digitos.length === DIGITOS_CON_PAIS && digitos.startsWith('56')) {
+    return digitos.slice(2)
   }
-  if (digitos.startsWith('56')) {
-    return digitos.slice(2, 2 + TELEFONO_CHILE_DIGITOS_TRAS_PREFIJO)
+  if (digitos.length === TELEFONO_CHILE_DIGITOS_TRAS_PREFIJO) {
+    return digitos
   }
-  return digitos.slice(0, TELEFONO_CHILE_DIGITOS_TRAS_PREFIJO)
+  return digitos.slice(0, DIGITOS_CON_PAIS)
 }
 
-/** Valor normalizado E.164 Chile móvil: +56912345678 */
+/** +56 más los dígitos extraídos. Vacío si no hay dígitos. */
 export function normalizarTelefonoChile(raw: string): string {
   const digitos = extraerDigitosTelefonoChile(raw)
   if (!digitos) return ''
@@ -21,13 +24,12 @@ export function normalizarTelefonoChile(raw: string): string {
 }
 
 export function telefonoChileEsValido(s: string): boolean {
-  return new RegExp(`^\\+569\\d{${TELEFONO_CHILE_DIGITOS_TRAS_PREFIJO}}$`).test(s.trim())
+  return new RegExp(`^\\+56\\d{${TELEFONO_CHILE_DIGITOS_TRAS_PREFIJO}}$`).test(s.trim())
 }
 
-/** Máscara para auditoría: +569****5678 */
+/** Máscara de auditoría: +56*****4321. Inválido: ***. */
 export function enmascararTelefonoChile(s: string): string {
   const norm = normalizarTelefonoChile(s)
   if (!telefonoChileEsValido(norm)) return '***'
-  const ultimos = norm.slice(-4)
-  return `${TELEFONO_CHILE_PREFIJO}****${ultimos}`
+  return `${TELEFONO_CHILE_PREFIJO}*****${norm.slice(-4)}`
 }
