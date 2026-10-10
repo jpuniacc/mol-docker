@@ -58,7 +58,6 @@ const { viewModel, tienePlanConfirmado } = useContratoMatriculaViewModel('alumno
 const descargando = ref(false)
 const aceptado = ref(false)
 const enviando = ref(false)
-const envioIniciado = ref(false)
 const pasoEnvio = ref<PasoEnvioFirma | null>(null)
 const avisoLento = ref(false)
 const alcanzoEnvio = ref(false)
@@ -503,7 +502,7 @@ async function restaurarFirmaExistente(): Promise<void> {
 }
 
 const anteriorDeshabilitado = computed(
-  () => envioIniciado.value || enviando.value || firmantes.value.length > 0,
+  () => alumnoCtx.envioFirmaIniciado || enviando.value || firmantes.value.length > 0,
 )
 
 async function enviarAFirmar(): Promise<void> {
@@ -513,7 +512,7 @@ async function enviarAFirmar(): Promise<void> {
   }
 
   clearPoll()
-  envioIniciado.value = true
+  alumnoCtx.marcarEnvioFirmaIniciado()
   enviando.value = true
   errorFirma.value = null
   iniciarProgresoEnvio()

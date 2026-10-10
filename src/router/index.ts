@@ -20,6 +20,7 @@ import {
   indicePasoAlumno,
   PASOS_ALUMNO_REMATRICULA,
   pasoMaximoAlumno,
+  rutaSiEnvioFirmaBloquea,
 } from '@/utils/pasoAlumnoRematricula'
 
 const MOCK_SELECCION_ROUTE = 'matricula-mock-seleccion-alumno'
@@ -518,7 +519,11 @@ router.beforeEach(async (to) => {
     if (alumnoOk && (isMockFlowRoute(to.name) || to.name === MOCK_SELECCION_ROUTE)) {
       return { name: ALUMNO_DATOS_ROUTE, replace: true }
     }
-    if (!alumnoOk && isAlumnoFlowRoute(to.name)) {
+    if (
+      !alumnoOk &&
+      isAlumnoFlowRoute(to.name) &&
+      to.name !== 'matricula-alumno-webpay-retorno'
+    ) {
       return {
         name: auth.authSource === 'pixarron' ? 'dashboard-home' : MOCK_SELECCION_ROUTE,
         replace: true,
@@ -556,6 +561,10 @@ router.beforeEach(async (to) => {
       to.name !== 'matricula-alumno-webpay-retorno'
     ) {
       return { name: 'matricula-alumno-resumen', replace: true }
+    }
+    const firmaBloqueada = rutaSiEnvioFirmaBloquea(alumnoCtx.envioFirmaIniciado, to.name)
+    if (firmaBloqueada) {
+      return { name: firmaBloqueada, replace: true }
     }
     if (
       alumnoCtx.apoderadoBloqueo &&

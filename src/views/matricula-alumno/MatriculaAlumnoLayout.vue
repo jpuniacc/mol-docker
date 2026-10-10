@@ -16,6 +16,7 @@ import {
 import { MessageCircle } from 'lucide-vue-next'
 import {
   PASOS_ALUMNO_REMATRICULA,
+  pasoBloqueadoTrasEnvio,
   pasoMaximoAlumno,
 } from '@/utils/pasoAlumnoRematricula'
 
@@ -32,18 +33,21 @@ function routeNameToStep(name: string | symbol | null | undefined): number {
   return idx >= 0 ? idx + 1 : 1
 }
 
-const matriculaCerrada = computed(() => alumnoCtx.firmaCompletada)
 const pasoMaximo = computed(() => pasoMaximoAlumno(alumnoCtx))
 
 function pasoBloqueado(step: number): boolean {
-  if (matriculaCerrada.value) return step !== 4
-  return step > pasoMaximo.value
+  return pasoBloqueadoTrasEnvio({
+    envioFirmaIniciado: alumnoCtx.envioFirmaIniciado,
+    firmaCompletada: alumnoCtx.firmaCompletada,
+    step,
+    pasoMaximo: pasoMaximo.value,
+  })
 }
 
 const stepModel = computed({
   get: () => routeNameToStep(route.name),
   set: (v: number | undefined) => {
-    if (v === undefined || matriculaCerrada.value || v > pasoMaximo.value) return
+    if (v === undefined || pasoBloqueado(v)) return
     const n = STEP_NAMES[v - 1]
     if (n) void router.push({ name: n })
   },
