@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { toast } from 'vue-sonner'
 
+import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
 import RichTextContent from '@/components/rich-text/RichTextContent.vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -229,19 +230,29 @@ function solicitarRechazo() {
           <RichTextContent :html="contenido" />
         </div>
 
-        <div class="flex flex-wrap gap-3">
-          <Button
-            type="button"
-            class="bg-uniacc-orange hover:bg-uniacc-orange/90"
-            :disabled="!puedeAceptar"
-            @click="aceptar"
-          >
-            {{ registrando ? 'Registrando…' : 'Acepto términos y condiciones' }}
-          </Button>
-          <Button type="button" variant="outline" :disabled="registrando" @click="solicitarRechazo">
-            No acepto
-          </Button>
-        </div>
+        <AccionesFlujo>
+          <template #secundaria>
+            <Button
+              type="button"
+              variant="outline"
+              class="w-full sm:w-auto"
+              :disabled="registrando"
+              @click="solicitarRechazo"
+            >
+              No acepto
+            </Button>
+          </template>
+          <template #primaria>
+            <Button
+              type="button"
+              class="w-full bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
+              :disabled="!puedeAceptar"
+              @click="aceptar"
+            >
+              {{ registrando ? 'Registrando…' : 'Acepto términos y condiciones' }}
+            </Button>
+          </template>
+        </AccionesFlujo>
       </CardContent>
     </Card>
   </div>
