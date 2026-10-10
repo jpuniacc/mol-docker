@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Download, Loader2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
@@ -30,6 +30,10 @@ const { viewModel } = useContratoMatriculaViewModel('alumno')
 
 const fmt = fmtMontoClp
 const descargando = ref(false)
+
+onMounted(() => {
+  window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+})
 
 const grabacionIniciada = ref(false)
 
