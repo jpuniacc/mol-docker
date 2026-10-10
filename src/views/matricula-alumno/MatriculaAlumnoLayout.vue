@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
@@ -87,21 +87,6 @@ const headerCarrera = computed(() => fuente.carreraMostrada.value)
 const headerNombre = computed(() => fuente.nombreMostrado.value)
 const tituloRematricula = computed(() => periodoActivo.tituloRematricula)
 const periodoLabel = computed(() => periodoActivo.anio)
-const yScroll = ref(0)
-const isCompactHeader = computed(() => yScroll.value > 24)
-
-function actualizarScrollHeader() {
-  yScroll.value = window.scrollY || window.pageYOffset || 0
-}
-
-onMounted(() => {
-  actualizarScrollHeader()
-  window.addEventListener('scroll', actualizarScrollHeader, { passive: true })
-})
-
-onUnmounted(() => {
-  window.removeEventListener('scroll', actualizarScrollHeader)
-})
 
 function salirAlDashboard() {
   void router.push({ name: 'dashboard-home' })
@@ -112,40 +97,24 @@ function salirAlDashboard() {
   <div class="relative min-h-svh bg-zinc-100 pb-24">
     <div class="sticky top-0 z-30 border-b border-zinc-200/80 bg-zinc-100/95 backdrop-blur supports-[backdrop-filter]:bg-zinc-100/80">
       <!-- Cabecera -->
-      <header class="border-b border-zinc-200 bg-white shadow-sm transition-all duration-200">
+      <header class="border-b border-zinc-200 bg-white shadow-sm">
         <div
-          :class="[
-            'mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 transition-all duration-200 md:flex-row md:items-center md:justify-between md:px-6',
-            isCompactHeader ? 'md:py-2' : 'md:py-4',
-          ]"
+          class="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6 md:py-4"
         >
           <div class="flex items-center gap-4">
             <RouterLink :to="{ name: 'dashboard-home' }">
               <img
                 src="/Logo/logoUniaccNew.svg"
                 alt="Universidad UNIACC"
-                :class="[
-                  'h-9 w-auto transition-all duration-200',
-                  isCompactHeader ? 'md:h-7' : 'md:h-10',
-                ]"
+                class="h-9 w-auto md:h-10"
               />
             </RouterLink>
           </div>
-          <div class="hidden text-right transition-all duration-200 md:block">
-            <p
-              :class="[
-                'font-bold tracking-tight text-zinc-900 transition-all duration-200',
-                isCompactHeader ? 'text-base' : 'text-lg',
-              ]"
-            >
+          <div class="hidden text-right md:block">
+            <p class="text-lg font-bold tracking-tight text-zinc-900">
               {{ tituloRematricula }}
             </p>
-            <div
-              :class="[
-                'ml-auto rounded-full bg-uniacc-orange transition-all duration-200',
-                isCompactHeader ? 'mt-0.5 h-0.5 w-20' : 'mt-1 h-1 w-24',
-              ]"
-            />
+            <div class="ml-auto mt-1 h-1 w-24 rounded-full bg-uniacc-orange" />
           </div>
           <div class="flex flex-wrap items-center gap-2 md:justify-end">
             <Button
