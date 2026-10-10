@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
 import ConvenioVigenteUpload from '@/components/rematricula/ConvenioVigenteUpload.vue'
 import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
 import { tieneCae } from '@/constants/verificacionCae'
@@ -2363,15 +2364,18 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
               </template>
             </p>
 
-            <Button
-              type="button"
-              variant="secondary"
-              class="cursor-pointer"
-              :disabled="!pagareFechaInicio || !pagareDiaVencimiento || cargandoPreflight"
-              @click="generarCuotasPagare"
-            >
-              {{ cargandoPreflight ? 'Consultando…' : 'Generar cuotas' }}
-            </Button>
+            <AccionesFlujo>
+              <template #primaria>
+                <Button
+                  type="button"
+                  class="w-full cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
+                  :disabled="!pagareFechaInicio || !pagareDiaVencimiento || cargandoPreflight"
+                  @click="generarCuotasPagare"
+                >
+                  {{ cargandoPreflight ? 'Consultando…' : 'Generar cuotas' }}
+                </Button>
+              </template>
+            </AccionesFlujo>
           </div>
 
           <div
