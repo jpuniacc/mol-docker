@@ -55,3 +55,27 @@ export function pasoBloqueadoTrasEnvio(input: {
   if (input.envioFirmaIniciado && (input.step === 1 || input.step === 2)) return true
   return input.step > input.pasoMaximo
 }
+
+export const NOMBRES_PASO_ALUMNO = [
+  'Datos personales',
+  'Forma de pago',
+  'Firma de contrato',
+  'Resumen final',
+] as const
+
+export type AccionPulsoPaso = 'nada' | 'aviso' | 'navegar'
+
+export function accionAlPulsarPaso(input: {
+  step: number | undefined
+  pasoActual: number
+  cerrado: boolean
+}): AccionPulsoPaso {
+  if (input.step === undefined) return 'nada'
+  if (input.cerrado) return 'aviso'
+  if (input.step === input.pasoActual) return 'nada'
+  return 'navegar'
+}
+
+export function textoAvisoPasoCerrado(pasoActual: string, pasoPulsado: string): string {
+  return `Estás en ${pasoActual}. ${pasoPulsado} no está abierto.`
+}
