@@ -2,7 +2,7 @@
 
 Fecha: 2026-10-10  
 Proyecto: `mol-docker`  
-Estado: en revisión
+Estado: aprobado
 
 ## Problema
 
