@@ -48,7 +48,7 @@ import {
 import {
   extraerDigitosTelefonoChile,
   normalizarTelefonoChile,
-  TELEFONO_CHILE_DIGITOS_TRAS_PREFIJO,
+  TELEFONO_CHILE_INPUT_MAX,
   TELEFONO_CHILE_PREFIJO,
   telefonoChileEsValido,
 } from '@/utils/telefonoChile'
@@ -128,7 +128,7 @@ const emailConfirmado = ref('')
 const telefonoConfirmado = ref('')
 const emailTocado = ref(false)
 const telefonoTocado = ref(false)
-/** 8 dígitos del abonado (sin +569). */
+/** 9 dígitos nacionales, sin el +56. */
 const telefonoDigitosLocal = ref('')
 
 /** Evita el salto a apoderado/discapacidad cuando se reponen marcas ya guardadas. */
@@ -704,7 +704,7 @@ function onCorreoOtpCodigoKeydown(e: KeyboardEvent) {
 
 function onTelefonoDigitosDomInput(e: Event) {
   const el = e.target as HTMLInputElement
-  const next = el.value.replace(/\D/g, '').slice(0, TELEFONO_CHILE_DIGITOS_TRAS_PREFIJO)
+  const next = extraerDigitosTelefonoChile(el.value)
   telefonoDigitosLocal.value = next
   if (el.value !== next) el.value = next
 }
@@ -1011,7 +1011,7 @@ async function enviarCodigoTelefonoOtp() {
     return
   }
   if (!telefonoChileEsValido(tel)) {
-    errorTelefono.value = `El teléfono móvil debe tener el formato ${TELEFONO_CHILE_PREFIJO} seguido de 8 dígitos.`
+    errorTelefono.value = `El celular debe tener 9 dígitos después de ${TELEFONO_CHILE_PREFIJO}.`
     return
   }
   const identidad = identidadOtpAlumno()
@@ -1545,9 +1545,9 @@ watch(
                 autocorrect="off"
                 autocapitalize="off"
                 spellcheck="false"
-                :maxlength="TELEFONO_CHILE_DIGITOS_TRAS_PREFIJO"
+                :maxlength="TELEFONO_CHILE_INPUT_MAX"
                 pattern="[0-9]*"
-                placeholder="12345678"
+                placeholder="987654321"
                 :disabled="datosCargando || telefonoValidadoOk"
                 :class="
                   cn(
@@ -1563,10 +1563,10 @@ watch(
               />
             </div>
             <p class="text-xs text-muted-foreground">
-              Ingresa 8 dígitos después de {{ TELEFONO_CHILE_PREFIJO }} (solo números, sin espacios ni símbolos).
+              Ingresa los 9 dígitos del celular.
             </p>
             <p v-if="telefonoFormatoInvalido" class="text-sm text-destructive">
-              El teléfono móvil debe tener 8 dígitos después de {{ TELEFONO_CHILE_PREFIJO }}.
+              El celular debe tener 9 dígitos después de {{ TELEFONO_CHILE_PREFIJO }}.
             </p>
             <p v-if="errorTelefono" class="text-sm font-medium text-destructive">{{ errorTelefono }}</p>
 
