@@ -519,11 +519,7 @@ router.beforeEach(async (to) => {
     if (alumnoOk && (isMockFlowRoute(to.name) || to.name === MOCK_SELECCION_ROUTE)) {
       return { name: ALUMNO_DATOS_ROUTE, replace: true }
     }
-    if (
-      !alumnoOk &&
-      isAlumnoFlowRoute(to.name) &&
-      to.name !== 'matricula-alumno-webpay-retorno'
-    ) {
+    if (!alumnoOk && isAlumnoFlowRoute(to.name)) {
       return {
         name: auth.authSource === 'pixarron' ? 'dashboard-home' : MOCK_SELECCION_ROUTE,
         replace: true,

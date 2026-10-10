@@ -10,6 +10,10 @@ describe('rutaSiEnvioFirmaBloquea', () => {
     expect(rutaSiEnvioFirmaBloquea(false, 'matricula-alumno-datos')).toBeNull()
   })
 
+  it('no redirige si la ruta no es un texto', () => {
+    expect(rutaSiEnvioFirmaBloquea(true, undefined)).toBeNull()
+  })
+
   it('manda a la firma si el destino es un paso anterior', () => {
     expect(rutaSiEnvioFirmaBloquea(true, 'matricula-alumno-datos')).toBe(
       'matricula-alumno-firma',
