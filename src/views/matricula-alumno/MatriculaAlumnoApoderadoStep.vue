@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { AlertTriangle, Info } from 'lucide-vue-next'
 
+import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -249,25 +250,29 @@ async function marcarDesactualizado(): Promise<void> {
             </div>
           </dl>
 
-          <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Button
-              type="button"
-              class="w-full bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
-              :disabled="procesando"
-              @click="confirmarOk"
-            >
-              {{ procesando ? 'Procesando…' : 'Sí, estos datos son correctos' }}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              class="w-full sm:w-auto"
-              :disabled="procesando"
-              @click="marcarDesactualizado"
-            >
-              No, necesito actualizarlos
-            </Button>
-          </div>
+          <AccionesFlujo>
+            <template #secundaria>
+              <Button
+                type="button"
+                variant="outline"
+                class="w-full sm:w-auto"
+                :disabled="procesando"
+                @click="marcarDesactualizado"
+              >
+                No, necesito actualizarlos
+              </Button>
+            </template>
+            <template #primaria>
+              <Button
+                type="button"
+                class="w-full bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
+                :disabled="procesando"
+                @click="confirmarOk"
+              >
+                {{ procesando ? 'Procesando…' : 'Sí, estos datos son correctos' }}
+              </Button>
+            </template>
+          </AccionesFlujo>
         </CardContent>
       </Card>
     </template>
