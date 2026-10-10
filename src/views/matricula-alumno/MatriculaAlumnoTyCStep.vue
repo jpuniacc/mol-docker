@@ -6,6 +6,12 @@ import { toast } from 'vue-sonner'
 
 import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
 import RichTextContent from '@/components/rich-text/RichTextContent.vue'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -223,12 +229,21 @@ function solicitarRechazo() {
           </p>
         </div>
 
-        <div
+        <Accordion
           v-else
-          class="max-h-[min(28rem,60vh)] overflow-y-auto rounded-md border border-zinc-200 bg-zinc-50 p-4"
+          type="single"
+          collapsible
+          class="rounded-md border border-zinc-200 bg-zinc-50"
         >
-          <RichTextContent :html="contenido" />
-        </div>
+          <AccordionItem value="tyc" class="border-b-0">
+            <AccordionTrigger class="px-4 py-3 text-left text-sm hover:no-underline">
+              Leer términos y condiciones
+            </AccordionTrigger>
+            <AccordionContent class="px-4 pb-4">
+              <RichTextContent :html="contenido" />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
 
         <AccionesFlujo>
           <template #secundaria>
