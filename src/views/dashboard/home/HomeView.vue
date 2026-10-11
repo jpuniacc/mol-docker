@@ -12,12 +12,13 @@ import { useAuthStore } from '@/stores/auth'
 import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
+import AvancePasosAlumno from '@/components/rematricula/AvancePasosAlumno.vue'
 import {
-  CheckCircle2,
-  Circle,
-  Phone,
-  Sparkles,
-} from 'lucide-vue-next'
+  ctaAvanceHome,
+  pasosAvanceHome,
+  pasosListosHome,
+} from '@/utils/pasoAlumnoRematricula'
+import { Phone, Sparkles } from 'lucide-vue-next'
 
 const appStore = useAppStore()
 const auth = useAuthStore()
@@ -37,34 +38,23 @@ const esAlumnoPixarron = computed(
 
 const mnp = computed(() => datosMnp.primeraFila)
 
-type PasoHome = { id: string; label: string; done: boolean }
+const avance = computed(() =>
+  pasosAvanceHome({
+    tycAccepted: alumnoCtx.tycAccepted,
+    contactoCorreoValidado: alumnoCtx.contactoCorreoValidado,
+    contactoTelefonoValidado: alumnoCtx.contactoTelefonoValidado,
+    apoderadoConfirmado: alumnoCtx.apoderadoConfirmado,
+    discapacidad: alumnoCtx.discapacidad,
+    pasoAlcanzado: alumnoCtx.pasoAlcanzado,
+    pagoMatricula: alumnoCtx.pagoMatricula,
+    formaPagoSeleccionada: alumnoCtx.formaPagoSeleccionada,
+    firmaCompletada: alumnoCtx.firmaCompletada,
+    envioFirmaIniciado: alumnoCtx.envioFirmaIniciado,
+  }),
+)
 
-const pasosRematricula = computed((): PasoHome[] => [
-  { id: 'tyc', label: 'Datos personales y TyC', done: alumnoCtx.tycAccepted },
-  {
-    id: 'pago',
-    label: 'Forma de pago',
-    done: alumnoCtx.formaPagoSeleccionada != null || alumnoCtx.pagoMatricula != null,
-  },
-  { id: 'firma', label: 'Firma de contrato', done: alumnoCtx.firmaCompletada },
-  { id: 'resumen', label: 'Resumen final', done: alumnoCtx.firmaCompletada },
-])
-
-const pasosCompletados = computed(() => pasosRematricula.value.filter((p) => p.done).length)
-
-const ctaLabel = computed(() => {
-  if (alumnoCtx.firmaCompletada) return 'Ver resumen'
-  if (alumnoCtx.formaPagoSeleccionada || alumnoCtx.pagoMatricula) return 'Continuar a firma'
-  if (alumnoCtx.tycAccepted) return 'Continuar rematrícula'
-  return 'Iniciar rematrícula'
-})
-
-const ctaRouteName = computed(() => {
-  if (alumnoCtx.firmaCompletada) return 'matricula-alumno-resumen'
-  if (alumnoCtx.formaPagoSeleccionada || alumnoCtx.pagoMatricula) return 'matricula-alumno-firma'
-  if (alumnoCtx.tycAccepted) return 'matricula-alumno-forma-pago'
-  return 'matricula-alumno-datos'
-})
+const pasosCompletados = computed(() => pasosListosHome(avance.value))
+const cta = computed(() => ctaAvanceHome(avance.value))
 
 function pick(...vals: (string | null | undefined)[]): string {
   for (const v of vals) {
@@ -189,48 +179,20 @@ function pick(...vals: (string | null | undefined)[]): string {
                 Tu rematrícula
               </h2>
               <p class="mt-1 text-sm text-zinc-600">
-                {{ pasosCompletados }} de {{ pasosRematricula.length }} pasos con avance guardado
+                {{ pasosCompletados }} de {{ avance.length }} pasos con avance guardado
               </p>
             </div>
-            <RouterLink :to="{ name: ctaRouteName }">
+            <RouterLink :to="{ name: cta.routeName }">
               <Button
                 type="button"
                 class="cursor-pointer rounded-full bg-uniacc-orange px-6 font-semibold text-white shadow-md transition-colors duration-200 hover:bg-uniacc-orange/90"
               >
-                {{ ctaLabel }}
+                {{ cta.label }}
               </Button>
             </RouterLink>
           </div>
 
-          <ol class="mt-6 space-y-3">
-            <li
-              v-for="paso in pasosRematricula"
-              :key="paso.id"
-              class="flex items-center gap-3 rounded-xl border border-zinc-100 bg-zinc-50/80 px-3 py-2.5"
-            >
-              <CheckCircle2
-                v-if="paso.done"
-                class="h-5 w-5 shrink-0 text-emerald-600"
-                aria-hidden="true"
-              />
-              <Circle
-                v-else
-                class="h-5 w-5 shrink-0 text-zinc-300"
-                aria-hidden="true"
-              />
-              <span
-                :class="[
-                  'text-sm font-medium',
-                  paso.done ? 'text-zinc-900' : 'text-zinc-600',
-                ]"
-              >
-                {{ paso.label }}
-              </span>
-              <span v-if="paso.done" class="ml-auto text-xs font-semibold text-emerald-700">
-                Listo
-              </span>
-            </li>
-          </ol>
+          <AvancePasosAlumno class="mt-6" />
 
           <p class="mt-5 flex items-center gap-2 text-sm text-zinc-500">
             <Phone class="h-4 w-4 shrink-0 text-uniacc-orange" aria-hidden="true" />
