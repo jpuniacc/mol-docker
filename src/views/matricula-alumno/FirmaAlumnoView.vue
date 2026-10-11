@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { AppWindow, Check, Circle, Download, Loader2, Mail } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 
+import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
 import ContratoPrestacionServiciosPreview from '@/components/rematricula/ContratoPrestacionServiciosPreview.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -27,6 +28,7 @@ import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import { useMatriculaFlujoPreflightStore } from '@/stores/datos_erp/matricula_flujo_preflight'
 import { esPropioSostenedor } from '@/utils/apoderadoResponsable'
+import { estadoFirmaDual } from '@/utils/firmaDual'
 import {
   armarGrabarCuentaMixta,
   armarGrabarPlanPagos,
@@ -83,8 +85,18 @@ let timerEspera: ReturnType<typeof setInterval> | null = null
 let unmounted = false
 let abriendoFirma = false
 
-const hayApoderadoPendiente = computed(() =>
-  firmantes.value.some((firmante) => firmante.rol === 'apoderado' && !firmante.ready),
+const firmanteAlumno = computed(
+  () => firmantes.value.find((firmante) => firmante.rol === 'alumno') ?? null,
+)
+const firmanteApoderado = computed(
+  () => firmantes.value.find((firmante) => firmante.rol === 'apoderado') ?? null,
+)
+const firmaDual = computed(() =>
+  estadoFirmaDual({
+    hayApoderado: firmanteApoderado.value != null,
+    alumnoFirmado: firmanteAlumno.value?.ready === true,
+    apoderadoFirmado: firmanteApoderado.value?.ready === true,
+  }),
 )
 
 const enlacesListos = computed(
@@ -204,11 +216,6 @@ function esperar(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
   })
-}
-
-function etiquetaBotonFirma(rol: ContratoFirmaFirmanteEstado['rol']): string {
-  if (rol === 'apoderado') return 'Haz click para que firme el apoderado'
-  return 'Haz click para que firme el alumno'
 }
 
 function puedeAbrirFirma(email: string): boolean {
@@ -818,16 +825,6 @@ async function descargaBorrador(): Promise<void> {
             >
               <p class="text-base font-semibold text-zinc-900">Antes de firmar</p>
               <ul class="space-y-3">
-                <li
-                  v-if="hayApoderadoPendiente"
-                  class="flex items-start gap-3 text-sm leading-relaxed text-zinc-900"
-                >
-                  <Mail class="mt-0.5 h-5 w-5 shrink-0 text-uniacc-orange" aria-hidden="true" />
-                  <p>
-                    <span class="font-semibold">Si el apoderado no está contigo, no hay problema.</span>
-                    Le enviaremos un correo para que firme después.
-                  </p>
-                </li>
                 <li class="flex items-start gap-3 text-sm leading-relaxed text-zinc-900">
                   <AppWindow class="mt-0.5 h-5 w-5 shrink-0 text-uniacc-orange" aria-hidden="true" />
                   <p>
@@ -856,24 +853,54 @@ async function descargaBorrador(): Promise<void> {
                   <p class="font-medium text-foreground">{{ firmante.nombre }}</p>
                   <p class="text-sm text-muted-foreground">{{ firmante.email }}</p>
                 </div>
-                <div class="flex items-center gap-2">
-                  <Button
-                    v-if="!firmante.ready"
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    class="h-auto cursor-pointer justify-start whitespace-normal text-left"
-                    :disabled="!puedeAbrirFirma(firmante.email)"
-                    @click="abrirFirma(firmante.email)"
-                  >
-                    {{ etiquetaBotonFirma(firmante.rol) }}
-                  </Button>
-                  <Badge :variant="firmante.ready ? 'success' : 'warning'">
-                    {{ firmante.ready ? 'Firmado' : 'Pendiente' }}
-                  </Badge>
-                </div>
+                <Badge
+                  :variant="firmante.ready ? 'success' : 'outline'"
+                  :class="firmante.ready ? '' : 'border-zinc-200 bg-zinc-100 text-zinc-600'"
+                >
+                  {{ firmante.ready ? 'Firmado' : 'Pendiente' }}
+                </Badge>
               </li>
             </ul>
+            <AccionesFlujo
+              v-if="firmaDual.mostrarFirmarAlumno || firmaDual.mostrarFirmarApoderado"
+            >
+              <template
+                v-if="firmaDual.mostrarFirmarApoderado && firmaDual.mostrarFirmarAlumno && firmanteApoderado"
+                #secundaria
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  class="w-full cursor-not-allowed sm:w-auto"
+                  disabled
+                >
+                  El apoderado firma ahora
+                </Button>
+              </template>
+              <template v-if="firmaDual.mostrarFirmarAlumno && firmanteAlumno" #primaria>
+                <Button
+                  type="button"
+                  class="w-full cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
+                  :disabled="!puedeAbrirFirma(firmanteAlumno.email)"
+                  @click="abrirFirma(firmanteAlumno.email)"
+                >
+                  Firmar ahora
+                </Button>
+              </template>
+              <template v-else-if="firmaDual.mostrarFirmarApoderado && firmanteApoderado" #primaria>
+                <Button
+                  type="button"
+                  class="w-full cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
+                  :disabled="!puedeAbrirFirma(firmanteApoderado.email)"
+                  @click="abrirFirma(firmanteApoderado.email)"
+                >
+                  El apoderado firma ahora
+                </Button>
+              </template>
+            </AccionesFlujo>
+            <p v-if="firmaDual.frase" class="text-sm leading-relaxed text-zinc-800">
+              {{ firmaDual.frase }}
+            </p>
             <p
               v-if="errorGrabacion"
               class="text-sm text-destructive"
