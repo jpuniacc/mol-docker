@@ -1,14 +1,29 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
 import { useSessionCloseBeacon } from '@/composables/useSessionCloseBeacon'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
+import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
-import { LogOut } from 'lucide-vue-next'
+import { LogOut, Menu } from 'lucide-vue-next'
 import DashboardSidebarNav from './DashboardSidebarNav.vue'
 
 const route = useRoute()
@@ -16,8 +31,18 @@ const router = useRouter()
 const auth = useAuthStore()
 const appStore = useAppStore()
 const periodoActivo = usePeriodoActivoStore()
+const datosMnp = useDatosAlumnoMnpStore()
+const fuente = useAlumnoRematriculaFuente()
+const menuAlumnoAbierto = ref(false)
 
 useSessionCloseBeacon()
+
+const esAlumnoPixarron = computed(
+  () =>
+    auth.authSource === 'pixarron' &&
+    datosMnp.cantidadRegistros > 0 &&
+    !datosMnp.fueraCarteraOficial,
+)
 
 const isMatriculaWizard = computed(
   () =>
@@ -26,10 +51,15 @@ const isMatriculaWizard = computed(
 
 const tituloRematriculaCabecera = computed(() => periodoActivo.tituloRematricula)
 
+function irAlInicio() {
+  void router.push({ name: 'dashboard-home' })
+}
+
 function logout() {
   auth.logout()
   void router.replace({ name: 'login' })
-  toast.message('Sesión cerrada')
+  toast.success('Sesión cerrada correctamente.')
+  router.replace({ name: 'login' })
 }
 </script>
 
@@ -39,7 +69,46 @@ function logout() {
   <SidebarProvider v-else class="min-h-svh">
     <DashboardSidebarNav />
     <SidebarInset class="bg-zinc-50/80">
-      <header class="shrink-0 border-b border-zinc-200 bg-white shadow-sm">
+      <header
+        v-if="esAlumnoPixarron"
+        class="shrink-0 border-b border-zinc-200 bg-white shadow-sm md:hidden"
+      >
+        <div class="flex items-center justify-between px-2 py-1">
+          <Button
+            type="button"
+            variant="ghost"
+            class="h-11 w-11 cursor-pointer text-zinc-800"
+            aria-label="Abrir menú"
+            @click="menuAlumnoAbierto = true"
+          >
+            <Menu class="h-6 w-6" aria-hidden="true" />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <button
+                type="button"
+                class="flex h-11 w-11 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange"
+                aria-label="Cuenta"
+              >
+                <img src="/Logo/logoUniaccNew.svg" alt="" class="h-7 w-7 object-contain" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem class="cursor-pointer" @click="irAlInicio">
+                Volver al inicio
+              </DropdownMenuItem>
+              <DropdownMenuItem class="cursor-pointer" @click="logout">
+                Salir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+
+      <header
+        class="shrink-0 border-b border-zinc-200 bg-white shadow-sm"
+        :class="esAlumnoPixarron ? 'hidden md:block' : ''"
+      >
         <div
           class="contenedor flex flex-wrap items-center gap-3 py-3 pr-4 pl-4 md:gap-4 md:py-4 md:pr-6 md:pl-6"
         >
@@ -102,6 +171,23 @@ function logout() {
           </div>
         </footer>
       </div>
+
+      <Sheet :open="menuAlumnoAbierto" @update:open="menuAlumnoAbierto = $event">
+        <SheetContent side="left" class="w-[18rem]">
+          <SheetHeader class="text-left">
+            <SheetTitle>{{ fuente.nombreMostrado }}</SheetTitle>
+            <SheetDescription>RUT {{ fuente.rutMostrado }}</SheetDescription>
+          </SheetHeader>
+          <p class="mt-4 text-sm text-zinc-700">{{ fuente.carreraMostrada }}</p>
+          <a
+            href="tel:+56226406000"
+            class="mt-6 inline-flex cursor-pointer text-sm font-medium text-[#1E3A5F] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange"
+            @click="menuAlumnoAbierto = false"
+          >
+            Ayuda (+56 2) 26406000
+          </a>
+        </SheetContent>
+      </Sheet>
     </SidebarInset>
   </SidebarProvider>
 </template>

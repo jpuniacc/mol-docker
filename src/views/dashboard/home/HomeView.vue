@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   MSG_FUERA_CARTERA_OFICIAL,
   TITULO_FUERA_CARTERA_OFICIAL,
 } from '@/constants/carteraOficial'
-import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import AvancePasosAlumno from '@/components/rematricula/AvancePasosAlumno.vue'
+import { claveBorradorValida } from '@/utils/borradorRematriculaSync'
 import {
   ctaAvanceHome,
   pasosAvanceHome,
@@ -25,7 +25,6 @@ const auth = useAuthStore()
 const datosMnp = useDatosAlumnoMnpStore()
 const alumnoCtx = useMatriculaAlumnoContextStore()
 const periodoActivo = usePeriodoActivoStore()
-const fuente = useAlumnoRematriculaFuente()
 
 const saludo = computed(() => auth.displayNombreCompleto || auth.username || 'Usuario')
 const bloqueoFueraCartera = computed(() => datosMnp.fueraCarteraOficial)
@@ -35,8 +34,6 @@ const esAlumnoPixarron = computed(
     datosMnp.cantidadRegistros > 0 &&
     !datosMnp.fueraCarteraOficial,
 )
-
-const mnp = computed(() => datosMnp.primeraFila)
 
 const avance = computed(() =>
   pasosAvanceHome({
@@ -56,13 +53,26 @@ const avance = computed(() =>
 const pasosCompletados = computed(() => pasosListosHome(avance.value))
 const cta = computed(() => ctaAvanceHome(avance.value))
 
-function pick(...vals: (string | null | undefined)[]): string {
-  for (const v of vals) {
-    const t = (v ?? '').trim()
-    if (t.length > 0) return t
-  }
-  return '—'
-}
+watch(
+  () =>
+    [
+      esAlumnoPixarron.value,
+      datosMnp.primeraFila?.codcli,
+      periodoActivo.anio,
+      periodoActivo.semestre,
+    ] as const,
+  () => {
+    if (!esAlumnoPixarron.value) return
+    const clave = claveBorradorValida(
+      datosMnp.primeraFila?.codcli,
+      periodoActivo.anio,
+      periodoActivo.semestre,
+    )
+    if (!clave) return
+    void alumnoCtx.sincronizarBorradorServidor(clave)
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -93,7 +103,7 @@ function pick(...vals: (string | null | undefined)[]): string {
         aria-labelledby="alumno-home-title"
       >
         <div
-          class="px-4 py-3 text-center text-sm font-semibold leading-snug text-white md:text-[15px]"
+          class="hidden px-4 py-3 text-center text-sm font-semibold leading-snug text-white md:block md:text-[15px]"
           style="background: linear-gradient(90deg, #ff5b00 0%, #ee2183 50%, #4d98c5 100%)"
         >
           {{ periodoActivo.tituloRematricula }}
@@ -112,7 +122,7 @@ function pick(...vals: (string | null | undefined)[]): string {
                 Aquí ves tu información académica y el avance de tu rematrícula.
               </p>
             </div>
-            <div class="flex items-center gap-2 text-uniacc-orange">
+            <div class="hidden items-center gap-2 text-uniacc-orange md:flex">
               <Sparkles class="h-5 w-5 shrink-0" aria-hidden="true" />
               <span class="text-sm font-medium">Periodo {{ periodoActivo.label ?? '—' }}</span>
             </div>
@@ -125,56 +135,13 @@ function pick(...vals: (string | null | undefined)[]): string {
         <AlertDescription>{{ MSG_FUERA_CARTERA_OFICIAL }}</AlertDescription>
       </Alert>
 
-      <div v-else class="grid gap-6 lg:grid-cols-5">
-        <!-- Identidad -->
-        <section
-          class="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm lg:col-span-2"
-          aria-labelledby="alumno-datos-title"
-        >
-          <h2 id="alumno-datos-title" class="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-            Tus datos
-          </h2>
-          <dl class="mt-4 space-y-3 text-sm">
-            <div>
-              <dt class="text-zinc-500">RUT</dt>
-              <dd class="font-semibold text-zinc-900">{{ fuente.rutMostrado }}</dd>
-            </div>
-            <div>
-              <dt class="text-zinc-500">Carrera</dt>
-              <dd class="font-semibold text-zinc-900">{{ fuente.carreraMostrada }}</dd>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <dt class="text-zinc-500">Jornada</dt>
-                <dd class="font-medium text-zinc-800">{{ fuente.jornadaMostrada }}</dd>
-              </div>
-              <div>
-                <dt class="text-zinc-500">Estado</dt>
-                <dd class="font-medium text-zinc-800">
-                  {{ pick(mnp?.estado_academico) }}
-                </dd>
-              </div>
-            </div>
-            <div>
-              <dt class="text-zinc-500">Código alumno</dt>
-              <dd class="font-medium text-zinc-800">{{ fuente.codcliMostrado }}</dd>
-            </div>
-            <div v-if="datosMnp.cantidadRegistros > 1">
-              <dt class="text-zinc-500">Carreras asociadas</dt>
-              <dd class="font-medium text-zinc-800">
-                {{ datosMnp.cantidadRegistros }} registros en tu correo institucional
-              </dd>
-            </div>
-          </dl>
-        </section>
-
-        <!-- Avance + CTA -->
-        <section
-          class="flex flex-col rounded-2xl border border-uniacc-orange/30 bg-white p-5 shadow-md ring-1 ring-uniacc-orange/10 lg:col-span-3"
+      <section
+        v-else
+        class="flex flex-col rounded-2xl border border-uniacc-orange/30 bg-white p-5 shadow-md ring-1 ring-uniacc-orange/10"
           aria-labelledby="alumno-avance-title"
         >
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
               <h2 id="alumno-avance-title" class="text-lg font-semibold text-zinc-900">
                 Tu rematrícula
               </h2>
@@ -182,7 +149,7 @@ function pick(...vals: (string | null | undefined)[]): string {
                 {{ pasosCompletados }} de {{ avance.length }} pasos con avance guardado
               </p>
             </div>
-            <RouterLink :to="{ name: cta.routeName }">
+            <RouterLink class="ml-auto shrink-0" :to="{ name: cta.routeName }">
               <Button
                 type="button"
                 class="cursor-pointer rounded-full bg-uniacc-orange px-6 font-semibold text-white shadow-md transition-colors duration-200 hover:bg-uniacc-orange/90"
@@ -199,8 +166,7 @@ function pick(...vals: (string | null | undefined)[]): string {
             ¿Necesitas ayuda?
             <span class="font-semibold text-zinc-800">(+56 2) 2640 6000</span>
           </p>
-        </section>
-      </div>
+      </section>
     </template>
   </div>
 </template>

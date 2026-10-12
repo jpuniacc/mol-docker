@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +28,16 @@ import {
   StepperTitle,
   StepperTrigger,
 } from '@/components/ui/stepper'
-import { MessageCircle } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
+import { Menu, MessageCircle } from 'lucide-vue-next'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { claveBorradorValida } from '@/utils/borradorRematriculaSync'
 import {
   PASOS_ALUMNO_REMATRICULA,
   accionAlPulsarPaso,
@@ -32,12 +48,28 @@ import {
 } from '@/utils/pasoAlumnoRematricula'
 
 const STEP_NAMES = PASOS_ALUMNO_REMATRICULA
+const NOMBRES_CORTO_PASO = ['Datos', 'Pago', 'Firma', 'Resumen'] as const
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 const alumnoCtx = useMatriculaAlumnoContextStore()
 const fuente = useAlumnoRematriculaFuente()
 const periodoActivo = usePeriodoActivoStore()
+
+watch(
+  () => [fuente.codcliMostrado.value, periodoActivo.anio, periodoActivo.semestre] as const,
+  () => {
+    const clave = claveBorradorValida(
+      fuente.codcliMostrado.value,
+      periodoActivo.anio,
+      periodoActivo.semestre,
+    )
+    if (!clave) return
+    void alumnoCtx.sincronizarBorradorServidor(clave)
+  },
+  { immediate: true },
+)
 
 function routeNameToStep(name: string | symbol | null | undefined): number {
   const idx = STEP_NAMES.indexOf(name as (typeof STEP_NAMES)[number])
@@ -57,6 +89,7 @@ function pasoBloqueado(step: number): boolean {
 
 const avisoPasoAbierto = ref(false)
 const avisoPasoTexto = ref('')
+const menuAbierto = ref(false)
 
 function nombrePaso(step: number): string {
   return NOMBRES_PASO_ALUMNO[step - 1] ?? ''
@@ -91,13 +124,52 @@ const periodoLabel = computed(() => periodoActivo.anio)
 function salirAlDashboard() {
   void router.push({ name: 'dashboard-home' })
 }
+
+function cerrarSesion() {
+  auth.logout()
+  void router.replace({ name: 'login' })
+  toast.success('Sesión cerrada correctamente.')
+}
 </script>
 
 <template>
-  <div class="relative min-h-svh bg-zinc-100 pb-24">
+  <div class="relative min-h-svh bg-zinc-100 pb-28 md:pb-24">
     <div class="sticky top-0 z-30 border-b border-zinc-200/80 bg-zinc-100/95 backdrop-blur supports-[backdrop-filter]:bg-zinc-100/80">
+      <header class="border-b border-zinc-200 bg-white shadow-sm md:hidden">
+        <div class="flex items-center justify-between px-2 py-1">
+          <Button
+            type="button"
+            variant="ghost"
+            class="h-11 w-11 cursor-pointer text-zinc-800"
+            aria-label="Abrir menú"
+            @click="menuAbierto = true"
+          >
+            <Menu class="h-6 w-6" aria-hidden="true" />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <button
+                type="button"
+                class="flex h-11 w-11 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange"
+                aria-label="Cuenta"
+              >
+                <img src="/Logo/logoUniaccNew.svg" alt="" class="h-7 w-7 object-contain" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem class="cursor-pointer" @click="salirAlDashboard">
+                Volver al inicio
+              </DropdownMenuItem>
+              <DropdownMenuItem class="cursor-pointer" @click="cerrarSesion">
+                Salir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+
       <!-- Cabecera -->
-      <header class="border-b border-zinc-200 bg-white shadow-sm">
+      <header class="hidden border-b border-zinc-200 bg-white shadow-sm md:block">
         <div
           class="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6 md:py-4"
         >
@@ -151,7 +223,7 @@ function salirAlDashboard() {
         </div>
       </header>
 
-      <div class="mx-auto max-w-6xl overflow-x-auto border-b border-zinc-200 bg-zinc-100 px-4 py-2 md:px-6">
+      <div class="mx-auto hidden max-w-6xl overflow-x-auto border-b border-zinc-200 bg-zinc-100 px-4 py-2 md:block md:px-6">
         <Stepper
           v-model="stepModel"
           :linear="false"
@@ -244,14 +316,55 @@ function salirAlDashboard() {
       </RouterView>
     </main>
 
+    <nav
+      class="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
+      aria-label="Pasos de la rematrícula"
+    >
+      <div class="grid grid-cols-4">
+        <button
+          v-for="(nombre, idx) in NOMBRES_PASO_ALUMNO"
+          :key="nombre"
+          type="button"
+          class="flex min-h-11 cursor-pointer flex-col items-center justify-center gap-0.5 px-1 py-2 text-xs"
+          :class="[
+            pasoBloqueado(idx + 1) ? 'opacity-40' : '',
+            stepModel === idx + 1 ? 'font-semibold text-uniacc-orange' : 'font-medium text-zinc-500',
+          ]"
+          :aria-current="stepModel === idx + 1 ? 'step' : undefined"
+          :aria-label="nombre"
+          @click="stepModel = idx + 1"
+        >
+          <span aria-hidden="true">{{ idx + 1 }}</span>
+          <span aria-hidden="true">{{ NOMBRES_CORTO_PASO[idx] }}</span>
+        </button>
+      </div>
+    </nav>
+
     <a
       href="#"
-      class="fixed bottom-6 right-6 z-40 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-transform duration-200 hover:scale-110 hover:bg-[#1ebe5d] motion-reduce:transition-none motion-reduce:hover:scale-100"
+      class="fixed bottom-24 right-6 z-50 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-transform duration-200 hover:scale-110 hover:bg-[#1ebe5d] motion-reduce:transition-none motion-reduce:hover:scale-100 md:bottom-6"
       aria-label="WhatsApp"
       @click.prevent
     >
       <MessageCircle class="h-7 w-7" />
     </a>
+
+    <Sheet :open="menuAbierto" @update:open="menuAbierto = $event">
+      <SheetContent side="left" class="w-[18rem]">
+        <SheetHeader class="text-left">
+          <SheetTitle>{{ headerNombre }}</SheetTitle>
+          <SheetDescription>RUT {{ headerRut }}</SheetDescription>
+        </SheetHeader>
+        <p class="mt-4 text-sm text-zinc-700">{{ headerCarrera }}</p>
+        <a
+          href="tel:+56226406000"
+          class="mt-6 inline-flex cursor-pointer text-sm font-medium text-[#1E3A5F] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange"
+          @click="menuAbierto = false"
+        >
+          Ayuda (+56 2) 26406000
+        </a>
+      </SheetContent>
+    </Sheet>
 
     <AlertDialog v-model:open="avisoPasoAbierto">
       <AlertDialogContent>

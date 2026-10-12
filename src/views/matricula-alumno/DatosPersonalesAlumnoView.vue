@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { AlertTriangle, Info } from 'lucide-vue-next'
+import { AlertTriangle } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useAuthStore } from '@/stores/auth'
 import { useContactoOtpConfigStore } from '@/stores/contactoOtpConfig'
@@ -12,7 +12,7 @@ import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFu
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogDescription,
@@ -1251,28 +1251,34 @@ watch(
 
     <!-- Paso contacto: validar correo personal y teléfono -->
     <template v-else-if="paso === 'contacto'">
-      <Alert
-        variant="default"
-        class="border-uniacc-orange/40 bg-uniacc-orange/10 text-zinc-900 shadow-sm ring-1 ring-uniacc-orange/15 dark:border-uniacc-orange/45 dark:bg-uniacc-orange/15 dark:text-zinc-50 dark:ring-uniacc-orange/25 [&>svg]:text-uniacc-orange"
-      >
-        <Info class="h-5 w-5 shrink-0" aria-hidden="true" />
-        <AlertTitle class="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-          Cómo validar tu contacto
-        </AlertTitle>
-        <AlertDescription class="mt-2 space-y-2 text-base leading-relaxed text-zinc-800 dark:text-zinc-200">
-          <p>
-            Valida tu correo personal y tu teléfono móvil (celular). A cada uno te enviaremos un código de 6 dígitos.
-          </p>
-          <p>Si cambias un dato después de validarlo, tendrás que validarlo de nuevo.</p>
-        </AlertDescription>
-      </Alert>
-
       <Card class="shadow-md">
         <CardHeader>
           <CardTitle>Validación de contacto</CardTitle>
-          <CardDescription>
-            Estos son los datos que tenemos en tu registro. Selecciona cada opción para luego realizar la validación.
-          </CardDescription>
+          <ol class="mt-1 list-none space-y-3 p-0">
+            <li class="flex items-start gap-3">
+              <span
+                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-uniacc-orange text-xs font-bold text-white"
+                aria-hidden="true"
+              >1</span>
+              <span>
+                <span class="block text-sm font-semibold text-zinc-900">Correo personal</span>
+                <span class="mt-0.5 block text-sm leading-relaxed text-zinc-600">Te enviamos un código de 6 dígitos.</span>
+              </span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span
+                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-uniacc-orange text-xs font-bold text-white"
+                aria-hidden="true"
+              >2</span>
+              <span>
+                <span class="block text-sm font-semibold text-zinc-900">Celular</span>
+                <span class="mt-0.5 block text-sm leading-relaxed text-zinc-600">Te enviamos un código de 6 dígitos.</span>
+              </span>
+            </li>
+          </ol>
+          <p class="text-xs leading-relaxed text-zinc-500">
+            Si cambias un dato ya validado, hay que validarlo de nuevo.
+          </p>
         </CardHeader>
         <CardContent class="space-y-6">
           <div
@@ -1408,11 +1414,10 @@ watch(
             <p v-if="errorCorreo" class="text-sm font-medium text-destructive">{{ errorCorreo }}</p>
 
             <template v-if="!correoValidadoOk">
-              <div v-if="!correoOtpPendiente" class="flex flex-wrap gap-2">
+              <div v-if="!correoOtpPendiente" class="flex flex-wrap gap-2 sm:justify-end">
                 <Button
                   type="button"
-                  variant="secondary"
-                  class="w-full sm:w-auto"
+                  class="w-full cursor-pointer bg-uniacc-orange font-semibold text-white hover:bg-uniacc-orange/90 sm:w-auto"
                   :disabled="correoOtpEnviando || datosCargando || correoOtpReintentoBloqueado || !puedeEnviarCorreoOtp"
                   @click="enviarCodigoCorreoOtp"
                 >
@@ -1594,11 +1599,10 @@ watch(
             <p v-if="errorTelefono" class="text-sm font-medium text-destructive">{{ errorTelefono }}</p>
 
             <template v-if="!telefonoValidadoOk">
-              <div v-if="!telefonoOtpPendiente" class="flex flex-wrap gap-2">
+              <div v-if="!telefonoOtpPendiente" class="flex flex-wrap gap-2 sm:justify-end">
                 <Button
                   type="button"
-                  variant="secondary"
-                  class="w-full sm:w-auto"
+                  class="w-full cursor-pointer bg-uniacc-orange font-semibold text-white hover:bg-uniacc-orange/90 sm:w-auto"
                   :disabled="telefonoOtpEnviando || datosCargando || telefonoOtpReintentoBloqueado || !puedeEnviarTelefonoOtp"
                   @click="enviarCodigoTelefonoOtp"
                 >

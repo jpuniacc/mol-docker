@@ -1417,6 +1417,23 @@ export type Database = {
         };
         Returns: MnpResolucionBecaPromedioRow[];
       };
+      guardar_mol_borrador_rematricula: {
+        Args: {
+          p_codcli: string;
+          p_anio_periodo: number;
+          p_semestre_periodo: number;
+          p_payload: unknown;
+        };
+        Returns: string;
+      };
+      consultar_mol_borrador_rematricula: {
+        Args: {
+          p_codcli: string;
+          p_anio_periodo: number;
+          p_semestre_periodo: number;
+        };
+        Returns: { payload: unknown; actualizado_en: string }[];
+      };
       consultar_ultima_tyc_respuesta_alumno: {
         Args: {
           p_codcli: string;

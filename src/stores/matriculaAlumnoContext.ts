@@ -1,5 +1,11 @@
 import { defineStore } from 'pinia'
 
+import { consultarMolBorrador, guardarMolBorrador } from '@/services/borradorRematriculaApi'
+import {
+  decidirBorrador,
+  type ClaveBorradorRematricula,
+} from '@/utils/borradorRematriculaSync'
+
 import { useMatriculaFlujoPreflightStore } from '@/stores/datos_erp/matricula_flujo_preflight'
 import { usePa08MtArancelSelMatriculaNetStore } from '@/stores/datos_erp/pa08_MT_ARANCEL_sel_MATRICULA_NET'
 import { useSpAlumnoDeudaNetStore } from '@/stores/datos_erp/sp_alumno_deuda_net'
@@ -17,6 +23,18 @@ import type { MedioConcepto } from '@/utils/webpaySiguientePaso'
 import type { WebpayPagoDetalle } from '@/utils/webpayPagoDetalle'
 
 const ALUMNO_CTX_STORAGE_KEY = 'rematricula-alumno-matricula'
+const ESPERA_SUBIDA_MS = 400
+
+let subidaTimer: ReturnType<typeof setTimeout> | null = null
+let revisionSubida = 0
+
+function cancelarSubidaProgramada(): void {
+  if (subidaTimer) {
+    clearTimeout(subidaTimer)
+    subidaTimer = null
+  }
+  revisionSubida += 1
+}
 
 export type WebpayConceptoEstado = 'autorizada' | 'rechazada' | 'abortada'
 
@@ -238,10 +256,13 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
     lineasBeneficioGrabar: [] as LineaParaDocumentoDescuento[],
     pasoAlcanzado: 1,
     envioFirmaIniciado: false,
+    borradorActualizadoEn: null as string | null,
+    borradorPendienteDeSubir: false,
+    claveBorrador: null as ClaveBorradorRematricula | null,
   }),
   actions: {
-    persistToSessionStorage() {
-      const payload: StoredAlumnoMatriculaContext = {
+    payloadActual(): StoredAlumnoMatriculaContext {
+      return {
         tycAccepted: this.tycAccepted,
         discapacidad: this.discapacidad,
         verificacionCae: this.verificacionCae,
@@ -272,18 +293,75 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
         pasoAlcanzado: this.pasoAlcanzado,
         envioFirmaIniciado: this.envioFirmaIniciado,
       }
-      sessionStorage.setItem(ALUMNO_CTX_STORAGE_KEY, JSON.stringify(payload))
     },
 
-    hydrateFromSessionStorage() {
+    escribirSesion() {
+      sessionStorage.setItem(
+        ALUMNO_CTX_STORAGE_KEY,
+        JSON.stringify({
+          ...this.payloadActual(),
+          borradorActualizadoEn: this.borradorActualizadoEn,
+          borradorPendienteDeSubir: this.borradorPendienteDeSubir,
+        }),
+      )
+    },
+
+    persistToSessionStorage() {
+      this.borradorPendienteDeSubir = true
+      this.escribirSesion()
+      if (!this.claveBorrador) return
+      if (subidaTimer) clearTimeout(subidaTimer)
+      revisionSubida += 1
+      const revision = revisionSubida
+      subidaTimer = setTimeout(() => {
+        subidaTimer = null
+        void this.subirBorrador(revision)
+      }, ESPERA_SUBIDA_MS)
+    },
+
+    async subirBorrador(revision: number) {
+      const clave = this.claveBorrador
+      if (!clave || revision !== revisionSubida) return
+      const en = await guardarMolBorrador(clave, this.payloadActual())
+      if (revision !== revisionSubida || !en) return
+      this.borradorActualizadoEn = en
+      this.borradorPendienteDeSubir = false
+      this.escribirSesion()
+    },
+
+    async sincronizarBorradorServidor(clave: ClaveBorradorRematricula) {
+      this.claveBorrador = clave
+      let consulta: Awaited<ReturnType<typeof consultarMolBorrador>>
       try {
-        const raw = sessionStorage.getItem(ALUMNO_CTX_STORAGE_KEY)
-        if (!raw) return
-        const parsed = JSON.parse(raw) as Partial<StoredAlumnoMatriculaContext>
-        if (!hasAnyProgressPayload(parsed)) {
-          sessionStorage.removeItem(ALUMNO_CTX_STORAGE_KEY)
-          return
-        }
+        consulta = await consultarMolBorrador(clave)
+      } catch {
+        return
+      }
+      if (!consulta.ok) return
+      const remoto = consulta.remoto
+      const decision = decidirBorrador({
+        sesionTieneAvance: hasAnyProgressPayload(this.payloadActual()),
+        pendienteDeSubir: this.borradorPendienteDeSubir,
+        sesionActualizadoEn: this.borradorActualizadoEn,
+        servidorActualizadoEn: remoto?.actualizadoEn ?? null,
+      })
+      if (decision === 'usar-servidor' && remoto) {
+        this.aplicarCampos(remoto.payload)
+        this.borradorActualizadoEn = remoto.actualizadoEn
+        this.borradorPendienteDeSubir = false
+        this.escribirSesion()
+        return
+      }
+      if (decision === 'subir-sesion') {
+        if (subidaTimer) clearTimeout(subidaTimer)
+        revisionSubida += 1
+        const revision = revisionSubida
+        await this.subirBorrador(revision)
+      }
+    },
+
+    aplicarCampos(entrada: object) {
+        const parsed = entrada as Partial<StoredAlumnoMatriculaContext>
         this.tycAccepted = parsed.tycAccepted === true
         this.discapacidad =
           parsed.discapacidad && typeof parsed.discapacidad === 'object'
@@ -341,6 +419,24 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
             ? Math.trunc(parsed.pasoAlcanzado)
             : 1
         this.envioFirmaIniciado = parsed.envioFirmaIniciado === true
+    },
+
+    hydrateFromSessionStorage() {
+      try {
+        const raw = sessionStorage.getItem(ALUMNO_CTX_STORAGE_KEY)
+        if (!raw) return
+        const parsed = JSON.parse(raw) as Partial<StoredAlumnoMatriculaContext> & {
+          borradorActualizadoEn?: unknown
+          borradorPendienteDeSubir?: unknown
+        }
+        if (!hasAnyProgressPayload(parsed)) {
+          sessionStorage.removeItem(ALUMNO_CTX_STORAGE_KEY)
+          return
+        }
+        this.aplicarCampos(parsed)
+        this.borradorActualizadoEn =
+          typeof parsed.borradorActualizadoEn === 'string' ? parsed.borradorActualizadoEn : null
+        this.borradorPendienteDeSubir = parsed.borradorPendienteDeSubir === true
       } catch {
         sessionStorage.removeItem(ALUMNO_CTX_STORAGE_KEY)
       }
@@ -359,6 +455,10 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
     },
 
     resetFlujo() {
+      cancelarSubidaProgramada()
+      this.claveBorrador = null
+      this.borradorActualizadoEn = null
+      this.borradorPendienteDeSubir = false
       this.tycAccepted = false
       this.discapacidad = null
       this.verificacionCae = null

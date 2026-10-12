@@ -38,7 +38,7 @@ import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
 import ConvenioVigenteUpload from '@/components/rematricula/ConvenioVigenteUpload.vue'
 import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
 import { tieneCae } from '@/constants/verificacionCae'
-import { BadgePercent, Check, CreditCard, FileText, GraduationCap, TriangleAlert } from 'lucide-vue-next'
+import { BadgePercent, Check, ChevronDown, CreditCard, FileText, GraduationCap, TriangleAlert } from 'lucide-vue-next'
 import { abrirCasoRematricula, consultarCasosAlumno } from '@/services/casoRematriculaApi'
 import {
   consultarCarteraBeneficios,
@@ -410,6 +410,9 @@ const resumenPagoMatricula = computed(() => {
 
 type SubPaso = 'verificacion-cae' | 'verificacion-estatal' | 'becas' | 'pago'
 const subPaso = ref<SubPaso>('becas')
+const carreraAbierta = ref(false)
+const promedioAbierto = ref(false)
+const beneficiosAbiertos = ref(false)
 
 const fmt = fmtMontoClp
 
@@ -1714,10 +1717,23 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
 
     <!-- V06 Becas y plan -->
     <template v-else-if="subPaso === 'becas'">
-      <section
-        class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
-        aria-labelledby="rematricula-contexto"
-      >
+      <section class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <button
+          type="button"
+          class="flex min-h-11 w-full cursor-pointer items-center justify-between px-4 text-left text-sm font-semibold text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange md:hidden"
+          :class="carreraAbierta ? 'border-b border-zinc-200' : ''"
+          :aria-expanded="carreraAbierta"
+          aria-controls="pago-carrera-panel"
+          @click="carreraAbierta = !carreraAbierta"
+        >
+          Carrera
+          <ChevronDown
+            class="h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200 motion-reduce:transition-none"
+            :class="carreraAbierta ? 'rotate-180' : ''"
+            aria-hidden="true"
+          />
+        </button>
+        <div id="pago-carrera-panel" :class="carreraAbierta ? '' : 'hidden md:block'">
         <div
           class="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white"
           style="background: linear-gradient(90deg, #ff5b00 0%, #ee2183 50%, #4d98c5 100%)"
@@ -1751,12 +1767,26 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
             </p>
           </div>
         </div>
+        </div>
       </section>
 
-      <section
-        class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
-        aria-labelledby="promedio-titulo"
-      >
+      <section class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <button
+          type="button"
+          class="flex min-h-11 w-full cursor-pointer items-center justify-between px-4 text-left text-sm font-semibold text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange md:hidden"
+          :class="promedioAbierto ? 'border-b border-zinc-200' : ''"
+          :aria-expanded="promedioAbierto"
+          aria-controls="pago-promedio-panel"
+          @click="promedioAbierto = !promedioAbierto"
+        >
+          Tu promedio
+          <ChevronDown
+            class="h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200 motion-reduce:transition-none"
+            :class="promedioAbierto ? 'rotate-180' : ''"
+            aria-hidden="true"
+          />
+        </button>
+        <div id="pago-promedio-panel" :class="promedioAbierto ? '' : 'hidden md:block'">
         <div class="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:gap-8">
           <p class="text-4xl font-semibold tabular-nums tracking-tight text-zinc-900">
             {{ notaPromedioMostrada }}
@@ -1768,6 +1798,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
             <p class="mt-1 text-base font-semibold text-zinc-900">{{ etiquetaFuentePromedio }}</p>
             <p class="mt-1 text-sm text-zinc-600">{{ efectoPromedio }}</p>
           </div>
+        </div>
         </div>
       </section>
 
@@ -1796,8 +1827,24 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
 
       <div class="grid gap-6 lg:grid-cols-5">
         <Card class="shadow-md lg:col-span-3">
+          <button
+            type="button"
+            class="flex min-h-11 w-full cursor-pointer items-center justify-between px-4 text-left text-sm font-semibold text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange md:hidden"
+            :class="beneficiosAbiertos ? 'border-b border-zinc-200' : ''"
+            :aria-expanded="beneficiosAbiertos"
+            aria-controls="pago-beneficios-panel"
+            @click="beneficiosAbiertos = !beneficiosAbiertos"
+          >
+            Tus beneficios
+            <ChevronDown
+              class="h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200 motion-reduce:transition-none"
+              :class="beneficiosAbiertos ? 'rotate-180' : ''"
+              aria-hidden="true"
+            />
+          </button>
+          <div id="pago-beneficios-panel" :class="beneficiosAbiertos ? '' : 'hidden md:block'">
           <CardHeader>
-            <CardTitle class="text-lg text-zinc-900">Tus beneficios</CardTitle>
+            <CardTitle class="hidden text-lg text-zinc-900 md:block">Tus beneficios</CardTitle>
             <CardDescription>
               Periodo {{ periodoBeneficioLabel }}. El porcentaje de cada beca ya considera tu promedio.
             </CardDescription>
@@ -1871,6 +1918,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
               No hay beneficios asociados para este periodo.
             </p>
           </CardContent>
+          </div>
         </Card>
 
         <div class="space-y-4 lg:col-span-2">
