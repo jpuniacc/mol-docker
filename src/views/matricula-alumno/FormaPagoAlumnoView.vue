@@ -2124,8 +2124,8 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
       <DialogScrollContent
         :class="
           pagoMatriculaPaso === 'pagare'
-            ? 'flex max-h-[90vh] w-[min(96vw,72rem)] max-w-6xl flex-col overflow-hidden'
-            : 'max-h-[85vh] max-w-lg sm:max-w-xl'
+            ? 'flex max-h-[calc(100dvh-1.5rem)] w-[min(96vw,72rem)] max-w-6xl flex-col overflow-hidden'
+            : 'my-4 max-w-lg sm:max-w-xl'
         "
       >
         <DialogHeader class="shrink-0 space-y-3 text-left">

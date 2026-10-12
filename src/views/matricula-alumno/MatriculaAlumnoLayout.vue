@@ -317,7 +317,7 @@ function cerrarSesion() {
     </main>
 
     <nav
-      class="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
+      class="alumno-barra-pasos fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
       aria-label="Pasos de la rematrícula"
     >
       <div class="grid grid-cols-4">
@@ -342,7 +342,7 @@ function cerrarSesion() {
 
     <a
       href="#"
-      class="fixed bottom-24 right-6 z-50 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-transform duration-200 hover:scale-110 hover:bg-[#1ebe5d] motion-reduce:transition-none motion-reduce:hover:scale-100 md:bottom-6"
+      class="alumno-whatsapp fixed bottom-24 right-6 z-50 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-transform duration-200 hover:scale-110 hover:bg-[#1ebe5d] motion-reduce:transition-none motion-reduce:hover:scale-100 md:bottom-6"
       aria-label="WhatsApp"
       @click.prevent
     >
@@ -392,5 +392,14 @@ function cerrarSesion() {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+</style>
+
+<style>
+body:has([role='dialog'][data-state='open']) .alumno-barra-pasos,
+body:has([role='alertdialog'][data-state='open']) .alumno-barra-pasos,
+body:has([role='dialog'][data-state='open']) .alumno-whatsapp,
+body:has([role='alertdialog'][data-state='open']) .alumno-whatsapp {
+  display: none;
 }
 </style>
