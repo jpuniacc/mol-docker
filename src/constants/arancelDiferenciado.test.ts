@@ -12,7 +12,7 @@ describe('esCodcliArancelDiferenciado', () => {
     expect(esCodcliArancelDiferenciado('20251trso2ae027')).toBe(true)
     expect(esCodcliArancelDiferenciado('20251BIBL2AE019')).toBe(true)
     expect(esCodcliArancelDiferenciado('20231ADPU1AR033')).toBe(false)
-    expect(MSG_ARANCEL_DIFERENCIADO).toContain('revisión particular')
+    expect(MSG_ARANCEL_DIFERENCIADO).toContain('situación académica')
     expect(MSG_ARANCEL_DIFERENCIADO).toContain('servicio.estudiante@uniacc.cl')
   })
 })

@@ -310,7 +310,7 @@ async function onSubmit() {
         <DialogHeader>
           <DialogTitle>{{ TITULO_ARANCEL_DIFERENCIADO }}</DialogTitle>
           <DialogDescription class="text-left leading-relaxed text-zinc-700">
-            Tu Rematricula requiere una revisión particular. Comunícate con
+            Tu situación académica requiere revisión. Comunícate con
             <a
               :href="`mailto:${CORREO_BECA_SUBDERE}`"
               class="cursor-pointer font-medium text-[#1E3A5F] underline underline-offset-2"

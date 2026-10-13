@@ -1,5 +1,3 @@
-import { CORREO_BECA_SUBDERE } from '@/constants/carteraOficial'
-
 /** Arancel diferenciado 2027-1. El login no los deja entrar. */
 const CODCLI_ARANCEL_DIFERENCIADO = [
   '20251TRSO2AE027',
@@ -79,7 +77,8 @@ const CODCLI_ARANCEL_DIFERENCIADO_SET = new Set<string>(CODCLI_ARANCEL_DIFERENCI
 
 export const TITULO_ARANCEL_DIFERENCIADO = 'No es posible continuar con tu proceso de rematrícula'
 
-export const MSG_ARANCEL_DIFERENCIADO = `Tu Rematricula requiere una revisión particular. Comunícate con ${CORREO_BECA_SUBDERE}, indicando tu RUT y teléfono de contacto.`
+export const MSG_ARANCEL_DIFERENCIADO =
+  'Tu situación académica requiere revisión. Comunícate con servicio.estudiante@uniacc.cl, indicando tu RUT y teléfono de contacto.'
 
 const AVISO_SESION_ARANCEL_DIFERENCIADO = 'rematricula-bloqueo-arancel-diferenciado'
 
