@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { esEstadoAcademicoVigente } from '@/constants/accesoMnp'
+import { esCodcliArancelDiferenciado } from '@/constants/arancelDiferenciado'
 import { fueraCarteraDesdeEstado } from '@/constants/carteraOficial'
 import { estadoCarteraOficial } from '@/services/carteraOficialApi'
 import { supabase } from '@/services/supabaseClient'
@@ -22,6 +23,8 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
     excluidoMol: false,
     /** true = hay filas MNP y ninguna está VIGENTE. */
     accesoBloqueadoNoVigente: false,
+    /** true = las carreras vigentes son solo arancel diferenciado. */
+    accesoBloqueadoArancelDiferenciado: false,
   }),
   getters: {
     primeraFila: (s) => s.filas[0] ?? null,
@@ -35,6 +38,7 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
       this.fueraCarteraOficial = false
       this.excluidoMol = false
       this.accesoBloqueadoNoVigente = false
+      this.accesoBloqueadoArancelDiferenciado = false
     },
 
     async verificarCarteraOficial(): Promise<void> {
@@ -64,6 +68,7 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
       this.loading = true
       this.error = null
       this.accesoBloqueadoNoVigente = false
+      this.accesoBloqueadoArancelDiferenciado = false
       this.fueraCarteraOficial = false
       this.excluidoMol = false
       const email = emailInstitucionalDesdeUsername(username)
@@ -83,11 +88,22 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
         if (todas.length > 0 && vigentes.length === 0) {
           this.filas = todas
           this.accesoBloqueadoNoVigente = true
+          this.accesoBloqueadoArancelDiferenciado = false
           await this.verificarCarteraOficial()
           return
         }
+        const sinArancelDiferenciado = vigentes.filter(
+          (fila) => !esCodcliArancelDiferenciado(fila.codcli),
+        )
+        if (vigentes.length > 0 && sinArancelDiferenciado.length === 0) {
+          this.filas = vigentes
+          this.accesoBloqueadoNoVigente = false
+          this.accesoBloqueadoArancelDiferenciado = true
+          return
+        }
         this.accesoBloqueadoNoVigente = false
-        this.filas = vigentes
+        this.accesoBloqueadoArancelDiferenciado = false
+        this.filas = sinArancelDiferenciado
         if (this.filas.length > 0) {
           await this.verificarCarteraOficial()
         } else {

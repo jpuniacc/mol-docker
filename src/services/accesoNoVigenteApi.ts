@@ -77,3 +77,33 @@ export async function registrarIntentoSubdere(filas: MnpDatosAlumnosRow[]): Prom
   const rut = filas.find((fila) => (fila.rut_alumno ?? '').trim())?.rut_alumno ?? ''
   await notificarAccesoSubdere(rut)
 }
+
+const avisosArancelEnCurso = new Set<string>()
+
+async function notificarAccesoArancelDiferenciado(rut: string): Promise<void> {
+  const norm = rutNorm(rut)
+  if (!norm || avisosArancelEnCurso.has(norm)) return
+  avisosArancelEnCurso.add(norm)
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 20_000)
+  try {
+    await fetch(apiPath('/api/rematricula/acceso/arancel-diferenciado'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rutAlumno: rut.trim() }),
+      signal: controller.signal,
+    })
+  } catch (error) {
+    console.warn('[acceso-arancel-diferenciado] no se pudo registrar el aviso', error)
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** Avisa al consejero y a mol@uniacc.cl que un alumno de arancel diferenciado intentó entrar. */
+export async function registrarIntentoArancelDiferenciado(
+  filas: MnpDatosAlumnosRow[],
+): Promise<void> {
+  const rut = filas.find((fila) => (fila.rut_alumno ?? '').trim())?.rut_alumno ?? ''
+  await notificarAccesoArancelDiferenciado(rut)
+}

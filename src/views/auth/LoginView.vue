@@ -20,11 +20,16 @@ import {
   TITULO_ACCESO_NO_VIGENTE,
 } from '@/constants/accesoMnp'
 import {
+  TITULO_ARANCEL_DIFERENCIADO,
+  tomarAvisoArancelDiferenciado,
+} from '@/constants/arancelDiferenciado'
+import {
   CORREO_BECA_SUBDERE,
   TITULO_BECA_SUBDERE,
   tomarAvisoSubdere,
 } from '@/constants/carteraOficial'
 import {
+  registrarIntentoArancelDiferenciado,
   registrarIntentoNoVigente,
   registrarIntentoSubdere,
   tomarAvisoNoVigente,
@@ -52,6 +57,7 @@ const loading = ref(false)
 const modalTyCRechazadoOpen = ref(false)
 const modalNoVigenteOpen = ref(false)
 const modalSubdereOpen = ref(false)
+const modalArancelDiferenciadoOpen = ref(false)
 
 function syncModalTyCRechazado() {
   modalTyCRechazadoOpen.value = route.query.tycRechazado === '1'
@@ -64,6 +70,9 @@ onMounted(() => {
   }
   if (tomarAvisoSubdere()) {
     modalSubdereOpen.value = true
+  }
+  if (tomarAvisoArancelDiferenciado()) {
+    modalArancelDiferenciadoOpen.value = true
   }
   void periodoActivo.ensureLoaded()
 })
@@ -124,6 +133,12 @@ async function onSubmit() {
         tomarAvisoNoVigente()
         modalNoVigenteOpen.value = true
         auth.logout()
+        return
+      }
+      if (alumnoMnp.accesoBloqueadoArancelDiferenciado) {
+        await registrarIntentoArancelDiferenciado([...alumnoMnp.filas])
+        auth.logout()
+        modalArancelDiferenciadoOpen.value = true
         return
       }
       if (alumnoMnp.filas.length === 0) {
@@ -280,6 +295,33 @@ async function onSubmit() {
             type="button"
             class="cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90"
             @click="modalNoVigenteOpen = false"
+          >
+            Entendido
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog
+      :open="modalArancelDiferenciadoOpen"
+      @update:open="(v: boolean) => (modalArancelDiferenciadoOpen = v)"
+    >
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{{ TITULO_ARANCEL_DIFERENCIADO }}</DialogTitle>
+          <DialogDescription class="text-left leading-relaxed text-zinc-700">
+            Tu Rematricula requiere una revisión particular. Comunícate con
+            <a
+              :href="`mailto:${CORREO_BECA_SUBDERE}`"
+              class="cursor-pointer font-medium text-[#1E3A5F] underline underline-offset-2"
+            >{{ CORREO_BECA_SUBDERE }}</a>, indicando tu RUT y teléfono de contacto.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            type="button"
+            class="cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90"
+            @click="modalArancelDiferenciadoOpen = false"
           >
             Entendido
           </Button>

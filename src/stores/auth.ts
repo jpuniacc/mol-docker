@@ -2,8 +2,13 @@ import { defineStore } from 'pinia'
 
 import type { MvUsuarioRow } from '@/types/supabase'
 
+import { guardarAvisoArancelDiferenciado } from '@/constants/arancelDiferenciado'
 import { guardarAvisoSubdere } from '@/constants/carteraOficial'
-import { registrarIntentoNoVigente, registrarIntentoSubdere } from '@/services/accesoNoVigenteApi'
+import {
+  registrarIntentoArancelDiferenciado,
+  registrarIntentoNoVigente,
+  registrarIntentoSubdere,
+} from '@/services/accesoNoVigenteApi'
 import type { LoginSuccess } from '@/services/auth'
 import { supabase } from '@/services/supabaseClient'
 import { cerrarLogSesion, iniciarLogSesion } from '@/services/sessionLog'
@@ -210,6 +215,12 @@ export const useAuthStore = defineStore('auth', {
           if (datosMnp.accesoBloqueadoNoVigente) {
             const filas = [...datosMnp.filas]
             await registrarIntentoNoVigente(filas)
+            this.logout()
+            return
+          }
+          if (datosMnp.accesoBloqueadoArancelDiferenciado) {
+            await registrarIntentoArancelDiferenciado([...datosMnp.filas])
+            guardarAvisoArancelDiferenciado()
             this.logout()
             return
           }

@@ -1,0 +1,103 @@
+import { CORREO_BECA_SUBDERE } from '@/constants/carteraOficial'
+
+/** Arancel diferenciado 2027-1. El login no los deja entrar. */
+const CODCLI_ARANCEL_DIFERENCIADO = [
+  '20251TRSO2AE027',
+  '20251BIBL2AE031',
+  '20251ICOM2AE001',
+  '20251ADPU2AE004',
+  '20251ICOM2AE031',
+  '20231PUBL1DR008',
+  '20251BIBL2AE004',
+  '20251ICOM2AE015',
+  '20251BIBL2AE009',
+  '20251ICOM2AE012',
+  '20251TRSO2AE004',
+  '20251BIBL2AE025',
+  '20251BIBL2AE021',
+  '20251BIBL2AE001',
+  '20251BIBL2AE008',
+  '20251BIBL2AE016',
+  '20231PUBL1DR017',
+  '20251ICOM2AE027',
+  '20251ICOM2AE014',
+  '20251ICOM2AE019',
+  '20231PUBL1DR023',
+  '20251TRSO2AE014',
+  '20251BIBL2AE002',
+  '20251ICOM2AE008',
+  '20231PUBL1DR024',
+  '20231PUBL1DR021',
+  '20251BIBL2AE018',
+  '20251CONA2AE003',
+  '20251BIBL2AE026',
+  '20251TRSO2AE003',
+  '20231PUBL1DR025',
+  '20231PUBL1DR007',
+  '20231PUBL1DR013',
+  '20231PUBL1DR009',
+  '20251ICOM2AE023',
+  '20251ICOM2AE018',
+  '20251ICOM2AE028',
+  '20231PUBL1DR015',
+  '20231PUBL1DR012',
+  '20251ICOM2AE006',
+  '20251TRSO2AE002',
+  '20251TRSO2AE008',
+  '20251BIBL2AE015',
+  '20231PUBL1DR014',
+  '20251ICOM2AE030',
+  '20251BIBL2AE005',
+  '20231PUBL1DR006',
+  '20251BIBL2AE003',
+  '20251BIBL2AE014',
+  '20251BIBL2AE030',
+  '20251TRSO2AE012',
+  '20251BIBL2AE020',
+  '20251BIBL2AE019',
+  '20251CONA2AE006',
+  '20251ICOM2AE026',
+  '20251ADPU2AE003',
+  '20251ICOM2AE003',
+  '20251TRSO2AE024',
+  '20251BIBL2AE017',
+  '20251ICOM2AE020',
+  '20251BIBL2AE022',
+  '20231PUBL1DR020',
+  '20231PUBL1DR018',
+  '20251ICOM2AE009',
+  '20251BIBL2AE029',
+  '20251CONA2AE002',
+  '20251ICOM2AE025',
+  '20251ICOM2AE007',
+  '20251ICOM2AE011',
+  '20251BIBL2AE027',
+  '20231PUBL1DR002',
+] as const
+
+const CODCLI_ARANCEL_DIFERENCIADO_SET = new Set<string>(CODCLI_ARANCEL_DIFERENCIADO)
+
+export const TITULO_ARANCEL_DIFERENCIADO = 'No es posible continuar con tu proceso de rematrícula'
+
+export const MSG_ARANCEL_DIFERENCIADO = `Tu Rematricula requiere una revisión particular. Comunícate con ${CORREO_BECA_SUBDERE}, indicando tu RUT y teléfono de contacto.`
+
+const AVISO_SESION_ARANCEL_DIFERENCIADO = 'rematricula-bloqueo-arancel-diferenciado'
+
+export function esCodcliArancelDiferenciado(codcli: string | null | undefined): boolean {
+  const codigo = (codcli ?? '').trim().toUpperCase()
+  return codigo.length > 0 && CODCLI_ARANCEL_DIFERENCIADO_SET.has(codigo)
+}
+
+export function cantidadCodcliArancelDiferenciado(): number {
+  return CODCLI_ARANCEL_DIFERENCIADO_SET.size
+}
+
+export function guardarAvisoArancelDiferenciado(): void {
+  sessionStorage.setItem(AVISO_SESION_ARANCEL_DIFERENCIADO, '1')
+}
+
+export function tomarAvisoArancelDiferenciado(): boolean {
+  if (sessionStorage.getItem(AVISO_SESION_ARANCEL_DIFERENCIADO) !== '1') return false
+  sessionStorage.removeItem(AVISO_SESION_ARANCEL_DIFERENCIADO)
+  return true
+}
