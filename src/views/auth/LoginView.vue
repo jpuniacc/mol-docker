@@ -24,7 +24,11 @@ import {
   TITULO_BECA_SUBDERE,
   tomarAvisoSubdere,
 } from '@/constants/carteraOficial'
-import { registrarIntentoNoVigente, tomarAvisoNoVigente } from '@/services/accesoNoVigenteApi'
+import {
+  registrarIntentoNoVigente,
+  registrarIntentoSubdere,
+  tomarAvisoNoVigente,
+} from '@/services/accesoNoVigenteApi'
 import {
   TYC_RECHAZO_MODAL_ENTENDIDO,
   TYC_RECHAZO_MODAL_MENSAJE,
@@ -48,7 +52,6 @@ const loading = ref(false)
 const modalTyCRechazadoOpen = ref(false)
 const modalNoVigenteOpen = ref(false)
 const modalSubdereOpen = ref(false)
-const mensajeNoVigente = ref('')
 
 function syncModalTyCRechazado() {
   modalTyCRechazadoOpen.value = route.query.tycRechazado === '1'
@@ -56,9 +59,7 @@ function syncModalTyCRechazado() {
 
 onMounted(() => {
   syncModalTyCRechazado()
-  const aviso = tomarAvisoNoVigente()
-  if (aviso) {
-    mensajeNoVigente.value = aviso
+  if (tomarAvisoNoVigente()) {
     modalNoVigenteOpen.value = true
   }
   if (tomarAvisoSubdere()) {
@@ -111,9 +112,15 @@ async function onSubmit() {
         auth.logout()
         return
       }
+      if (alumnoMnp.excluidoMol) {
+        await registrarIntentoSubdere([...alumnoMnp.filas])
+        auth.logout()
+        modalSubdereOpen.value = true
+        return
+      }
       if (alumnoMnp.accesoBloqueadoNoVigente) {
         const filas = [...alumnoMnp.filas]
-        mensajeNoVigente.value = await registrarIntentoNoVigente(filas)
+        await registrarIntentoNoVigente(filas)
         tomarAvisoNoVigente()
         modalNoVigenteOpen.value = true
         auth.logout()
@@ -122,11 +129,6 @@ async function onSubmit() {
       if (alumnoMnp.filas.length === 0) {
         toast.error(MSG_ACCESO_MNP_NO_VIGENTE)
         auth.logout()
-        return
-      }
-      if (alumnoMnp.excluidoMol) {
-        auth.logout()
-        modalSubdereOpen.value = true
         return
       }
     }
@@ -262,11 +264,15 @@ async function onSubmit() {
     </main>
 
     <Dialog :open="modalNoVigenteOpen" @update:open="(v: boolean) => (modalNoVigenteOpen = v)">
-      <DialogContent>
+      <DialogContent class="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{{ TITULO_ACCESO_NO_VIGENTE }}</DialogTitle>
-          <DialogDescription>
-            {{ mensajeNoVigente }}
+          <DialogDescription class="text-left leading-relaxed text-zinc-700">
+            Tu situación académica requiere revisión. Comunícate con
+            <a
+              :href="`mailto:${CORREO_BECA_SUBDERE}`"
+              class="cursor-pointer font-medium text-[#1E3A5F] underline underline-offset-2"
+            >{{ CORREO_BECA_SUBDERE }}</a>, indicando tu RUT y teléfono de contacto.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

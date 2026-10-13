@@ -2,19 +2,14 @@
 export const MSG_ACCESO_MNP_NO_VIGENTE =
   'Su estado no se encuentra vigente en los registros de la universidad. No puede ingresar al sistema.'
 
-export const TITULO_ACCESO_NO_VIGENTE = 'No es posible ingresar'
+export const TITULO_ACCESO_NO_VIGENTE = 'No es posible continuar con tu proceso de rematrícula'
 
-/** Alumno con filas en MNP, ninguna con estado académico VIGENTE. */
-export function mensajeAccesoNoVigente(estados: Array<string | null | undefined>): string {
-  const unicos = [
-    ...new Set(
-      estados
-        .map((estado) => (estado ?? '').trim())
-        .filter((estado) => estado.length > 0),
-    ),
-  ]
-  const lista = unicos.length > 0 ? unicos.join(', ') : 'no vigente'
-  return `No es posible ingresar a la rematrícula. Tu estado académico es ${lista}. Comunícate con la Dirección de Vida Universitaria (DVU).`
+export const MSG_SITUACION_ACADEMICA =
+  'Tu situación académica requiere revisión. Comunícate con servicio.estudiante@uniacc.cl, indicando tu RUT y teléfono de contacto.'
+
+/** Alumno con filas en MNP, ninguna con estado académico VIGENTE y que no es SUBDERE. */
+export function mensajeAccesoNoVigente(_estados: Array<string | null | undefined>): string {
+  return MSG_SITUACION_ACADEMICA
 }
 
 export function esEstadoAcademicoVigente(estado: string | null | undefined): boolean {

@@ -83,8 +83,7 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
         if (todas.length > 0 && vigentes.length === 0) {
           this.filas = todas
           this.accesoBloqueadoNoVigente = true
-          this.fueraCarteraOficial = false
-          this.excluidoMol = false
+          await this.verificarCarteraOficial()
           return
         }
         this.accesoBloqueadoNoVigente = false

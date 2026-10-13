@@ -49,3 +49,31 @@ export async function registrarIntentoNoVigente(filas: MnpDatosAlumnosRow[]): Pr
   await notificarAccesoNoVigente(rut)
   return mensaje
 }
+
+const avisosSubdereEnCurso = new Set<string>()
+
+async function notificarAccesoSubdere(rut: string): Promise<void> {
+  const norm = rutNorm(rut)
+  if (!norm || avisosSubdereEnCurso.has(norm)) return
+  avisosSubdereEnCurso.add(norm)
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 20_000)
+  try {
+    await fetch(apiPath('/api/rematricula/acceso/subdere'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rutAlumno: rut.trim() }),
+      signal: controller.signal,
+    })
+  } catch (error) {
+    console.warn('[acceso-subdere] no se pudo registrar el aviso', error)
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** Avisa al consejero y a mol@uniacc.cl que un alumno SUBDERE intentó entrar. */
+export async function registrarIntentoSubdere(filas: MnpDatosAlumnosRow[]): Promise<void> {
+  const rut = filas.find((fila) => (fila.rut_alumno ?? '').trim())?.rut_alumno ?? ''
+  await notificarAccesoSubdere(rut)
+}

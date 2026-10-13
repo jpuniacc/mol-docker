@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import type { MvUsuarioRow } from '@/types/supabase'
 
 import { guardarAvisoSubdere } from '@/constants/carteraOficial'
-import { registrarIntentoNoVigente } from '@/services/accesoNoVigenteApi'
+import { registrarIntentoNoVigente, registrarIntentoSubdere } from '@/services/accesoNoVigenteApi'
 import type { LoginSuccess } from '@/services/auth'
 import { supabase } from '@/services/supabaseClient'
 import { cerrarLogSesion, iniciarLogSesion } from '@/services/sessionLog'
@@ -201,6 +201,12 @@ export const useAuthStore = defineStore('auth', {
         const datosMnp = useDatosAlumnoMnpStore()
         if (this.authSource === 'pixarron' && this.username) {
           await datosMnp.fetchSiSinMvUsuario(this.username, false)
+          if (datosMnp.excluidoMol) {
+            await registrarIntentoSubdere([...datosMnp.filas])
+            guardarAvisoSubdere()
+            this.logout()
+            return
+          }
           if (datosMnp.accesoBloqueadoNoVigente) {
             const filas = [...datosMnp.filas]
             await registrarIntentoNoVigente(filas)
@@ -208,11 +214,6 @@ export const useAuthStore = defineStore('auth', {
             return
           }
           if (datosMnp.filas.length === 0) {
-            this.logout()
-            return
-          }
-          if (datosMnp.excluidoMol) {
-            guardarAvisoSubdere()
             this.logout()
             return
           }
