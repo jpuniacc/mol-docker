@@ -47,6 +47,10 @@ const avance = computed(() =>
     formaPagoSeleccionada: alumnoCtx.formaPagoSeleccionada,
     firmaCompletada: alumnoCtx.firmaCompletada,
     envioFirmaIniciado: alumnoCtx.envioFirmaIniciado,
+    medioMatricula: alumnoCtx.medioMatricula,
+    medioArancel: alumnoCtx.medioArancel,
+    webpayMatriculaEstado: alumnoCtx.webpayMatriculaEstado,
+    webpayArancelEstado: alumnoCtx.webpayArancelEstado,
   }),
 )
 

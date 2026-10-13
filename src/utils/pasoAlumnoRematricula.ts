@@ -1,3 +1,5 @@
+import { siguientePaso } from '@/utils/webpaySiguientePaso'
+
 export const PASOS_ALUMNO_REMATRICULA = [
   'matricula-alumno-datos',
   'matricula-alumno-forma-pago',
@@ -13,16 +15,52 @@ export function indicePasoAlumno(name: string | symbol | null | undefined): numb
   return indice >= 0 ? indice + 1 : 0
 }
 
+type MedioElegido = 'webpay' | 'pagare'
+
+export type SenalesPagoAlumno = {
+  pagoMatricula: unknown
+  formaPagoSeleccionada: unknown
+  firmaCompletada: boolean
+  envioFirmaIniciado?: boolean
+  medioMatricula?: MedioElegido | null
+  medioArancel?: MedioElegido | null
+  webpayMatriculaEstado?: string | null
+  webpayArancelEstado?: string | null
+}
+
+/** La forma de pago quedó hecha: pagaré, las dos Webpay autorizadas, o ya se envió a firmar. */
+export function pagoFormaListo(ctx: SenalesPagoAlumno): boolean {
+  if (ctx.pagoMatricula != null || ctx.formaPagoSeleccionada != null) return true
+  if (ctx.firmaCompletada || ctx.envioFirmaIniciado === true) return true
+  if (ctx.medioMatricula !== 'webpay' && ctx.medioMatricula !== 'pagare') return false
+  const medioArancel =
+    ctx.medioArancel === 'webpay' || ctx.medioArancel === 'pagare' ? ctx.medioArancel : null
+  return (
+    siguientePaso({
+      medioMatricula: ctx.medioMatricula,
+      medioArancel,
+      matriculaAutorizada: ctx.webpayMatriculaEstado === 'autorizada',
+      arancelAutorizado: ctx.webpayArancelEstado === 'autorizada',
+      planListo: ctx.pagoMatricula != null,
+    }).tipo === 'firma'
+  )
+}
+
 export function pasoMaximoAlumno(ctx: {
   pasoAlcanzado: number
   discapacidad: unknown
   pagoMatricula: unknown
   formaPagoSeleccionada: unknown
   firmaCompletada: boolean
+  envioFirmaIniciado?: boolean
+  medioMatricula?: MedioElegido | null
+  medioArancel?: MedioElegido | null
+  webpayMatriculaEstado?: string | null
+  webpayArancelEstado?: string | null
 }): number {
   let paso = ctx.pasoAlcanzado
   if (ctx.discapacidad != null) paso = Math.max(paso, 2)
-  if (ctx.pagoMatricula != null || ctx.formaPagoSeleccionada != null) paso = Math.max(paso, 3)
+  if (pagoFormaListo(ctx)) paso = Math.max(paso, 3)
   if (ctx.firmaCompletada) paso = 4
   if (paso < 1) return 1
   if (paso > 4) return 4
@@ -99,6 +137,10 @@ export type AvanceHomeAlumnoInput = {
   formaPagoSeleccionada: unknown
   firmaCompletada: boolean
   envioFirmaIniciado: boolean
+  medioMatricula?: 'webpay' | 'pagare' | null
+  medioArancel?: 'webpay' | 'pagare' | null
+  webpayMatriculaEstado?: string | null
+  webpayArancelEstado?: string | null
 }
 
 export type CtaAvanceHome = {
@@ -116,15 +158,7 @@ function textoGuardado(valor: string | null): boolean {
 
 /** El paso 1 está listo cuando Forma de pago ya se puede abrir. */
 export function datosPersonalesListos(input: AvanceHomeAlumnoInput): boolean {
-  return (
-    pasoMaximoAlumno({
-      pasoAlcanzado: input.pasoAlcanzado,
-      discapacidad: input.discapacidad,
-      pagoMatricula: input.pagoMatricula,
-      formaPagoSeleccionada: input.formaPagoSeleccionada,
-      firmaCompletada: input.firmaCompletada,
-    }) >= 2
-  )
+  return pasoMaximoAlumno(input) >= 2
 }
 
 function datosPersonalesEmpezados(input: AvanceHomeAlumnoInput): boolean {
@@ -145,7 +179,7 @@ function estadoDe(listo: boolean, empezado: boolean): EstadoPasoHome {
 
 export function pasosAvanceHome(input: AvanceHomeAlumnoInput): PasoAvanceHome[] {
   const datosListo = datosPersonalesListos(input)
-  const pagoListo = input.pagoMatricula != null || input.formaPagoSeleccionada != null
+  const pagoListo = pagoFormaListo(input)
   const firmaLista = input.firmaCompletada
   return [
     {
@@ -226,13 +260,7 @@ export function accionAlElegirPasoHome(
     envioFirmaIniciado: input.envioFirmaIniciado,
     firmaCompletada: input.firmaCompletada,
     step: NUMERO_POR_PASO_HOME[id],
-    pasoMaximo: pasoMaximoAlumno({
-      pasoAlcanzado: input.pasoAlcanzado,
-      discapacidad: input.discapacidad,
-      pagoMatricula: input.pagoMatricula,
-      formaPagoSeleccionada: input.formaPagoSeleccionada,
-      firmaCompletada: input.firmaCompletada,
-    }),
+    pasoMaximo: pasoMaximoAlumno(input),
   })
   if (!abierto || destino == null || actual == null) {
     return {

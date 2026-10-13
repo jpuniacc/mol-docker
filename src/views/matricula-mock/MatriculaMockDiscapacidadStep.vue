@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Check, Info } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
@@ -15,6 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -41,6 +42,7 @@ const periodoActivo = usePeriodoActivoStore()
 const fuente = useMockAlumnoFuente()
 
 const quiereContestar = ref<boolean | null>(null)
+const inicioEncuestaEl = ref<HTMLElement | null>(null)
 const tipoDiscapacidad = ref<string | null>(null)
 const afirmaciones = ref<string[]>([])
 const guardando = ref(false)
@@ -112,9 +114,25 @@ function toggleAfirmacion(label: string, checked: boolean) {
   }
 }
 
-function seleccionarContestar() {
+function esPantallaChica(): boolean {
+  return window.matchMedia('(max-width: 767px)').matches
+}
+
+async function bajarAlInicioEncuesta(): Promise<void> {
+  await nextTick()
+  const el = inicioEncuestaEl.value
+  if (!el) return
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+  el.focus({ preventScroll: true })
+}
+
+async function seleccionarContestar() {
   if (guardando.value) return
+  const yaAbierta = quiereContestar.value === true
   quiereContestar.value = true
+  if (yaAbierta || !esPantallaChica()) return
+  await bajarAlInicioEncuesta()
 }
 
 function solicitarOmitir() {
@@ -255,7 +273,9 @@ async function guardar() {
             </p>
 
             <section
-              class="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50/80 p-4"
+              ref="inicioEncuestaEl"
+              tabindex="-1"
+              class="scroll-mt-16 space-y-3 rounded-lg border border-zinc-200 bg-zinc-50/80 p-4 outline-none"
               aria-labelledby="discapacidad-pregunta-1"
             >
               <div class="space-y-1">
@@ -327,15 +347,19 @@ async function guardar() {
             </section>
 
             <div class="space-y-2 pt-2">
-              <Button
-                type="button"
-                class="w-full bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
-                :disabled="!puedeGuardar()"
-                @click="guardar"
-              >
-                {{ guardando ? ui.ctaGuardando : ui.ctaGuardar }}
-              </Button>
-              <p class="text-xs text-muted-foreground">{{ ui.ctaAyuda }}</p>
+              <AccionesFlujo>
+                <template #primaria>
+                  <Button
+                    type="button"
+                    class="w-full bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
+                    :disabled="!puedeGuardar()"
+                    @click="guardar"
+                  >
+                    {{ guardando ? ui.ctaGuardando : ui.ctaGuardar }}
+                  </Button>
+                </template>
+              </AccionesFlujo>
+              <p class="text-xs text-muted-foreground sm:text-right">{{ ui.ctaAyuda }}</p>
             </div>
           </div>
         </Transition>

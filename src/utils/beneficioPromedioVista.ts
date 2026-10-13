@@ -183,7 +183,7 @@ export function textoEfectoPromedio(promedio: number | null): string {
     return 'No tenemos tu promedio para ajustar las becas.'
   }
   const tramo = disminuirArt13(promedio)
-  if (tramo.resultado === 'MANTIENE') return 'Las becas que exigen 5,5 se mantienen.'
+  if (tramo.resultado === 'MANTIENE') return 'Las becas que tienes asignadas, por tu promedio, se mantienen.'
   if (tramo.resultado === 'PIERDE') return 'Las becas que exigen 5,5 no aplican.'
   const baja = Math.round(tramo.disminucion * 100)
   return `Las becas que exigen 5,5 bajan un ${baja} %.`

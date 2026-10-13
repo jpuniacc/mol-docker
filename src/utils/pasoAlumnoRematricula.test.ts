@@ -180,6 +180,23 @@ describe('pasosAvanceHome', () => {
       routeName: 'matricula-alumno-resumen',
     })
   })
+
+  it('marca la forma de pago lista cuando las dos Webpay ya están autorizadas y la firma también', () => {
+    const pasos = pasosAvanceHome({
+      ...avanceVacio(),
+      tycAccepted: true,
+      discapacidad: { contesta: false },
+      firmaCompletada: true,
+      envioFirmaIniciado: true,
+      pasoAlcanzado: 3,
+      medioMatricula: 'webpay',
+      medioArancel: 'webpay',
+      webpayMatriculaEstado: 'autorizada',
+      webpayArancelEstado: 'autorizada',
+    })
+    expect(pasos.map((paso) => paso.estado)).toEqual(['listo', 'listo', 'listo', 'listo'])
+    expect(pasosListosHome(pasos)).toBe(4)
+  })
 })
 
 describe('accionAlElegirPasoHome', () => {

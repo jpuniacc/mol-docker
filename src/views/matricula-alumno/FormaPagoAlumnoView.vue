@@ -27,13 +27,6 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
 import ConvenioVigenteUpload from '@/components/rematricula/ConvenioVigenteUpload.vue'
 import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
@@ -180,6 +173,14 @@ const pagoMatriculaPaso = ref<'selector' | 'pagare'>('selector')
 type MedioPagoConcepto = 'pagare' | 'webpay'
 const medioPagoMatricula = ref<MedioPagoConcepto | null>(null)
 const medioPagoArancel = ref<MedioPagoConcepto | null>(null)
+const matriculaMedioAbierto = ref(true)
+const arancelMedioAbierto = ref(false)
+
+function clasePanelMedio(abierto: boolean): string {
+  return abierto
+    ? 'block space-y-2 px-3 pb-3 md:mt-2 md:px-0 md:pb-0'
+    : 'hidden md:mt-2 md:block md:space-y-2'
+}
 const pagareDiaVencimiento = ref<string>('5')
 const pagareTotalCuotas = ref<'10' | '12'>('10')
 const pagareFechaInicio = ref('')
@@ -413,6 +414,8 @@ const subPaso = ref<SubPaso>('becas')
 const carreraAbierta = ref(false)
 const promedioAbierto = ref(false)
 const beneficiosAbiertos = ref(false)
+const matriculaResumenAbierta = ref(true)
+const arancelResumenAbierto = ref(false)
 
 const fmt = fmtMontoClp
 
@@ -1922,40 +1925,33 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
         </Card>
 
         <div class="space-y-4 lg:col-span-2">
-          <Card class="border-orange-100 shadow-md">
-            <CardHeader class="pb-2">
-              <CardTitle class="text-base text-uniacc-orange">Arancel</CardTitle>
-            </CardHeader>
-            <CardContent class="space-y-2 text-sm">
-              <div class="flex justify-between gap-2">
-                <span>Valor arancel</span>
-                <span class="tabular-nums">{{ fmt(montoBrutoArancel()) }}</span>
-              </div>
-              <div
-                v-for="linea in lineasDescuento"
-                :key="linea.slot"
-                class="flex justify-between gap-3 text-emerald-700"
-              >
-                <span class="min-w-0 truncate">{{ linea.descripcion }}</span>
-                <span class="shrink-0 tabular-nums">− {{ fmt(linea.monto) }}</span>
-              </div>
-              <p v-if="lineasDescuento.length === 0" class="text-xs text-zinc-500">
-                Sin descuentos aplicados.
-              </p>
-              <div
-                class="mt-3 flex justify-between border-t border-uniacc-orange/30 pt-3 text-base font-bold text-uniacc-orange"
-              >
-                <span>Total arancel por pagar</span>
-                <span>{{ fmt(montoNetoArancel()) }}</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card class="border-orange-100 shadow-md">
-            <CardHeader class="pb-2">
+          <Card class="overflow-hidden border-orange-100 shadow-md">
+            <button
+              type="button"
+              class="flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange md:hidden"
+              :class="matriculaResumenAbierta ? 'border-b border-orange-100' : ''"
+              :aria-expanded="matriculaResumenAbierta"
+              aria-controls="pago-matricula-resumen"
+              @click="matriculaResumenAbierta = !matriculaResumenAbierta"
+            >
+              <span class="text-base font-semibold text-uniacc-orange">Matrícula</span>
+              <span class="ml-auto flex items-center gap-2">
+                <span
+                  v-if="!matriculaResumenAbierta"
+                  class="text-sm font-semibold leading-none tabular-nums text-uniacc-orange"
+                >{{ fmt(montoNetoMatricula()) }}</span>
+                <ChevronDown
+                  class="h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200 motion-reduce:transition-none"
+                  :class="matriculaResumenAbierta ? 'rotate-180' : ''"
+                  aria-hidden="true"
+                />
+              </span>
+            </button>
+            <div id="pago-matricula-resumen" :class="matriculaResumenAbierta ? '' : 'hidden md:block'">
+            <CardHeader class="hidden pb-2 md:block">
               <CardTitle class="text-base text-uniacc-orange">Matrícula</CardTitle>
             </CardHeader>
-            <CardContent class="space-y-2 text-sm">
+            <CardContent class="space-y-2 pt-4 text-sm md:pt-0">
               <div class="flex justify-between gap-2">
                 <span>Valor matrícula</span>
                 <span>{{ fmt(montoBrutoMatricula()) }}</span>
@@ -1985,10 +1981,10 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
               <p v-else-if="resumenPagoMatricula" class="text-xs text-zinc-600">
                 Configurado: {{ resumenPagoMatricula }}
               </p>
-              <div class="mt-2 grid gap-2 sm:grid-cols-2">
+              <div class="mt-2 flex justify-end">
                 <Button
                   type="button"
-                  class="w-full cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90"
+                  class="w-full cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
                   :disabled="!puedeAbrirPagoMatricula"
                   @click="abrirPagoMatricula"
                 >
@@ -2011,6 +2007,59 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
                 </Button> -->
               </div>
             </CardContent>
+            </div>
+          </Card>
+
+          <Card class="overflow-hidden border-orange-100 shadow-md">
+            <button
+              type="button"
+              class="flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange md:hidden"
+              :class="arancelResumenAbierto ? 'border-b border-orange-100' : ''"
+              :aria-expanded="arancelResumenAbierto"
+              aria-controls="pago-arancel-resumen"
+              @click="arancelResumenAbierto = !arancelResumenAbierto"
+            >
+              <span class="text-base font-semibold text-uniacc-orange">Arancel</span>
+              <span class="ml-auto flex items-center gap-2">
+                <span
+                  v-if="!arancelResumenAbierto"
+                  class="text-sm font-semibold leading-none tabular-nums text-uniacc-orange"
+                >{{ fmt(montoNetoArancel()) }}</span>
+                <ChevronDown
+                  class="h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200 motion-reduce:transition-none"
+                  :class="arancelResumenAbierto ? 'rotate-180' : ''"
+                  aria-hidden="true"
+                />
+              </span>
+            </button>
+            <div id="pago-arancel-resumen" :class="arancelResumenAbierto ? '' : 'hidden md:block'">
+            <CardHeader class="hidden pb-2 md:block">
+              <CardTitle class="text-base text-uniacc-orange">Arancel</CardTitle>
+            </CardHeader>
+            <CardContent class="space-y-2 pt-4 text-sm md:pt-0">
+              <div class="flex justify-between gap-2">
+                <span>Valor arancel</span>
+                <span class="tabular-nums">{{ fmt(montoBrutoArancel()) }}</span>
+              </div>
+              <div
+                v-for="linea in lineasDescuento"
+                :key="linea.slot"
+                class="flex justify-between gap-3 text-emerald-700"
+              >
+                <span class="min-w-0 truncate">{{ linea.descripcion }}</span>
+                <span class="shrink-0 tabular-nums">− {{ fmt(linea.monto) }}</span>
+              </div>
+              <p v-if="lineasDescuento.length === 0" class="text-xs text-zinc-500">
+                Sin descuentos aplicados.
+              </p>
+              <div
+                class="mt-3 flex justify-between border-t border-uniacc-orange/30 pt-3 text-base font-bold text-uniacc-orange"
+              >
+                <span>Total arancel por pagar</span>
+                <span>{{ fmt(montoNetoArancel()) }}</span>
+              </div>
+            </CardContent>
+            </div>
           </Card>
         </div>
       </div>
@@ -2124,7 +2173,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
       <DialogScrollContent
         :class="
           pagoMatriculaPaso === 'pagare'
-            ? 'flex max-h-[calc(100dvh-1.5rem)] w-[min(96vw,72rem)] max-w-6xl flex-col overflow-hidden'
+            ? 'my-2 flex max-h-[calc(100dvh-1rem)] w-[min(100vw-1rem,72rem)] max-w-6xl flex-col overflow-hidden p-4 sm:my-4 sm:p-6'
             : 'my-4 max-w-lg sm:max-w-xl'
         "
       >
@@ -2190,8 +2239,28 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
               <p>{{ avisoWebpay }}</p>
             </div>
 
-            <section class="space-y-2">
-              <h3 class="text-sm font-semibold text-zinc-900">Matrícula</h3>
+            <section class="overflow-hidden rounded-xl border border-zinc-200 bg-white md:overflow-visible md:rounded-none md:border-0 md:bg-transparent">
+              <h3 class="hidden text-sm font-semibold text-zinc-900 md:block">Matrícula</h3>
+              <button
+                type="button"
+                class="flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 px-3 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange md:hidden"
+                :aria-expanded="matriculaMedioAbierto"
+                aria-controls="panel-medio-matricula"
+                @click="matriculaMedioAbierto = !matriculaMedioAbierto"
+              >
+                <span class="text-sm font-semibold text-zinc-900">Matrícula</span>
+                <span class="ml-auto flex items-center gap-2">
+                  <span class="text-sm font-medium tabular-nums text-zinc-700">{{
+                    fmt(montoNetoMatricula())
+                  }}</span>
+                  <ChevronDown
+                    class="h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200 motion-reduce:transition-none"
+                    :class="matriculaMedioAbierto ? 'rotate-180' : ''"
+                    aria-hidden="true"
+                  />
+                </span>
+              </button>
+              <div id="panel-medio-matricula" :class="clasePanelMedio(matriculaMedioAbierto)">
               <div class="grid gap-2 sm:grid-cols-2">
               <button
                 type="button"
@@ -2250,10 +2319,31 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
                 </span>
               </button>
               </div>
+              </div>
             </section>
 
-            <section class="space-y-2">
-              <h3 class="text-sm font-semibold text-zinc-900">Arancel</h3>
+            <section class="overflow-hidden rounded-xl border border-zinc-200 bg-white md:overflow-visible md:rounded-none md:border-0 md:bg-transparent">
+              <h3 class="hidden text-sm font-semibold text-zinc-900 md:block">Arancel</h3>
+              <button
+                type="button"
+                class="flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 px-3 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange md:hidden"
+                :aria-expanded="arancelMedioAbierto"
+                aria-controls="panel-medio-arancel"
+                @click="arancelMedioAbierto = !arancelMedioAbierto"
+              >
+                <span class="text-sm font-semibold text-zinc-900">Arancel</span>
+                <span class="ml-auto flex items-center gap-2">
+                  <span class="text-sm font-medium tabular-nums text-zinc-700">{{
+                    fmt(montoNetoArancel())
+                  }}</span>
+                  <ChevronDown
+                    class="h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200 motion-reduce:transition-none"
+                    :class="arancelMedioAbierto ? 'rotate-180' : ''"
+                    aria-hidden="true"
+                  />
+                </span>
+              </button>
+              <div id="panel-medio-arancel" :class="clasePanelMedio(arancelMedioAbierto)">
               <p
                 v-if="descuentoFormaPagoArancel(montoNetoArancel()) > 0"
                 class="flex items-center gap-1.5 text-sm text-emerald-700"
@@ -2323,6 +2413,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
                 </span>
               </button>
               </div>
+              </div>
             </section>
 
             <p class="text-xs text-muted-foreground">
@@ -2331,8 +2422,8 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
           </template>
         </div>
 
-        <div v-else class="flex min-h-0 flex-1 flex-col gap-4 py-2">
-          <div class="shrink-0 space-y-4">
+        <div v-else class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-2">
+          <div class="space-y-4">
             <div class="grid gap-3 sm:grid-cols-2">
               <div
                 v-if="medioPagoMatricula === 'pagare'"
@@ -2364,32 +2455,42 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
               </div>
             </div>
 
-            <div class="grid gap-3 sm:grid-cols-3">
+            <div class="grid gap-3 lg:grid-cols-3">
               <div class="space-y-2">
-                <Label>Cantidad de cuotas</Label>
-                <Select v-model="pagareTotalCuotas">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Cuotas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10 cuotas</SelectItem>
-                    <SelectItem value="12">12 cuotas</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label for="pagare-cuotas">Cantidad de cuotas</Label>
+                <div class="relative">
+                  <select
+                    id="pagare-cuotas"
+                    v-model="pagareTotalCuotas"
+                    class="h-11 w-full cursor-pointer appearance-none rounded-md border border-input bg-background px-3 pr-9 text-base text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-sm"
+                  >
+                    <option value="10">10 cuotas</option>
+                    <option value="12">12 cuotas</option>
+                  </select>
+                  <ChevronDown
+                    class="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 opacity-50"
+                    aria-hidden="true"
+                  />
+                </div>
               </div>
 
               <div class="space-y-2">
-                <Label>Día de vencimiento</Label>
-                <Select v-model="pagareDiaVencimiento">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Día" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">Día 5</SelectItem>
-                    <SelectItem value="15">Día 15</SelectItem>
-                    <SelectItem value="25">Día 25</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label for="pagare-dia">Día de vencimiento</Label>
+                <div class="relative">
+                  <select
+                    id="pagare-dia"
+                    v-model="pagareDiaVencimiento"
+                    class="h-11 w-full cursor-pointer appearance-none rounded-md border border-input bg-background px-3 pr-9 text-base text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-sm"
+                  >
+                    <option value="5">Día 5</option>
+                    <option value="15">Día 15</option>
+                    <option value="25">Día 25</option>
+                  </select>
+                  <ChevronDown
+                    class="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 opacity-50"
+                    aria-hidden="true"
+                  />
+                </div>
               </div>
 
               <div class="space-y-2">
@@ -2428,7 +2529,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
 
           <div
             v-if="bloquesPlanPago.some((b) => b.descuentos.length || b.rows.length)"
-            class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-0.5"
+            class="space-y-4"
           >
             <template v-for="bloque in bloquesPlanPago" :key="bloque.titulo">
             <section
@@ -2513,22 +2614,28 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
           </div>
         </div>
 
-        <DialogFooter class="shrink-0 gap-2 border-t border-zinc-200 pt-4 sm:gap-0">
+        <DialogFooter class="relative z-10 shrink-0 gap-2 border-t border-zinc-200 bg-background pt-4 sm:gap-0">
           <Button
             v-if="pagoMatriculaPaso === 'pagare'"
             type="button"
             variant="outline"
+            class="w-full sm:w-auto"
             @click="volverSelectorPagoMatricula"
           >
             Volver
           </Button>
-          <Button type="button" variant="outline" @click="cancelarOCerrarPagoMatricula">
+          <Button
+            type="button"
+            variant="outline"
+            class="w-full sm:w-auto"
+            @click="cancelarOCerrarPagoMatricula"
+          >
             Cancelar
           </Button>
           <Button
             v-if="pagoMatriculaPaso === 'selector' && faseSalida === 'opciones'"
             type="button"
-            class="bg-uniacc-orange hover:bg-uniacc-orange/90"
+            class="w-full bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
             :disabled="!puedeContinuarSelectorMedios || cargandoPreflight || creandoWebpay"
             @click="continuarSelectorMedios"
           >
@@ -2537,7 +2644,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
           <Button
             v-if="pagoMatriculaPaso === 'pagare'"
             type="button"
-            class="bg-uniacc-orange hover:bg-uniacc-orange/90"
+            class="w-full bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
             :disabled="pagareCuotasPreview.length !== cuotasEsperadasPagare"
             @click="confirmarPagareMatricula"
           >

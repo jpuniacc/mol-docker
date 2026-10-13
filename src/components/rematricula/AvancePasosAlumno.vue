@@ -37,6 +37,10 @@ const entrada = computed((): AvanceHomeAlumnoInput => ({
   formaPagoSeleccionada: alumnoCtx.formaPagoSeleccionada,
   firmaCompletada: alumnoCtx.firmaCompletada,
   envioFirmaIniciado: alumnoCtx.envioFirmaIniciado,
+  medioMatricula: alumnoCtx.medioMatricula,
+  medioArancel: alumnoCtx.medioArancel,
+  webpayMatriculaEstado: alumnoCtx.webpayMatriculaEstado,
+  webpayArancelEstado: alumnoCtx.webpayArancelEstado,
 }))
 
 const pasos = computed(() => pasosAvanceHome(entrada.value))
