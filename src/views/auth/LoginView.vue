@@ -19,6 +19,11 @@ import {
   MSG_ACCESO_MNP_VERIFICACION_FALLIDA,
   TITULO_ACCESO_NO_VIGENTE,
 } from '@/constants/accesoMnp'
+import {
+  CORREO_BECA_SUBDERE,
+  TITULO_BECA_SUBDERE,
+  tomarAvisoSubdere,
+} from '@/constants/carteraOficial'
 import { registrarIntentoNoVigente, tomarAvisoNoVigente } from '@/services/accesoNoVigenteApi'
 import {
   TYC_RECHAZO_MODAL_ENTENDIDO,
@@ -42,6 +47,7 @@ const password = ref('')
 const loading = ref(false)
 const modalTyCRechazadoOpen = ref(false)
 const modalNoVigenteOpen = ref(false)
+const modalSubdereOpen = ref(false)
 const mensajeNoVigente = ref('')
 
 function syncModalTyCRechazado() {
@@ -54,6 +60,9 @@ onMounted(() => {
   if (aviso) {
     mensajeNoVigente.value = aviso
     modalNoVigenteOpen.value = true
+  }
+  if (tomarAvisoSubdere()) {
+    modalSubdereOpen.value = true
   }
   void periodoActivo.ensureLoaded()
 })
@@ -113,6 +122,11 @@ async function onSubmit() {
       if (alumnoMnp.filas.length === 0) {
         toast.error(MSG_ACCESO_MNP_NO_VIGENTE)
         auth.logout()
+        return
+      }
+      if (alumnoMnp.excluidoMol) {
+        auth.logout()
+        modalSubdereOpen.value = true
         return
       }
     }
@@ -260,6 +274,30 @@ async function onSubmit() {
             type="button"
             class="cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90"
             @click="modalNoVigenteOpen = false"
+          >
+            Entendido
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog :open="modalSubdereOpen" @update:open="(v: boolean) => (modalSubdereOpen = v)">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{{ TITULO_BECA_SUBDERE }}</DialogTitle>
+          <DialogDescription class="text-left leading-relaxed text-zinc-700">
+            El estado de tu Beca SUBDERE requiere revisión. Comunícate con
+            <a
+              :href="`mailto:${CORREO_BECA_SUBDERE}`"
+              class="cursor-pointer font-medium text-[#1E3A5F] underline underline-offset-2"
+            >{{ CORREO_BECA_SUBDERE }}</a>, indicando tu RUT y teléfono de contacto.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            type="button"
+            class="cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90"
+            @click="modalSubdereOpen = false"
           >
             Entendido
           </Button>

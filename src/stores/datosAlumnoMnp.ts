@@ -18,6 +18,8 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
     filas: [] as MnpDatosAlumnosRow[],
     /** true = ausente del Excel oficial o excluido MOL (SUBDERE). */
     fueraCarteraOficial: false,
+    /** true = RUT marcado excluido_mol (Beca SUBDERE). */
+    excluidoMol: false,
     /** true = hay filas MNP y ninguna está VIGENTE. */
     accesoBloqueadoNoVigente: false,
   }),
@@ -31,6 +33,7 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
       this.error = null
       this.filas = []
       this.fueraCarteraOficial = false
+      this.excluidoMol = false
       this.accesoBloqueadoNoVigente = false
     },
 
@@ -38,9 +41,11 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
       const rut = this.filas[0]?.rut_alumno
       if (!rut) {
         this.fueraCarteraOficial = false
+        this.excluidoMol = false
         return
       }
       const estado = await estadoCarteraOficial(rut)
+      this.excluidoMol = estado.excluidoMol
       this.fueraCarteraOficial = fueraCarteraDesdeEstado(estado)
     },
 
@@ -59,6 +64,8 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
       this.loading = true
       this.error = null
       this.accesoBloqueadoNoVigente = false
+      this.fueraCarteraOficial = false
+      this.excluidoMol = false
       const email = emailInstitucionalDesdeUsername(username)
       try {
         const { data, error } = await supabase
@@ -77,6 +84,7 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
           this.filas = todas
           this.accesoBloqueadoNoVigente = true
           this.fueraCarteraOficial = false
+          this.excluidoMol = false
           return
         }
         this.accesoBloqueadoNoVigente = false
@@ -85,6 +93,7 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
           await this.verificarCarteraOficial()
         } else {
           this.fueraCarteraOficial = false
+          this.excluidoMol = false
         }
       } finally {
         this.loading = false
