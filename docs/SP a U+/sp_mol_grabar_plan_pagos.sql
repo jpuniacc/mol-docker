@@ -1,4 +1,6 @@
 -- U+ Test. Graba dos pagarés (matrícula y arancel) cuando el contrato ya está firmado.
+-- El contrato de MT_CTADOC se arma aquí: @ano + @periodo + @codcarr + CORRCONTRATO.
+-- CORRCONTRATO se reserva en esta transacción. Si el grabado falla, el número vuelve atrás.
 -- Los CORRPAGNUM entran reservados. Este SP pide el número de operación y las dos boletas.
 -- Inserta MT_POSBEN (estado 4) por cada beneficio que llega en @beneficios.
 -- El cargo (DOCITEM y boleta 41) es el bruto: pagaré más beneficios de ese concepto.
@@ -199,6 +201,7 @@ BEGIN
     DECLARE @ctapagnum decimal(20, 0);
     DECLARE @ctadocnum_web decimal(20, 0);
     DECLARE @ctadoc_boleta decimal(20, 0);
+    DECLARE @corr_contrato decimal(20, 0);
 
     BEGIN TRY
         BEGIN TRAN;
@@ -217,6 +220,19 @@ BEGIN
             @tipo = 'SECUENCIA',
             @salida = @ctadoc_arancel OUTPUT,
             @muestra = 'NO';
+
+        EXEC dbo.sp_parametro_transaccion_correlativo
+            @tipo = 'CORRCONTRATO',
+            @salida = @corr_contrato OUTPUT,
+            @muestra = 'NO';
+        IF @corr_contrato IS NULL OR @corr_contrato < 1
+            THROW 50013, 'No se pudo reservar CORRCONTRATO.', 1;
+
+        -- El año y el período son los de la rematrícula (@ano, @periodo), no ANOADMISION.
+        SET @contrato = CONVERT(varchar(4), @ano)
+            + CONVERT(varchar(2), @periodo)
+            + RTRIM(@codcarr)
+            + CONVERT(varchar(20), @corr_contrato);
 
         INSERT INTO dbo.MT_DOCITEM (
             ITEM, CTADOC, CTADOCNUM, ANO, PERIODO, CODCLI, CODCARR, TIPOCARR,

@@ -327,7 +327,12 @@ async function asegurarPreflightPagare(force = false): Promise<boolean> {
   }
   if (!force && corrpagnumPreview.value) return true
 
-  const ok = await preflight.fetchFromErp({ rutCompleto: rut, codCarr })
+  const ok = await preflight.fetchFromErp({
+    rutCompleto: rut,
+    codCarr,
+    ano: periodoActivo.anio,
+    periodo: periodoActivo.semestre,
+  })
   console.log('[forma-pago] gate preflight antes de pagar matrícula y arancel', {
     ok: preflight.ok,
     steps: preflight.steps,

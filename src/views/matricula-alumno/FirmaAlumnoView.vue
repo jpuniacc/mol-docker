@@ -324,7 +324,12 @@ async function asegurarPreflightWebpay(): Promise<string | null> {
   }
   if (!codCarr) codCarr = (alumnoMnp.primeraFila?.codigo_carrera ?? '').trim()
   if (!codCarr) return 'Sin código de carrera para preflight ERP'
-  const ok = await preflight.fetchFromErp({ rutCompleto: rut, codCarr })
+  const ok = await preflight.fetchFromErp({
+    rutCompleto: rut,
+    codCarr,
+    ano: periodoActivo.anio,
+    periodo: periodoActivo.semestre,
+  })
   if (!ok || !(preflight.corrpagnumPreview ?? '').trim() || !(preflight.contratoPreview ?? '').trim()) {
     return preflight.error || 'No se pudo obtener CORRPAGNUM del preflight ERP'
   }

@@ -65,6 +65,8 @@ export type MatriculaFlujoPreflightParams = {
   tipomat?: number
   caja?: number
   codgrupo?: number
+  ano?: number
+  periodo?: number
   ambiente?: 'prod' | 'test'
   host?: string
 }
@@ -98,6 +100,8 @@ export async function fetchMatriculaFlujoPreflight(
         tipomat: params.tipomat,
         caja: params.caja,
         codgrupo: params.codgrupo,
+        ano: params.ano,
+        periodo: params.periodo,
       }),
       signal: controller.signal,
     })

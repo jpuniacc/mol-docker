@@ -60,6 +60,8 @@ export const useMatriculaFlujoPreflightStore = defineStore('matricula_flujo_pref
       tipomat?: number
       caja?: number
       codgrupo?: number
+      ano?: number | null
+      periodo?: number | null
     }): Promise<boolean> {
       this.loading = true
       this.error = null
@@ -70,6 +72,8 @@ export const useMatriculaFlujoPreflightStore = defineStore('matricula_flujo_pref
         tipomat: input.tipomat,
         caja: input.caja,
         codgrupo: input.codgrupo,
+        ano: input.ano ?? undefined,
+        periodo: input.periodo ?? undefined,
       }
       this.paramsUsados = { ...params }
 
