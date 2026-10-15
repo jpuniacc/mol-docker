@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ChevronRight } from 'lucide-vue-next'
+import { ChevronRight, GraduationCap, Layers, Users } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -277,52 +277,42 @@ onMounted(async () => {
     </Card>
 
     <div v-if="tienePeriodo && kpi" class="grid gap-6 md:grid-cols-3">
-      <Card>
-        <CardHeader>
-          <CardTitle class="text-2xl">{{ kpi.rematriculables ?? 0 }}</CardTitle>
-          <CardDescription>Rematriculable</CardDescription>
+      <Card class="overflow-hidden border-uniacc-blue/30">
+        <div class="h-1.5 bg-uniacc-blue" aria-hidden="true" />
+        <CardHeader class="flex-row items-center gap-4">
+          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-uniacc-blue/10 text-uniacc-blue">
+            <Users class="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div class="min-w-0">
+            <CardTitle class="text-3xl tabular-nums text-zinc-900">{{ kpi.total_cartera ?? 0 }}</CardTitle>
+            <CardDescription>Cantidad de alumnos en cartera</CardDescription>
+          </div>
         </CardHeader>
-        <CardContent class="space-y-2 text-sm">
-          <div class="flex items-center justify-between">
-            <span>Vigente</span>
-            <span class="font-medium">{{ kpi.rematriculable_vigente ?? 0 }}</span>
-          </div>
-          <div class="flex items-center justify-between">
-            <span>Suspendido</span>
-            <span class="font-medium">{{ kpi.rematriculable_suspendido ?? 0 }}</span>
-          </div>
-          <div class="flex items-center justify-between">
-            <span>Eliminado</span>
-            <span class="font-medium">{{ kpi.rematriculable_eliminado ?? 0 }}</span>
-          </div>
-        </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle class="text-2xl">{{ kpi.no_rematriculables ?? 0 }}</CardTitle>
-          <CardDescription>No rematriculable</CardDescription>
+      <Card class="overflow-hidden border-emerald-600/30">
+        <div class="h-1.5 bg-emerald-600" aria-hidden="true" />
+        <CardHeader class="flex-row items-center gap-4">
+          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600/10 text-emerald-700">
+            <GraduationCap class="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div class="min-w-0">
+            <CardTitle class="text-3xl tabular-nums text-zinc-900">{{ kpi.matriculado ?? 0 }}</CardTitle>
+            <CardDescription>Cantidad de alumnos matriculados</CardDescription>
+          </div>
         </CardHeader>
-        <CardContent class="space-y-2 text-sm">
-          <div class="flex items-center justify-between">
-            <span>Vigente</span>
-            <span class="font-medium">{{ kpi.no_rematriculable_vigente ?? 0 }}</span>
-          </div>
-          <div class="flex items-center justify-between">
-            <span>Suspendido</span>
-            <span class="font-medium">{{ kpi.no_rematriculable_suspendido ?? 0 }}</span>
-          </div>
-          <div class="flex items-center justify-between">
-            <span>Eliminado</span>
-            <span class="font-medium">{{ kpi.no_rematriculable_eliminado ?? 0 }}</span>
-          </div>
-        </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle class="text-xl">{{ rutDosCarreras || 'Ninguno' }}</CardTitle>
-          <CardDescription>Dos carreras vigentes</CardDescription>
+      <Card class="overflow-hidden border-uniacc-magenta/30">
+        <div class="h-1.5 bg-uniacc-magenta" aria-hidden="true" />
+        <CardHeader class="flex-row items-center gap-4">
+          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-uniacc-magenta/10 text-uniacc-magenta">
+            <Layers class="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div class="min-w-0">
+            <CardTitle class="text-2xl tabular-nums text-zinc-900">{{ rutDosCarreras || 'Ninguno' }}</CardTitle>
+            <CardDescription>Dos carreras vigentes</CardDescription>
+          </div>
         </CardHeader>
         <CardContent v-if="carrerasDobles.length" class="space-y-3 text-sm">
           <div v-for="carrera in carrerasDobles" :key="carrera.codcli">
