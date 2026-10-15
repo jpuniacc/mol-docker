@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { toast } from 'vue-sonner'
 
@@ -45,7 +45,11 @@ import {
 import ConvenioVigenteUpload from '@/components/rematricula/ConvenioVigenteUpload.vue'
 import { useMockAlumnoFuente } from '@/composables/useMockAlumnoFuente'
 import { tieneCae } from '@/constants/verificacionCae'
-import { Check, FileText } from 'lucide-vue-next'
+import { Check, CreditCard, FileText } from 'lucide-vue-next'
+import { rutSinDv } from '@/services/alumnoDeudaNetApi'
+import { crearWebpay, redirigirAWebpay } from '@/services/webpayPlusApi'
+import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
+import { siguientePaso } from '@/utils/webpaySiguientePaso'
 import { abrirCasoRematricula, consultarCasosAlumno } from '@/services/casoRematriculaApi'
 import {
   consultarCarteraBeneficios,
@@ -71,6 +75,7 @@ import type { MnpMvBeneficioPeriodoRow } from '@/types/supabase'
 import {
   casoCertificadoConvenio,
   evaluarGateMatriculaConvenios,
+  planDocumentosConvenioDesdeCasos,
 } from '@/utils/convenioCertificadoGate'
 import { periodoCatalogoLabel } from '@/utils/periodoCatalogo'
 import { rutNorm } from '@/utils/rutNorm'
@@ -101,8 +106,10 @@ import {
 import MatriculaMockVerificacionCaeStep from '@/views/matricula-mock/MatriculaMockVerificacionCaeStep.vue'
 import type { MnpCasoRematriculaRow, PlanPagosMvRow } from '@/types/supabase'
 
+const route = useRoute()
 const router = useRouter()
 const mockCtx = useMockMatriculaContextStore()
+const alumnoCtx = useMatriculaAlumnoContextStore()
 const periodoActivo = usePeriodoActivoStore()
 const erpSpAmbiente = useErpSpAmbienteStore()
 const { label: periodoActivoLabel } = storeToRefs(periodoActivo)
@@ -132,10 +139,10 @@ const deudaModalOpen = ref(false)
 const pagoMatriculaDialogOpen = ref(false)
 /** 'selector' | 'pagare' */
 const pagoMatriculaPaso = ref<'selector' | 'pagare'>('selector')
-/** Solo Pagaré habilitado por ahora (WebPay pendiente de integración; TOKU no aplica). */
-type MedioPagoConcepto = 'pagare'
+type MedioPagoConcepto = 'pagare' | 'webpay'
 const medioPagoMatricula = ref<MedioPagoConcepto | null>(null)
 const medioPagoArancel = ref<MedioPagoConcepto | null>(null)
+const creandoWebpay = ref(false)
 const pagareDiaVencimiento = ref<string>('5')
 const pagareTotalCuotas = ref<'10' | '12'>('10')
 const pagareFechaInicio = ref('')
@@ -149,9 +156,13 @@ const puedeContinuarSelectorMedios = computed(
   () => medioPagoMatricula.value != null && medioPagoArancel.value != null,
 )
 
-const ambosMediosPagare = computed(
-  () => medioPagoMatricula.value === 'pagare' && medioPagoArancel.value === 'pagare',
-)
+function clasesBotonMedio(activo: boolean): string {
+  const base =
+    'flex w-full cursor-pointer items-center gap-3 rounded-lg border bg-white px-3 py-3 text-left shadow-sm transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange'
+  return activo
+    ? `${base} border-uniacc-orange ring-1 ring-uniacc-orange/40 hover:bg-uniacc-orange/5`
+    : `${base} border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50`
+}
 
 function hoyIsoLocal(d = new Date()): string {
   const y = d.getFullYear()
@@ -238,7 +249,12 @@ async function asegurarPreflightPagare(force = false): Promise<boolean> {
   }
   if (!force && corrpagnumPreview.value) return true
 
-  const ok = await preflight.fetchFromErp({ rutCompleto: rut, codCarr })
+  const ok = await preflight.fetchFromErp({
+    rutCompleto: rut,
+    codCarr,
+    ano: periodoActivo.anio,
+    periodo: periodoActivo.semestre,
+  })
   console.log('[forma-pago] gate preflight antes de pagar matrícula y arancel', {
     ok: preflight.ok,
     steps: preflight.steps,
@@ -524,20 +540,15 @@ async function refrescarCasosConvenio(): Promise<void> {
     return
   }
   casosConvenio.value = (data ?? []).filter((c) => c.tipo === 'CONVENIO_CERTIFICADO')
-  // Rehidratar docs desde payload/ref si el store no los tiene
-  for (const c of casosConvenio.value) {
-    const payload = (c.payload ?? {}) as Record<string, unknown>
-    const convenioId =
-      typeof payload.convenio_id === 'string' ? payload.convenio_id.trim() : ''
-    const path =
-      (typeof payload.storage_path === 'string' && payload.storage_path.trim()) ||
-      (c.ref_id ?? '').trim()
-    if (!convenioId || !path) continue
-    if (mockCtx.conveniosDocumentos[convenioId]) continue
-    const nombre = path.split('/').pop() || 'documento-convenio.pdf'
-    mockCtx.setConvenioDocumento(convenioId, {
-      storagePath: path,
-      nombreArchivo: nombre,
+  const plan = planDocumentosConvenioDesdeCasos(casosConvenio.value)
+  for (const convenioId of plan.quitar) {
+    mockCtx.removeConvenioDocumento(convenioId)
+  }
+  for (const doc of plan.poner) {
+    if (mockCtx.conveniosDocumentos[doc.convenioId]) continue
+    mockCtx.setConvenioDocumento(doc.convenioId, {
+      storagePath: doc.storagePath,
+      nombreArchivo: doc.nombreArchivo,
     })
   }
 }
@@ -588,8 +599,9 @@ async function onConvenioSubido(payload: {
   await refrescarCasosConvenio()
 }
 
-function onConvenioEliminado(payload: { convenioId: string }) {
+async function onConvenioEliminado(payload: { convenioId: string }) {
   mockCtx.removeConvenioDocumento(payload.convenioId)
+  await refrescarCasosConvenio()
 }
 
 function initBeneficiosSeleccionados() {
@@ -734,20 +746,15 @@ onMounted(async () => {
 
   if (!tieneCae(p)) {
     subPaso.value = 'becas'
-    return
-  }
-
-  if (mockCtx.verificacionCae?.resultado === 'continua') {
+  } else if (mockCtx.verificacionCae?.resultado === 'continua') {
     subPaso.value = 'becas'
-    return
-  }
-
-  if (mockCtx.verificacionCae?.resultado === 'pendiente_resolucion') {
+  } else if (mockCtx.verificacionCae?.resultado === 'pendiente_resolucion') {
     subPaso.value = 'verificacion-cae'
-    return
+  } else {
+    await correrVerificacionCae()
   }
 
-  await correrVerificacionCae()
+  if (subPaso.value === 'becas') await abrirPlanSiVieneDeWebpay()
 })
 
 function camposFaltantesErp(p: PlanPagosMvRow): string[] {
@@ -909,8 +916,8 @@ async function abrirPagoMatricula() {
     }
     await asegurarPreflightPagare(true)
     pagoMatriculaPaso.value = 'selector'
-    medioPagoMatricula.value = 'pagare'
-    medioPagoArancel.value = 'pagare'
+    medioPagoMatricula.value = null
+    medioPagoArancel.value = null
     pagareDiaVencimiento.value = '5'
     pagareTotalCuotas.value = '10'
     sincronizarFechaInicioConDiaVencimiento()
@@ -938,23 +945,107 @@ function onPagoMatriculaDialogOpenChange(open: boolean) {
   else pagoMatriculaDialogOpen.value = true
 }
 
+function persistirMediosYMontosWebpay(): void {
+  if (medioPagoMatricula.value != null) {
+    alumnoCtx.setMedioMatricula(medioPagoMatricula.value)
+  }
+  if (medioPagoArancel.value != null) {
+    alumnoCtx.setMedioArancel(medioPagoArancel.value)
+  }
+  alumnoCtx.setWebpayMontoMatricula(montoNetoMatricula())
+  alumnoCtx.setWebpayMontoArancel(montoNetoArancel())
+}
+
+function contextoCrearWebpay(): { codcli: string; anio: number; periodo: 1 | 2 } | null {
+  const codcli = rutSinDv(fuente.rutMostrado.value)
+  const anio = periodoActivo.anio
+  const semestre = periodoActivo.semestre
+  if (!/^\d{7,8}$/.test(codcli) || anio == null) return null
+  if (semestre !== 1 && semestre !== 2) return null
+  return { codcli, anio, periodo: semestre }
+}
+
+async function iniciarWebpay(concepto: 'matricula' | 'arancel'): Promise<void> {
+  const ctx = contextoCrearWebpay()
+  if (!ctx) {
+    toast.error('Faltan codcli o periodo de matrícula para Webpay')
+    return
+  }
+  const monto = concepto === 'matricula' ? montoNetoMatricula() : montoNetoArancel()
+  if (!Number.isInteger(monto) || monto <= 0) {
+    toast.error('El monto a pagar no es un entero mayor que cero')
+    return
+  }
+  persistirMediosYMontosWebpay()
+  creandoWebpay.value = true
+  try {
+    const creado = await crearWebpay({
+      codcli: ctx.codcli,
+      anio: ctx.anio,
+      periodo: ctx.periodo,
+      concepto,
+      monto,
+    })
+    if (!creado.ok) {
+      toast.error(creado.error)
+      return
+    }
+    redirigirAWebpay(creado.url, creado.token)
+  } finally {
+    creandoWebpay.value = false
+  }
+}
+
+async function abrirPasoPlanPagare(): Promise<boolean> {
+  const ok = await asegurarPreflightPagare()
+  if (!ok) return false
+  pagoMatriculaPaso.value = 'pagare'
+  pagareCuotasPreview.value = []
+  sincronizarFechaInicioConDiaVencimiento()
+  pagoMatriculaDialogOpen.value = true
+  return true
+}
+
+async function abrirPlanSiVieneDeWebpay(): Promise<void> {
+  const planQuery = route.query.plan
+  if (planQuery !== 'matricula' && planQuery !== 'arancel') return
+  const medioMat = alumnoCtx.medioMatricula
+  const medioAra = alumnoCtx.medioArancel
+  if (medioMat == null || medioAra == null) return
+  medioPagoMatricula.value = medioMat
+  medioPagoArancel.value = medioAra
+  pagareDiaVencimiento.value = '5'
+  pagareTotalCuotas.value = '10'
+  await abrirPasoPlanPagare()
+}
+
 async function continuarSelectorMedios() {
   if (!puedeContinuarSelectorMedios.value) {
     toast.error('Selecciona cómo pagarás matrícula y arancel')
     return
   }
-  if (!ambosMediosPagare.value) {
-    toast.message('Próximamente', {
-      description:
-        'Por ahora solo está disponible Pagaré en matrícula y arancel. Las otras formas se habilitarán después.',
-    })
+  const medioMat = medioPagoMatricula.value
+  const medioAra = medioPagoArancel.value
+  if (medioMat == null || medioAra == null) return
+
+  persistirMediosYMontosWebpay()
+
+  const paso = siguientePaso({
+    medioMatricula: medioMat,
+    medioArancel: medioAra,
+    matriculaAutorizada: alumnoCtx.webpayMatriculaEstado === 'autorizada',
+    arancelAutorizado: alumnoCtx.webpayArancelEstado === 'autorizada',
+    planListo: false,
+  })
+
+  if (paso.tipo === 'flujo-pagare' || paso.tipo === 'plan-pagare') {
+    await abrirPasoPlanPagare()
     return
   }
-  const ok = await asegurarPreflightPagare()
-  if (!ok) return
-  pagoMatriculaPaso.value = 'pagare'
-  pagareCuotasPreview.value = []
-  sincronizarFechaInicioConDiaVencimiento()
+
+  if (paso.tipo === 'webpay') {
+    await iniciarWebpay(paso.concepto)
+  }
 }
 
 async function confirmarPagareMatricula() {
@@ -1313,20 +1404,31 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
               <p v-else-if="resumenPagoMatricula" class="text-xs text-zinc-600">
                 Configurado: {{ resumenPagoMatricula }}
               </p>
-              <Button
-                type="button"
-                class="mt-2 w-full bg-uniacc-orange hover:bg-uniacc-orange/90"
-                :disabled="!puedeAbrirPagoMatricula"
-                @click="abrirPagoMatricula"
-              >
-                {{
-                  abriendoPagoMatricula || cargandoDeuda
-                    ? 'Validando…'
-                    : tieneDeuda
-                      ? 'Deuda pendiente'
-                      : 'Pagar matrícula'
-                }}
-              </Button>
+              <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                <Button
+                  type="button"
+                  class="w-full cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90"
+                  :disabled="!puedeAbrirPagoMatricula"
+                  @click="abrirPagoMatricula"
+                >
+                  {{
+                    abriendoPagoMatricula || cargandoDeuda
+                      ? 'Validando…'
+                      : tieneDeuda
+                        ? 'Deuda pendiente'
+                        : 'Pagar matrícula'
+                  }}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  class="w-full cursor-pointer border-uniacc-orange text-uniacc-orange hover:bg-uniacc-orange/10"
+                  :disabled="!puedeAbrirPagoMatricula"
+                  @click="abrirPagoMatricula"
+                >
+                  Webpay
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -1486,62 +1588,118 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
 
           <section class="space-y-2">
             <h3 class="text-sm font-semibold text-zinc-900">Matrícula</h3>
-            <button
-              type="button"
-              class="flex w-full cursor-pointer items-center gap-3 rounded-lg border border-uniacc-orange bg-white px-3 py-3 text-left shadow-sm ring-1 ring-uniacc-orange/40 transition duration-200 hover:bg-uniacc-orange/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange"
-              :aria-pressed="medioPagoMatricula === 'pagare'"
-              @click="medioPagoMatricula = 'pagare'"
-            >
-              <span
-                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-uniacc-orange/15 text-uniacc-orange"
+            <div class="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                :class="clasesBotonMedio(medioPagoMatricula === 'pagare')"
+                :aria-pressed="medioPagoMatricula === 'pagare'"
+                @click="medioPagoMatricula = 'pagare'"
               >
-                <FileText class="h-5 w-5" aria-hidden="true" />
-              </span>
-              <span class="min-w-0 flex-1">
-                <span class="block text-sm font-semibold text-zinc-900">Pagaré</span>
-                <span class="block text-xs text-muted-foreground">
-                  En cuotas · {{ fmt(montoNetoMatricula()) }}
+                <span
+                  class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-uniacc-orange/15 text-uniacc-orange"
+                >
+                  <FileText class="h-5 w-5" aria-hidden="true" />
                 </span>
-              </span>
-              <span
-                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-uniacc-orange text-white"
-                aria-hidden="true"
+                <span class="min-w-0 flex-1">
+                  <span class="block text-sm font-semibold text-zinc-900">Pagaré</span>
+                  <span class="block text-xs text-muted-foreground">
+                    En cuotas · {{ fmt(montoNetoMatricula()) }}
+                  </span>
+                </span>
+                <span
+                  v-if="medioPagoMatricula === 'pagare'"
+                  class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-uniacc-orange text-white"
+                  aria-hidden="true"
+                >
+                  <Check class="h-3.5 w-3.5" />
+                </span>
+              </button>
+              <button
+                type="button"
+                :class="clasesBotonMedio(medioPagoMatricula === 'webpay')"
+                :aria-pressed="medioPagoMatricula === 'webpay'"
+                @click="medioPagoMatricula = 'webpay'"
               >
-                <Check class="h-3.5 w-3.5" />
-              </span>
-            </button>
+                <span
+                  class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-uniacc-orange/15 text-uniacc-orange"
+                >
+                  <CreditCard class="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block text-sm font-semibold text-zinc-900">Webpay</span>
+                  <span class="block text-xs text-muted-foreground">
+                    Pago en línea · {{ fmt(montoNetoMatricula()) }}
+                  </span>
+                </span>
+                <span
+                  v-if="medioPagoMatricula === 'webpay'"
+                  class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-uniacc-orange text-white"
+                  aria-hidden="true"
+                >
+                  <Check class="h-3.5 w-3.5" />
+                </span>
+              </button>
+            </div>
           </section>
 
           <section class="space-y-2">
             <h3 class="text-sm font-semibold text-zinc-900">Arancel</h3>
-            <button
-              type="button"
-              class="flex w-full cursor-pointer items-center gap-3 rounded-lg border border-uniacc-orange bg-white px-3 py-3 text-left shadow-sm ring-1 ring-uniacc-orange/40 transition duration-200 hover:bg-uniacc-orange/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange"
-              :aria-pressed="medioPagoArancel === 'pagare'"
-              @click="medioPagoArancel = 'pagare'"
-            >
-              <span
-                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-uniacc-orange/15 text-uniacc-orange"
+            <div class="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                :class="clasesBotonMedio(medioPagoArancel === 'pagare')"
+                :aria-pressed="medioPagoArancel === 'pagare'"
+                @click="medioPagoArancel = 'pagare'"
               >
-                <FileText class="h-5 w-5" aria-hidden="true" />
-              </span>
-              <span class="min-w-0 flex-1">
-                <span class="block text-sm font-semibold text-zinc-900">Pagaré</span>
-                <span class="block text-xs text-muted-foreground">
-                  En cuotas · {{ fmt(montoNetoArancel()) }}
+                <span
+                  class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-uniacc-orange/15 text-uniacc-orange"
+                >
+                  <FileText class="h-5 w-5" aria-hidden="true" />
                 </span>
-              </span>
-              <span
-                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-uniacc-orange text-white"
-                aria-hidden="true"
+                <span class="min-w-0 flex-1">
+                  <span class="block text-sm font-semibold text-zinc-900">Pagaré</span>
+                  <span class="block text-xs text-muted-foreground">
+                    En cuotas · {{ fmt(montoNetoArancel()) }}
+                  </span>
+                </span>
+                <span
+                  v-if="medioPagoArancel === 'pagare'"
+                  class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-uniacc-orange text-white"
+                  aria-hidden="true"
+                >
+                  <Check class="h-3.5 w-3.5" />
+                </span>
+              </button>
+              <button
+                type="button"
+                :class="clasesBotonMedio(medioPagoArancel === 'webpay')"
+                :aria-pressed="medioPagoArancel === 'webpay'"
+                @click="medioPagoArancel = 'webpay'"
               >
-                <Check class="h-3.5 w-3.5" />
-              </span>
-            </button>
+                <span
+                  class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-uniacc-orange/15 text-uniacc-orange"
+                >
+                  <CreditCard class="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block text-sm font-semibold text-zinc-900">Webpay</span>
+                  <span class="block text-xs text-muted-foreground">
+                    Pago en línea · {{ fmt(montoNetoArancel()) }}
+                  </span>
+                </span>
+                <span
+                  v-if="medioPagoArancel === 'webpay'"
+                  class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-uniacc-orange text-white"
+                  aria-hidden="true"
+                >
+                  <Check class="h-3.5 w-3.5" />
+                </span>
+              </button>
+            </div>
           </section>
 
           <p class="text-xs text-muted-foreground">
-            En el siguiente paso eliges 10 o 12 cuotas y el día de vencimiento.
+            Elige Pagaré o Webpay en cada concepto. Si hay pagaré, después defines cuotas y vencimientos.
           </p>
         </div>
 
@@ -1741,10 +1899,10 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
             v-if="pagoMatriculaPaso === 'selector'"
             type="button"
             class="bg-uniacc-orange hover:bg-uniacc-orange/90"
-            :disabled="!puedeContinuarSelectorMedios || cargandoPreflight"
+            :disabled="!puedeContinuarSelectorMedios || cargandoPreflight || creandoWebpay"
             @click="continuarSelectorMedios"
           >
-            Continuar
+            {{ creandoWebpay ? 'Redirigiendo…' : 'Continuar' }}
           </Button>
           <Button
             v-if="pagoMatriculaPaso === 'pagare'"

@@ -198,15 +198,13 @@ function solicitarRechazo() {
 
 <template>
   <div class="space-y-6">
-    <p class="text-muted-foreground">
-      Vista 02 — Debes leer y aceptar los términos y condiciones para continuar con la rematrícula en línea.
-    </p>
+    
 
     <Card class="shadow-md">
       <CardHeader>
         <CardTitle>{{ titulo }}</CardTitle>
         <CardDescription>
-          UNIACC – Universidad de Artes, Ciencias y Comunicación · DVU – Dirección Vida Universitaria
+          UNIACC – Universidad de Artes, Ciencias y Comunicación · Sistema de Rematrícula en Línea
         </CardDescription>
       </CardHeader>
       <CardContent class="space-y-4">

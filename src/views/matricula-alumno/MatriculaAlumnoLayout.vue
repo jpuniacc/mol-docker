@@ -308,7 +308,14 @@ function cerrarSesion() {
       </div>
     </div>
 
-    <main class="mx-auto max-w-6xl px-4 pb-8 md:px-6">
+    <main
+      class="mx-auto max-w-6xl px-4 md:px-6 md:pb-8"
+      :class="
+        route.name === 'matricula-alumno-resumen'
+          ? 'max-md:pb-[calc(env(safe-area-inset-bottom)+11rem)] max-md:pr-24'
+          : 'pb-8'
+      "
+    >
       <RouterView v-slot="{ Component }">
         <Transition name="fade" mode="out-in">
           <component :is="Component" />
