@@ -71,9 +71,9 @@ describe('lineasBeneficioPagare', () => {
     monto: 1200000,
   }
 
-  it('deja el CAE y el descuento de matrícula sin CODBEN y conserva el del arancel', () => {
+  it('deja el CAE sin CODBEN y conserva el del arancel y el de matrícula anticipada', () => {
     const lineas = lineasBeneficioPagare({ lineasArancel: [arancel], descuentoMatricula, cae })
-    expect(lineas.map((l) => l.codben)).toEqual(['2039', undefined, undefined])
+    expect(lineas.map((l) => l.codben)).toEqual(['2039', undefined, '2100'])
     expect(lineas.find((l) => l.flujo === 'CAE')?.monto).toBe(1200000)
     expect(lineas.find((l) => l.flujo === 'DESCUENTO_MATRICULA')?.monto).toBe(30000)
   })
