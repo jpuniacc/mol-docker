@@ -1929,8 +1929,10 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
           </div>
         </Card>
 
-        <div class="space-y-4 lg:col-span-2">
-          <Card class="overflow-hidden border-orange-100 shadow-md">
+        <div
+          class="space-y-4 lg:col-span-2 md:space-y-3 md:rounded-xl md:border md:border-orange-100 md:bg-white md:p-4 md:shadow-md"
+        >
+          <Card class="overflow-hidden border-orange-100 shadow-md md:shadow-none">
             <button
               type="button"
               class="flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange md:hidden"
@@ -1986,7 +1988,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
               <p v-else-if="resumenPagoMatricula" class="text-xs text-zinc-600">
                 Configurado: {{ resumenPagoMatricula }}
               </p>
-              <div class="mt-2 flex justify-end">
+              <div class="mt-2 flex justify-end md:hidden">
                 <Button
                   type="button"
                   class="w-full cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90 sm:w-auto"
@@ -2015,7 +2017,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
             </div>
           </Card>
 
-          <Card class="overflow-hidden border-orange-100 shadow-md">
+          <Card class="overflow-hidden border-orange-100 shadow-md md:shadow-none">
             <button
               type="button"
               class="flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange md:hidden"
@@ -2066,6 +2068,22 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
             </CardContent>
             </div>
           </Card>
+          <div class="hidden justify-end md:flex">
+            <Button
+              type="button"
+              class="cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90"
+              :disabled="!puedeAbrirPagoMatricula"
+              @click="abrirPagoMatricula"
+            >
+              {{
+                abriendoPagoMatricula || cargandoDeuda
+                  ? 'Validando…'
+                  : tieneDeuda
+                    ? 'Deuda pendiente'
+                    : 'Realizar pago'
+              }}
+            </Button>
+          </div>
         </div>
       </div>
 
