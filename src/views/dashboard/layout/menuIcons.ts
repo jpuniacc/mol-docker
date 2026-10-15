@@ -19,6 +19,7 @@ import {
   Percent,
   School,
   Settings,
+  Unlock,
   Users,
   Wallet,
 } from 'lucide-vue-next'
@@ -35,6 +36,7 @@ const ICON_MAP: Record<string, Component> = {
   Wallet,
   Calendar,
   Settings,
+  Unlock,
   DollarSign,
   Handshake,
   Gift,

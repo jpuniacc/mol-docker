@@ -6,6 +6,7 @@ import {
   type AlumnoDeudaNetData,
   type AlumnoDeudaNetParams,
 } from '@/services/alumnoDeudaNetApi'
+import { consultarDesbloqueoTomaRamos } from '@/services/desbloqueoTomaRamosApi'
 
 /**
  * Store on-demand del SP ERP:
@@ -22,9 +23,10 @@ export const useSpAlumnoDeudaNetStore = defineStore('sp_alumno_deuda_net', {
     paramsUsados: null as AlumnoDeudaNetParams | null,
     fetchedAt: null as string | null,
     duracionMs: null as number | null,
+    desbloqueadoMol: false,
   }),
   getters: {
-    tieneDeuda: (s) => s.data?.tieneDeuda === true,
+    tieneDeuda: (s) => s.data?.tieneDeuda === true && !s.desbloqueadoMol,
     deudaValor: (s) => s.data?.deuda ?? null,
   },
   actions: {
@@ -35,6 +37,7 @@ export const useSpAlumnoDeudaNetStore = defineStore('sp_alumno_deuda_net', {
       this.paramsUsados = null
       this.fetchedAt = null
       this.duracionMs = null
+      this.desbloqueadoMol = false
     },
 
     /**
@@ -43,6 +46,7 @@ export const useSpAlumnoDeudaNetStore = defineStore('sp_alumno_deuda_net', {
     async fetchFromErp(rutCompleto: string): Promise<boolean> {
       this.loading = true
       this.error = null
+      this.desbloqueadoMol = false
       const rut = rutSinDv(rutCompleto)
       const params: AlumnoDeudaNetParams = { rut, opcion: 124, noMostrar: 0 }
       this.paramsUsados = { ...params }
@@ -54,7 +58,11 @@ export const useSpAlumnoDeudaNetStore = defineStore('sp_alumno_deuda_net', {
           return false
         }
 
-        const res = await fetchAlumnoDeudaNet(params)
+        const [res, desbloqueadoMol] = await Promise.all([
+          fetchAlumnoDeudaNet(params),
+          consultarDesbloqueoTomaRamos(rut),
+        ])
+        this.desbloqueadoMol = desbloqueadoMol
         this.duracionMs = res.duracionMs ?? null
         if (res.params) this.paramsUsados = { ...res.params }
 

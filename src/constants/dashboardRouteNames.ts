@@ -34,6 +34,7 @@ export const DASHBOARD_MENU_ROUTE_NAMES = [
   'dashboard-mantenedor-descuento-matricula-anticipada',
   'dashboard-mantenedor-terminos-condiciones',
   'dashboard-mantenedor-contacto-otp',
+  'dashboard-mantenedor-desbloqueo-toma-ramos',
   'dashboard-backoffice-menu',
   'dashboard-backoffice-usuarios',
 ] as const

@@ -215,6 +215,17 @@ const routes = [
           import('../views/dashboard/rematricula/MantenedorPeriodoActivoView.vue'),
       },
       {
+        path: '/dashboard/mantenedor-desbloqueo-toma-ramos',
+        name: 'dashboard-mantenedor-desbloqueo-toma-ramos',
+        meta: {
+          requiresAdminAdmision: true,
+          requiresSoloGrupoDvU: true,
+          requiresPerfilUsuarioIn: [1, 2, 3],
+        },
+        component: () =>
+          import('../views/dashboard/rematricula/MantenedorDesbloqueoTomaRamosView.vue'),
+      },
+      {
         path: '/dashboard/mantenedor-erp-sp-ambiente',
         name: 'dashboard-mantenedor-erp-sp-ambiente',
         meta: {
