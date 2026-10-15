@@ -36,6 +36,58 @@ export function resolverEtapaProgreso(h: HitosProgresoRematricula): EtapaProgres
   return 'sin_ingreso'
 }
 
+const ETAPAS_CON_ALERTA_PERMANENCIA = new Set<EtapaProgresoRematricula>([
+  'ingreso',
+  'tyc',
+  'datos',
+  'forma_pago',
+  'firma',
+])
+
+const UMBRAL_PERMANENCIA_MS = 24 * 60 * 60 * 1000
+
+export type PermanenciaEtapa = {
+  marcada: boolean
+  horas: number | null
+}
+
+/** Marca la fila cuando lleva más de 24 horas seguidas en la etapa. */
+export function permanenciaEtapa(
+  etapa: EtapaProgresoRematricula,
+  etapaDesde: string | null | undefined,
+  ahora: Date = new Date(),
+): PermanenciaEtapa {
+  if (!ETAPAS_CON_ALERTA_PERMANENCIA.has(etapa) || !etapaDesde) {
+    return { marcada: false, horas: null }
+  }
+  const inicio = new Date(etapaDesde)
+  if (Number.isNaN(inicio.getTime())) {
+    return { marcada: false, horas: null }
+  }
+  const transcurridoMs = ahora.getTime() - inicio.getTime()
+  if (transcurridoMs <= UMBRAL_PERMANENCIA_MS) {
+    return { marcada: false, horas: null }
+  }
+  return {
+    marcada: true,
+    horas: Math.floor(transcurridoMs / (60 * 60 * 1000)),
+  }
+}
+
+function cantidadEnPalabras(cantidad: number, singular: string, plural: string): string {
+  return `${cantidad} ${cantidad === 1 ? singular : plural}`
+}
+
+export function etiquetaPermanenciaEtapa(horas: number): string {
+  const dias = Math.floor(horas / 24)
+  const horasRestantes = horas % 24
+  const partes: string[] = []
+  if (dias > 0) partes.push(cantidadEnPalabras(dias, 'día', 'días'))
+  if (horasRestantes > 0) partes.push(cantidadEnPalabras(horasRestantes, 'hora', 'horas'))
+  const tiempo = partes.length > 0 ? partes.join(' y ') : '0 horas'
+  return `${tiempo} en esta etapa`
+}
+
 export function etiquetaEtapaProgreso(etapa: EtapaProgresoRematricula): string {
   const map: Record<EtapaProgresoRematricula, string> = {
     sin_ingreso: 'Sin ingreso',

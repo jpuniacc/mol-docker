@@ -36,7 +36,13 @@ import type {
   MnpProgresoRematriculaRow,
   VLogMolSesionTimelineRow,
 } from '@/types/supabase'
-import { etiquetaActividadLog, etiquetaEtapaProgreso, lineasDetalleActividad } from '@/utils/etapaProgresoRematricula'
+import {
+  etiquetaActividadLog,
+  etiquetaEtapaProgreso,
+  etiquetaPermanenciaEtapa,
+  lineasDetalleActividad,
+  permanenciaEtapa,
+} from '@/utils/etapaProgresoRematricula'
 
 const ORDEN_EMBUDO_ASC: EtapaProgresoRematricula[] = [
   'sin_ingreso',
@@ -68,6 +74,10 @@ const timelineAlumno = ref<MnpProgresoRematriculaRow | null>(null)
 const timelineRows = ref<VLogMolSesionTimelineRow[]>([])
 
 const timelineCronologico = computed(() => [...timelineRows.value].reverse())
+
+function marcaPermanencia(fila: MnpProgresoRematriculaRow) {
+  return permanenciaEtapa(fila.etapa_actual, fila.etapa_desde)
+}
 
 function indiceEtapa(etapa: EtapaProgresoRematricula): number {
   const indice = ORDEN_EMBUDO_ASC.indexOf(etapa)
@@ -383,9 +393,23 @@ onMounted(async () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      <TableRow v-for="fila in alumnosVisibles" :key="fila.codcli">
+                      <TableRow
+                        v-for="fila in alumnosVisibles"
+                        :key="fila.codcli"
+                        :class="marcaPermanencia(fila).marcada ? 'bg-destructive/10 hover:bg-destructive/15' : ''"
+                      >
                         <TableCell>{{ formatearRut(fila.rut ?? '') || '—' }}</TableCell>
-                        <TableCell>{{ fila.nombre_alumno || '—' }}</TableCell>
+                        <TableCell>
+                          <div class="flex flex-wrap items-center gap-2">
+                            <span>{{ fila.nombre_alumno || '—' }}</span>
+                            <Badge
+                              v-if="marcaPermanencia(fila).marcada"
+                              variant="destructive"
+                            >
+                              {{ etiquetaPermanenciaEtapa(marcaPermanencia(fila).horas ?? 0) }}
+                            </Badge>
+                          </div>
+                        </TableCell>
                         <TableCell>{{ fila.nombre_carrera || '—' }}</TableCell>
                         <TableCell>{{ fila.codcli }}</TableCell>
                         <TableCell>

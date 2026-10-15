@@ -244,6 +244,8 @@ export type MnpProgresoRematriculaRow = {
   nombre_carrera: string | null;
   jornada_carrera: string | null;
   etapa_actual: EtapaProgresoRematricula;
+  /** Instante en que entró a etapa_actual. Ausente si el refresco es anterior a la columna. */
+  etapa_desde?: string | null;
   ultima_actividad_en: string | null;
   ultima_actividad_label: string | null;
   es_mock: boolean;
