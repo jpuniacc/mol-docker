@@ -11,6 +11,8 @@ export type ArancelMatriculaNetParams = {
   ano: number
   /** @ANOINI ← anio_ingreso / ano_ingreso */
   anoIni: number
+  /** @PERIODOINGRESO ← periodo_ingreso. El SP usa 0 si no llega. */
+  periodoIngreso: number
   /** @PERIODO ← periodo_matricula */
   periodo: number
   /** @CATALUMNO ← categoria_alumno */

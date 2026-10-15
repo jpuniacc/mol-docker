@@ -355,6 +355,11 @@ const paramsErpPantalla = computed(() => {
       { sp: '@ANO', valor: String(usados.ano), origen: 'anio_matricula' },
       { sp: '@ANOINI', valor: String(usados.anoIni), origen: 'ano_ingreso' },
       {
+        sp: '@PERIODOINGRESO',
+        valor: String(usados.periodoIngreso),
+        origen: 'periodo_ingreso',
+      },
+      {
         sp: '@FECMOD',
         valor: usados.fecMod ?? '—',
         origen: "servidor (YYYY-MM-DDTHH:mm:ss)",
@@ -377,6 +382,11 @@ const paramsErpPantalla = computed(() => {
       sp: '@ANOINI',
       valor: p.ano_ingreso != null ? String(p.ano_ingreso) : '—',
       origen: 'ano_ingreso',
+    },
+    {
+      sp: '@PERIODOINGRESO',
+      valor: p.periodo_ingreso != null ? String(p.periodo_ingreso) : '—',
+      origen: 'periodo_ingreso',
     },
     { sp: '@FECMOD', valor: '(lo define la API)', origen: 'servidor' },
     {
@@ -763,6 +773,9 @@ function camposFaltantesErp(p: PlanPagosMvRow): string[] {
   if (!(p.jornada_carrera ?? '').trim()) faltan.push('jornada_carrera')
   if (p.anio_matricula == null) faltan.push('anio_matricula')
   if (p.ano_ingreso == null) faltan.push('ano_ingreso')
+  if (p.periodo_ingreso == null || !Number.isInteger(Number(p.periodo_ingreso))) {
+    faltan.push('periodo_ingreso')
+  }
   if (p.periodo_matricula == null) faltan.push('periodo_matricula')
   if (p.categoria_alumno == null || !Number.isFinite(Number(p.categoria_alumno))) {
     faltan.push('categoria_alumno')
@@ -796,6 +809,7 @@ function paramsDesdePlan(p: PlanPagosMvRow): {
   codCarr: string
   ano: number
   anoIni: number
+  periodoIngreso: number
   periodo: number
   catAlumno: string
   jornada: string
@@ -807,6 +821,7 @@ function paramsDesdePlan(p: PlanPagosMvRow): {
     codCarr: (p.cod_carrera ?? '').trim(),
     ano: p.anio_matricula as number,
     anoIni: p.ano_ingreso as number,
+    periodoIngreso: Number(p.periodo_ingreso),
     periodo: p.periodo_matricula as number,
     catAlumno: String(p.categoria_alumno),
     jornada: (p.jornada_carrera ?? '').trim().toUpperCase(),

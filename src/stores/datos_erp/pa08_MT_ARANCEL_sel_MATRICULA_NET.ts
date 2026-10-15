@@ -20,6 +20,7 @@ import {
  * @CODCARR   ← params.codCarr      ← consolidado.codigo_carrera / vista.cod_carrera
  * @ANO       ← params.ano          ← consolidado.anio_matricula
  * @ANOINI    ← params.anoIni       ← consolidado.anio_ingreso / vista.ano_ingreso
+ * @PERIODOINGRESO ← params.periodoIngreso ← consolidado.periodo_ingreso
  * @FECMOD    ← sysdate en servidor API (no viaja en el body del front)
  * @PERIODO   ← params.periodo      ← consolidado.periodo_matricula
  * @CATALUMNO ← params.catAlumno    ← consolidado.categoria_alumno (string)
@@ -65,7 +66,7 @@ export const usePa08MtArancelSelMatriculaNetStore = defineStore(
       paramsResumen: (s) => {
         const p = s.paramsUsados
         if (!p) return null
-        return `CODCARR=${p.codCarr} ANO=${p.ano} ANOINI=${p.anoIni} PERIODO=${p.periodo} CATALUMNO=${p.catAlumno} JORNADA=${p.jornada}`
+        return `CODCARR=${p.codCarr} ANO=${p.ano} ANOINI=${p.anoIni} PERIODOINGRESO=${p.periodoIngreso} PERIODO=${p.periodo} CATALUMNO=${p.catAlumno} JORNADA=${p.jornada}`
       },
     },
     actions: {
