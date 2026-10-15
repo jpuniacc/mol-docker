@@ -15,6 +15,7 @@ import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import { useMockMatriculaContextStore } from '@/stores/mockMatriculaContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
+import { useProximamenteStore } from '@/stores/proximamente'
 import { useContactoOtpConfigStore } from '@/stores/contactoOtpConfig'
 import {
   indicePasoAlumno,
@@ -22,6 +23,10 @@ import {
   pasoMaximoAlumno,
   rutaSiEnvioFirmaBloquea,
 } from '@/utils/pasoAlumnoRematricula'
+import {
+  leerDesbloqueoProximamente,
+  redireccionProximamente,
+} from '@/utils/proximamenteGate'
 
 const MOCK_SELECCION_ROUTE = 'matricula-mock-seleccion-alumno'
 const MOCK_DATOS_ROUTE = 'matricula-mock-datos'
@@ -93,6 +98,11 @@ const routes = [
     path: '/login',
     name: 'login',
     component: () => import('../views/auth/LoginView.vue'),
+  },
+  {
+    path: '/proximamente',
+    name: 'proximamente',
+    component: () => import('../views/auth/ProximamenteView.vue'),
   },
   {
     path: '/dashboard',
@@ -399,6 +409,17 @@ const routes = [
           import('../views/dashboard/rematricula/MantenedorContactoOtpView.vue'),
       },
       {
+        path: '/dashboard/mantenedor-proximamente',
+        name: 'dashboard-mantenedor-proximamente',
+        meta: {
+          requiresAdminAdmision: true,
+          requiresSoloGrupoDvU: true,
+          requiresPerfilUsuarioIn: [1, 2, 3],
+        },
+        component: () =>
+          import('../views/dashboard/rematricula/MantenedorProximamenteView.vue'),
+      },
+      {
         path: '/dashboard/admin/menu',
         redirect: '/dashboard/backoffice/menu',
       },
@@ -520,8 +541,20 @@ router.beforeEach(async (to) => {
     return { name: 'dashboard-home', replace: true }
   }
 
-  if (to.name === 'login' && auth.isAuthenticated) {
-    return { name: 'dashboard-home', replace: true }
+  if (to.name === 'login' || to.name === 'home' || to.name === 'proximamente') {
+    if (auth.isAuthenticated) {
+      return { name: 'dashboard-home', replace: true }
+    }
+    const proximamente = useProximamenteStore()
+    await proximamente.ensureLoaded()
+    const destino = redireccionProximamente({
+      routeName: typeof to.name === 'string' ? to.name : null,
+      activo: proximamente.activoEfectivo,
+      desbloqueado: leerDesbloqueoProximamente(),
+    })
+    if (destino) {
+      return { name: destino, query: to.query, replace: true }
+    }
   }
 
   // Pixarron → flujo alumno; bloquear mock. Staff → flujo mock; bloquear alumno.

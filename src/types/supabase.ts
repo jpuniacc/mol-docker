@@ -360,6 +360,14 @@ export type TpTerminosCondicionesRow = {
   updated_at: string;
 };
 
+/** Fila única de la pantalla Próximamente (`tp_mol_proximamente`). */
+export type TpMolProximamenteRow = {
+  id: number;
+  activo: boolean;
+  mensaje: string;
+  actualizado_en: string;
+};
+
 /** Configuración OTP contacto (`tp_contacto_otp_config`). */
 export type TpContactoOtpConfigRow = {
   id: number;
@@ -997,6 +1005,16 @@ export type Database = {
           eliminado_en?: string | null;
         };
         Update: Partial<Omit<MnpConvenioDocumentoRow, "id">>;
+        Relationships: [];
+      };
+      tp_mol_proximamente: {
+        Row: TpMolProximamenteRow;
+        Insert: Omit<TpMolProximamenteRow, "actualizado_en"> & {
+          actualizado_en?: string;
+        };
+        Update: Partial<Omit<TpMolProximamenteRow, "id" | "actualizado_en">> & {
+          actualizado_en?: string;
+        };
         Relationships: [];
       };
       tp_periodo_activo: {
