@@ -184,6 +184,7 @@ const vencimientoPagareArancel = computed(
       <h2 class="font-bold">{{ cl.titulo }}</h2>
       <template v-for="(p, idx) in cl.parrafos" :key="idx">
         <div v-if="p === '__PLAN_PAGO__'" class="space-y-3">
+          <p>Programa: {{ model.alumno.carrera }}</p>
           <p class="flex flex-wrap gap-x-6 gap-y-1">
             <span>valor <span class="font-bold">matrícula</span> {{ formatClp(model.valorMatricula) }}</span>
             <span>valor <span class="font-bold">arancel</span> {{ formatClp(model.valorArancel) }}</span>

@@ -31,7 +31,7 @@
       },
       {
         "label": "Pérdida de calidad",
-        "text": "Se perderá la calidad de Estudiante Regular de la Universidad por alguna(s) de la(s) causal(es) que se indican en el Reglamento General del Estudiante, Reglamento de Estudiantes de Educación Continua, Reglamento de Estudiantes de Postgrado, que los Contratantes declaran conocer y aceptar."
+        "text": "Se perderá la calidad de Estudiante Regular de la Universidad por alguna(s) de la(s) causal(es) que se indican en el Reglamento General del Estudiante, Reglamento Académico de Programas Advance, Reglamento de Estudiantes de Educación Continua, Reglamento de Estudiantes de Postgrado, que los Contratantes declaran conocer y aceptar."
       },
       {
         "label": "Sostenedor financiero",
@@ -43,7 +43,7 @@
       }
     ]
   },
-  "reglamentos": "Reglamentos y Normas Internas. Lo integran el Reglamento Orgánico de la Universidad, el Reglamento General del Estudiante, Reglamento de Docencia, El reglamento general de Postgrado, el Reglamento de Estudiantes de Postgrado, el reglamento Académico de Educación Continua, el reglamento de Estudiantes de Educación Continua, el Reglamento de Admisión y Matrículas, el Reglamento de Disciplina de Estudiantes UNIACC, el Reglamento de Becas y Financiamiento, el Reglamento de Títulos y Grados, el Reglamento de uso y administración de Recursos de Bibliotecas y Recursos Digitales, el Calendario Académico y cualquier otra norma interna de carácter general impartida por las autoridades competentes, todos los cuales constituyen parte integrante del presente contrato de prestación de servicios educacionales y se encuentran debidamente publicados en el sitio web de la Universidad e intranet del Alumno.",
+  "reglamentos": "Reglamentos y Normas Internas. Lo integran el Reglamento Orgánico de la Universidad, el Reglamento de Docencia, el Reglamento de Estudiantes de Pregrado, el Reglamento General de Postgrado, el Reglamento de Estudiantes de Postgrado, el Reglamento de Educación Continua, el Reglamento de Estudiantes de Programas de Educación Continua, el Reglamento Académico de Programas Advance, el Reglamento de Admisión y Matrículas, el Reglamento de Disciplina de Estudiantes UNIACC, el Reglamento de Becas, Descuentos y Beneficios, el Reglamento de Títulos y Grados, el Reglamento de uso y administración de Recursos de Bibliotecas y Recursos Digitales, el Calendario Académico y cualquier otra norma interna de carácter general impartida por las autoridades competentes, todos los cuales constituyen parte integrante del presente contrato de prestación de servicios educacionales y se encuentran debidamente publicados en el sitio web de la Universidad e intranet del Alumno.",
   "clausulas": [
     {
       "id": "primero",
@@ -56,12 +56,14 @@
     },
     {
       "id": "segundo",
-      "titulo": "SEGUNDO: Aranceles.",
+      "titulo": "SEGUNDO: 2.1) Aranceles.",
       "parrafos": [
         "El valor de matrícula y arancel por los servicios educacionales contratados, que el Estudiante o Alumno y/o el Sostenedor Financiero, según corresponda, se obligan solidaria y personalmente a pagar, en la forma y condiciones establecidas por la Universidad, son los que se indican a continuación. En el evento que los Contratantes desearen pagar estos aranceles bajo la modalidad a plazo, suscribirán el Plan de Pago indicado en el recuadro:",
         "__PLAN_PAGO__",
         "Los aranceles antes indicados podrán ser objeto de becas, convenios o descuentos internos, así como, cuando corresponda, de becas ministeriales o de otros organismos externos y/o del Crédito con Garantía Estatal (CAE).",
-        "Los Contratantes acuerdan que las becas, convenios o descuentos internos de que sea beneficiario el Estudiante, serán asignados sobre el saldo pendiente de pago que resulte luego de la aplicación de las becas otorgadas por organismos externos. En caso de que se generen excedentes por la aplicación de becas, la eventual devolución de valores no se efectuará a los Contratantes sino al organismo externo (Ministerio de Educación u otros). Sólo procederá devolución de valores a los Contratantes, cuando se produzcan excedentes por efecto de los pagos realizados con recursos propios por parte de estos, priorizando las devoluciones a organismos estatales como el Ministerio de Educación y la Comisión Ingresa (específicamente al banco que haya generado el crédito).",
+        "2.2) Compatibilidad e imputación de beneficios. Las becas, convenios o descuentos internos otorgados por la Universidad serán compatibles con las becas, créditos u otros beneficios externos destinados al financiamiento de los estudios, incluidos aquellos otorgados por el Ministerio de Educación (MINEDUC) y el Crédito con Aval del Estado (CAE), de conformidad con las condiciones y límites aplicables a cada beneficio.",
+        "Los beneficios institucionales serán aplicados sobre el saldo de arancel que resulte luego de la aplicación de las becas, créditos u otros beneficios externos que correspondan. Cuando la aplicación conjunta de dichos beneficios cubra íntegramente el arancel, el Estudiante quedará en condición de copago cero. Si subsistiere un saldo no cubierto, este será de cargo del Estudiante y/o de los demás Contratantes, según corresponda.",
+        "La concurrencia de beneficios institucionales y externos no dará derecho al Estudiante ni a los demás Contratantes a percibir en dinero eventuales excedentes provenientes de dichos beneficios, los que se sujetarán a las reglas y procedimientos establecidos por el respectivo organismo otorgante. Lo anterior es sin perjuicio de la devolución que corresponda efectuar respecto de pagos realizados con recursos propios que, una vez aplicados definitivamente los beneficios respectivos, resultaren pagados en exceso.",
         "Se deja constancia que en el caso que el estudiante no obtenga el Crédito con Garantía Estatal y/o beca ministerial respectiva por cualquier causa, el Estudiante o Alumno y/o Sostenedor Financiero deberán pagar el arancel convenido en la cláusula segunda del presente Contrato, a contar del mes siguiente a aquel en que la Comisión Ingresa comunique formalmente a UNIACC que el alumno no obtendrá el CAE o la beca, según corresponda, y hasta el número de cuotas que de común acuerdo pacten las partes, sin ningún tipo de cargo adicional."
       ]
     },
@@ -102,7 +104,7 @@
       "id": "septimo",
       "titulo": "SÉPTIMO: Obligación de Cumplimiento del Plan de Pago.",
       "parrafos": [
-        "El pago de los aranceles indicados en la cláusula segunda del presente instrumento deberá ser cumplido en todos sus términos por el Estudiante o Alumno y/o en su caso el Sostenedor Financiero, solidariamente, en forma íntegra y oportuna, cualquiera sea el rendimiento académico del Estudiante ya individualizado, sea que deje de asistir o participar total o parcialmente de las actividades académicas por cualquier causa, a la carrera o programa académico en que se encontrare matriculado, o fuere sancionado reglamentariamente con la suspensión o eliminación de la Institución, en conformidad a lo dispuesto en el Reglamento General del Estudiante. Ello en razón que la Universidad ha comprometido recursos para asegurar la regularidad del servicio docente, los materiales administrativos y de enseñanza, la mantención de infraestructura o de equipamiento necesarios para la prestación de los servicios educacionales durante el período contratado. La suma pagada por la matrícula no será susceptible de restitución, sin perjuicio de la retractación consagrada en el artículo 3° ter. de la Ley N° 19.496, sobre protección a los derechos del consumidor. Asimismo, de conformidad a lo dispuesto en el Reglamento General del Estudiante, en caso debidamente justificado, por motivos graves y comprobables, que afecten a los Contratantes, de manera que hagan imposible el cumplimiento de las obligaciones contraídas en este instrumento, la Universidad autorizará el retiro del Estudiante de la carrera o programa académico, caso en el cual, el mismo Estudiante o Alumno y/o Sostenedor Financiero podrá(n) solicitar ante la Dirección de Finanzas de la Universidad, que no se devenguen pagos futuros a partir del término del semestre en que se autorice su retiro, de conformidad al procedimiento de retiros de la Institución. Cabe señalar que, si no se presenta la solicitud antes señalada junto a los antecedentes que la justifican, o si esta no resulta justificada, se mantendrá la obligación de los Contratantes de pagar la matrícula y arancel anual convenido en el presente instrumento."
+        "El pago de los aranceles indicados en la cláusula segunda del presente instrumento deberá ser cumplido en todos sus términos por el Estudiante o Alumno y/o en su caso el Sostenedor Financiero, solidariamente, en forma íntegra y oportuna, cualquiera sea el rendimiento académico del Estudiante ya individualizado, sea que deje de asistir o participar total o parcialmente de las actividades académicas por cualquier causa, a la carrera o programa académico en que se encontrare matriculado, o fuere sancionado reglamentariamente con la suspensión o eliminación de la Institución, en conformidad a lo dispuesto en el Reglamento General del Estudiante. Ello en razón que la Universidad ha comprometido recursos para asegurar la regularidad del servicio docente, los materiales administrativos y de enseñanza, la mantención de infraestructura o de equipamiento necesarios para la prestación de los servicios educacionales durante el período contratado. La suma pagada por la matrícula no será susceptible de restitución, sin perjuicio de la retractación consagrada en el artículo 3° ter. de la Ley N° 19.496, sobre protección a los derechos del consumidor. Asimismo, de conformidad a lo dispuesto en el Reglamento General del Estudiante, en caso debidamente justificado, por motivos graves y comprobables, que afecten a los Contratantes, de manera que hagan imposible el cumplimiento de las obligaciones contraídas en este instrumento, la Universidad autorizará el retiro del Estudiante de la carrera o programa académico, caso en el cual, el mismo Estudiante o Alumno y/o Sostenedor Financiero podrá(n) solicitar ante la Dirección de Finanzas de la Universidad, que no se devenguen pagos futuros a partir del término del semestre / trimestre en que se autorice su retiro, de conformidad al procedimiento de retiros de la Institución. Cabe señalar que, si no se presenta la solicitud antes señalada junto a los antecedentes que la justifican, o si esta no resulta justificada, se mantendrá la obligación de los Contratantes de pagar la matrícula y arancel anual convenido en el presente instrumento."
       ]
     },
     {
@@ -124,12 +126,12 @@
       "titulo": "DÉCIMO: Cambios de Carrera y Proceso de Titulación o de obtención de Grado Académico.",
       "parrafos": [
         "Si el Estudiante solicitare cambio de carrera o programa académico, jornada o modalidad de estudios, la solicitud quedará sujeta a la disponibilidad de vacantes y, de ser aceptada, el Estudiante o Alumno y/o el Sostenedor Financiero, quedarán solidariamente obligados previamente al pago del arancel que corresponda a la carrera o programa académico, jornada o modalidad de estudios de destino, o a la devolución que dicho cambio pudiere generar, debiendo en ambos casos firmar un nuevo Contrato de Prestación de Servicios Educacionales. Estos cambios sólo podrán efectuarse en los períodos académicos indicados por UNIACC.",
-        "El Estudiante que tenga la calidad de Egresado sólo podrá incorporarse al Proceso de Titulación o de obtención de Grado Académico de su carrera o programa académico, según corresponda, cuando cumpla con los plazos y exigencias que se indican en el Reglamento de Título y Grados y no tenga deudas morosas con la Universidad UNIACC, debiendo pagar previamente el arancel que anualmente fije la Universidad para estos efectos, a través de una resolución de rectoría, que será oportunamente publicada en la intranet."
+        "El Estudiante que tenga la calidad de Egresado podrá incorporarse al Proceso de Titulación o de obtención de Grado Académico de su carrera o programa académico, según corresponda, cuando cumpla con los plazos y exigencias que se indican en el Reglamento de Título y Grados, comprometiendo el pago del arancel que anualmente fije la Universidad para estos efectos, a través de una resolución de rectoría, que será oportunamente publicada."
       ]
     },
     {
       "id": "undecimo",
-      "titulo": "UNDÉCIMO: Tratamiento de datos personales.",
+      "titulo": "DÉCIMO PRIMERO: Tratamiento de datos personales.",
       "parrafos": [
         "Los Contratantes entienden y aceptan que, para poder ejecutar este Contrato y prestar los servicios educacionales, UNIACC requiere tratar datos personales del contratante y del sostenedor financiero tales como su nombre, cédula de identidad o pasaporte, fecha de nacimiento, domicilio, teléfono de contacto, correo electrónico, información educacional, académica, datos financieros, como cuenta corriente, tarjeta de crédito, y demás antecedentes estrictamente necesarios para la gestión académica, administrativa, financiera y regulatoria de la relación educacional.",
         "Asimismo, UNIACC podrá comunicar estos datos personales a instituciones públicas que lo soliciten en el marco de sus competencias legales como, por ejemplo, el Ministerio de Educación, la Superintendencia de Educación Superior, la Subsecretaría de Educación Superior, el Servicio Nacional del Consumidor, la Comisión INGRESA, la Junta Nacional de Auxilio Escolar y Becas, CNA, CNED, entre otras.",
@@ -139,7 +141,7 @@
     },
     {
       "id": "decimo_primero",
-      "titulo": "DÉCIMO PRIMERO: Requisitos de Conexión, Clave de Acceso e Ingreso a la Plataforma Tecnológica.",
+      "titulo": "DÉCIMO SEGUNDO: Requisitos de Conexión, Clave de Acceso e Ingreso a la Plataforma Tecnológica.",
       "parrafos": [
         "En este acto, el Estudiante declara conocer que los requisitos de conexión, así como las formas de operar que determine la Universidad para tales servicios, se encuentran publicados en la Plataforma ELearning (www.ecampus.cl) o la que en el futuro la reemplace y forman parte integrante del presente instrumento como Anexo N° 1, información que el Estudiante declara entender que su dominio constituye una obligación personal para el correcto desempeño de sus estudios.",
         "Para tener acceso y operar en la Plataforma Tecnológica, el Estudiante deberá utilizar los procedimientos y medios de seguridad, identificación e integridad que la Universidad ha implementado, o implemente en el futuro, y que pudieren estar asociados a los elementos requeridos para su utilización, tales como nombre de usuario, clave secreta, número de cédula de identidad u otros.",
@@ -149,7 +151,7 @@
     },
     {
       "id": "decimo_segundo",
-      "titulo": "DÉCIMO SEGUNDO: Suspensión Temporal de Servicios.",
+      "titulo": "DÉCIMO TERCERO: Suspensión Temporal de Servicios.",
       "parrafos": [
         "La Universidad podrá, en caso fortuito o fuerza mayor fehacientemente acreditado, por razones ajenas a su voluntad o imputables a los proveedores de servicios, suspender temporalmente el suministro de dichos servicios, comprometiéndose a proveer todas las instancias remediales pertinentes y oportunas a los Estudiantes que, por esta situación, pudieren ver afectado su desempeño académico. Se entenderán como causales de esta naturaleza cualquier procedimiento de mantención de sistemas, problemas técnicos, corte operacional, corte de energía eléctrica y cualquier otro que afecte el adecuado y normal funcionamiento de la Plataforma Tecnológica y servicios afines.",
         "Cualquier información referida a los servicios vigentes será informado por la Universidad al Estudiante, en un plazo no superior a 24 horas, por medio de correo electrónico, mensaje digital o un aviso en la Plataforma Tecnológica, a la que el Estudiante puede ingresar previa digitación de clave de acceso en el sitio web de la Universidad."
@@ -157,14 +159,14 @@
     },
     {
       "id": "decimo_tercero",
-      "titulo": "DÉCIMO TERCERO: Intereses y Gastos.",
+      "titulo": "DÉCIMO CUARTO: Intereses y Gastos.",
       "parrafos": [
         "Los intereses por mora y prórrogas serán calculados en una tasa no superior a la máxima convencional de acuerdo con lo estipulado en el artículo 6 de la Ley 18.010. En el caso de suscribir Pagaré, el Estudiante o Alumno y/o el Sostenedor Financiero, deberá(n) asumir los gastos notariales. Los gastos de cobranza extrajudicial se devengarán a partir del vigésimo día transcurrido desde la fecha de vencimiento del documento establecido en el Plan de Pago del presente Contrato y será determinado de acuerdo con la siguiente escala progresiva: a) En obligaciones de hasta 10 unidades de fomento el 9%; b) Por la parte que exceda de 10 y hasta 50 unidades de fomento el 6%; y c) Por la parte que exceda de 50 unidades de fomento el 3%."
       ]
     },
     {
       "id": "decimo_cuarto",
-      "titulo": "DÉCIMO CUARTO:",
+      "titulo": "DÉCIMO QUINTO:",
       "parrafos": [
         "Por el presente acto, don(ña) {{sostenedorNombre}} de nacionalidad {{sostenedorNacionalidad}}, profesión u oficio {{sostenedorProfesion}}, estado civil {{sostenedorEstadoCivil}}, cédula de identidad Nº {{sostenedorRut}}, {{sostenedorDomiciliado}} en {{sostenedorDomicilio}}, comuna de {{sostenedorComuna}}, en adelante denominado indistintamente \"el codeudor\" o el \"Sostenedor Financiero\", se constituye como fiador y codeudor solidario, en los mismos términos que el Estudiante o Alumno, de todas las obligaciones financieras, económicas y pecuniarias contraídas por el Estudiante o que contraiga en el futuro con la Universidad de Artes, Ciencias y Comunicación - UNIACC, aceptando desde ahora las prórrogas y renovaciones que pudieran convenirse o concederse respecto de ella, como también la sustitución o cancelación de cualquier garantía que asegure el pago de la obligaciones aquí garantizadas y relevando a UNIACC de la obligación de protesto, si procediere.",
         "El codeudor no podrá excusarse de responder a la presente obligación, por ninguna circunstancia, salvo en caso de pago completo de la o las obligaciones adeudadas, sus reajustes, intereses y costas de cobranza, si las hubiere.",
@@ -173,50 +175,68 @@
     },
     {
       "id": "decimo_quinto",
-      "titulo": "DÉCIMO QUINTO: Mandato.",
+      "titulo": "DÉCIMO SEXTO: Mandato.",
       "parrafos": [
-        "En este acto, \"el Estudiante o Alumno\", y/o \"el Sostenedor Financiero\", ya individualizados, en adelante también e indistintamente \"El (los) Mandante(s)\", con el objeto de facilitar el cobro de cualquiera de las obligaciones pecuniarias que asume(n) en virtud del presente contrato de prestación de servicios educacionales celebrado con la Universidad de Artes, Ciencias y Comunicación -UNIACC, con sus intereses y reajustes correspondientes, viene en conferir mandato especial e irrevocable en los términos del artículo 233 del Código de Comercio a la Universidad de Artes, Ciencias y Comunicación - UNIACC, corporación de derecho privado, RUT N° 71.602.500-4, domiciliada en Avenida Salvador 1200, Comuna de Providencia, Región Metropolitana, en adelante e indistintamente \"la Mandataria\", a fin de que esta última, actuando en su nombre y representación, pueda a través de cualesquiera de sus apoderados, emitir, llenar y suscribir un pagaré a la orden de Universidad de Artes Ciencias y Comunicación - UNIACC, por todas aquellas obligaciones pecuniarias que se adeuden y especialmente cada plan de pago que haya formalizado conforme a este Contrato. Todos los antecedentes necesarios para suscribir el pagaré deberán ser llenados por la Universidad de Artes, Ciencias y Comunicación - UNIACC, en conformidad a lo dispuesto en los artículos 1, 11 y 102 de la Ley N° 18.092 sobre Letras de Cambio y Pagarés, siguiendo las instrucciones (a) a (i) del contrato tipo UNIACC."
+        "En este acto, \"el Estudiante o Alumno\", y/o \"el Sostenedor Financiero\", ya individualizados, en adelante también e indistintamente \"El (los) Mandante(s)\", con el objeto de facilitar el cobro de cualquiera de las obligaciones pecuniarias que asume(n) en virtud del presente contrato de prestación de servicios educacionales celebrado con la Universidad de Artes, Ciencias y Comunicación -UNIACC, con sus intereses y reajustes correspondientes, viene en conferir mandato especial e irrevocable en los términos del artículo 233 del Código de Comercio a la Universidad de Artes, Ciencias y Comunicación - UNIACC, corporación de derecho privado, RUT N° 71.602.500-4, domiciliada en Avenida Salvador 1200, Comuna de Providencia, Región Metropolitana, en adelante e indistintamente \"la Mandataria\", a fin de que esta última, actuando en su nombre y representación, pueda a través de cualesquiera de sus apoderados, emitir, llenar y suscribir un pagaré a la orden de Universidad de Artes Ciencias y Comunicación - UNIACC, por todas aquellas obligaciones pecuniarias que se adeuden y especialmente cada plan de pago que haya formalizado conforme a este Contrato. Todos los antecedentes necesarios para suscribir el pagaré deberán ser llenados por la Universidad de Artes, Ciencias y Comunicación - UNIACC, en conformidad a lo dispuesto en los artículos 1, 11 y 102 de la Ley N° 18.092 sobre Letras de Cambio y Pagarés, siguiendo las siguientes instrucciones:",
+        "La oportunidad a partir de la cual la Universidad de Artes, Ciencias y Comunicación - UNIACC podrá proceder a emitir, llenar y suscribir el pagaré, será aquella en que se produzca la mora o simple retardo en el pago de una cualquiera de las cuotas establecidas en el plan de pago que haya formalizado del año respecto del cual da cuenta el contrato de prestación de servicios educacionales.",
+        "La fecha de emisión y/o suscripción del respectivo pagaré que la Universidad de Artes Ciencias y Comunicación -UNIACC deberá llenar en el documento, será aquella en la cual se proceda a ejercer el presente mandato.",
+        "La fecha de vencimiento del respectivo pagaré, que deberá llenarse, será la del día hábil bancario siguiente al de la fecha de emisión y suscripción del pagaré.",
+        "La cantidad adeudada que la Universidad de Artes, Ciencias y Comunicación - UNIACC deberá estampar en el documento serán todas aquellas sumas que el Estudiante o Alumno y/o el Sostenedor Financiero, según corresponda, adeude(n) efectivamente a la Universidad de Artes, Ciencias y Comunicación - UNIACC, incluyendo cuotas impagas, intereses, reajustes pactados, multas que sean imputables al incumplimiento, gastos de emisión del respectivo documento, impuestos y demás gastos que fueren procedentes, así como el total del saldo adeudado, en virtud de la aceleración de la obligación de pago del plan de pago anual que haya formalizado que se hará efectiva a partir de los 90 días de incumplimiento.",
+        "La suscripción o aceptación del mencionado pagaré, no constituirá novación de las obligaciones en él documentadas, pues solo tiene como objeto facilitar el pago de las obligaciones asumidas en el presente contrato de prestación de servicios educacionales.",
+        "La Universidad de Artes, Ciencias y Comunicación - UNIACC no tendrá derecho a recibir remuneración o retribución alguna por el desempeño del mandato, el cual, se ha otorgado en beneficio tanto del Mandante como de la Mandataria.",
+        "El pagaré que se suscriba se entenderá sin obligación de protesto para todos los efectos legales. Sin perjuicio de ello, la Universidad de Artes, Ciencias y Comunicación - UNIACC podrá proceder al protesto de cada una de las cuotas impagas, una a una, o alternativamente, exigir el pago total de la deuda de acuerdo a la ley, como si fuere de plazo vencido, aún sin necesidad de protesto, pudiendo en todo caso requerir el protesto por el total de la deuda según lo estime conveniente. Desde ya los mandantes autorizan a Universidad de Artes, Ciencias y Comunicación - UNIACC para autorizar su firma en la representación indicada, ante Notario Público para los efectos del art. 434 N° 4 del Código de Procedimiento Civil.",
+        "Las partes acuerdan que la Universidad de Artes, Ciencias y Comunicación - UNIACC tiene la obligación de rendir cuenta enviando un correo electrónico al Mandante a la dirección registrada en su sistema.",
+        "El presente mandato tendrá el carácter de irrevocable, y no se extinguirá por la muerte del (de los) Mandante(s), de conformidad a lo previsto por el artículo 2.169 del Código Civil, subsistiendo en tanto, el (los) Mandante(s) no haya pagado todas las cantidades que adeude a la Universidad de Artes, Ciencias y Comunicación - UNIACC en virtud del contrato de prestación de servicios educacionales."
       ]
     },
     {
       "id": "decimo_sexto",
-      "titulo": "DÉCIMO SEXTO. Obligaciones especiales en relación a la Ley N° 21.369 que regula el Acoso Sexual, Violencia y Discriminación de Género en el ámbito de la Educación Superior.",
+      "titulo": "DÉCIMO SÉPTIMO. Obligaciones especiales en relación a la Ley N° 21.369 que regula el Acoso Sexual, Violencia y Discriminación de Género en el ámbito de la Educación Superior.",
       "parrafos": [
         "El Estudiante se obliga a respetar y cumplir íntegramente la política, protocolos, planes y reglamentos que la Universidad ha establecido conforme a lo dispuesto en la citada Ley N° 21.369, en los cuales se establecen las obligaciones, prohibiciones y sanciones internas, que buscan prevenir la comisión de estas conductas. Específicamente el Estudiante se compromete a dar cumplimiento al Protocolo Institucional de Prevención, Investigación, Sanción y Reparación frente al Acoso Sexual, Violencia y Discriminación de Género y al Reglamento de Disciplina de Estudiantes UNIACC. UNIACC ha dispuesto un Canal de Denuncias confidencial, para que integrantes de la comunidad universitaria, puedan informar infracciones al Reglamento de Disciplina de Estudiantes UNIACC, Protocolo Institucional de Prevención, Investigación, Sanción y Reparación frente al Acoso Sexual, Violencia y Discriminación de Género, a la normativa interna y demás legislación vigente, de lo cual el estudiante toma en este acto conocimiento. Dichos documentos han sido enviados a su correo electrónico personal y se encuentran publicados y disponibles para consulta en la plataforma Sharepoint (o la que en el futuro la reemplace) y el sitio web institucional (www.uniacc.cl).",
         "UNIACC declara que, bajo ninguna circunstancia ni instrucción, el Estudiante podrá incurrir en alguna conducta contraria a la política, protocolos, planes y reglamentos contra el acoso sexual, violencia o discriminación por razones de género y/o en alguno de las conductas señaladas anteriormente, ni siquiera bajo pretexto de estar fuera del recinto universitario."
       ]
     },
     {
+      "id": "estudiantes_extranjeros",
+      "titulo": "DÉCIMO OCTAVO: Estudiantes extranjeros y estudios realizados en el extranjero.",
+      "parrafos": [
+        "Los/las estudiantes extranjeros/as deberán cumplir con los requisitos académicos, administrativos y documentales exigidos por la normativa vigente y por la Universidad para su ingreso, matrícula y permanencia en el respectivo programa.",
+        "Cuando, atendida la modalidad del programa, sus actividades académicas, prácticas, evaluaciones o cualquier otro requisito aplicable, el/la estudiante deba ingresar o permanecer en territorio chileno, será de su responsabilidad cumplir oportunamente con la normativa migratoria y con los requisitos de ingreso y permanencia en el país que correspondan. La Universidad proporcionará, cuando proceda, la documentación académica necesaria para dichos trámites.",
+        "Asimismo, quienes hayan realizado en el extranjero los estudios de pregrado o hayan obtenido los títulos, grados o antecedentes académicos requeridos para ingresar al respectivo programa deberán acreditarlos en la forma exigida por la normativa chilena o requisitos establecidos por la Universidad, según corresponda."
+      ]
+    },
+    {
       "id": "decimo_septimo",
-      "titulo": "DÉCIMO SEPTIMO. Declaración.",
+      "titulo": "DÉCIMO NOVENO. Declaración.",
       "parrafos": [
         "Las partes declaran y aceptan la validez y veracidad de cualquier declaración y acuerdo que se efectúe o convenga mediante documento electrónico suscrito mediante firma electrónica. Asimismo, los Contratantes autorizan a enviar el presente Contrato al email: {{emailAlumno}}{{emailApoderadoSuffix}}; y declaran que han tenido previamente un acceso claro, comprensible e inequívoco de las condiciones generales del mismo y la posibilidad de almacenarlos o imprimirlos."
       ]
     },
     {
       "id": "decimo_octavo",
-      "titulo": "DÉCIMO OCTAVO: Autorización.",
+      "titulo": "VIGÉSIMO: Autorización.",
       "parrafos": [
         "Por el presente instrumento los Contratantes autorizan a Universidad de Artes Ciencias y Comunicación - UNIACC para que envíe los documentos tributarios electrónicos que no amparan el traslado de bienes corporales muebles solamente por un medio electrónico a uno cualquiera de los correos señalados en la cláusula precedente o mediante su publicación en la intranet del Alumno. Del mismo modo, por el presente instrumento los Contratantes vienen en otorgar mandato a la Universidad de Artes, Ciencias y Comunicación - UNIACC para que envíe todos aquellos documentos de carácter académico, administrativo, financiero y de cualquier otra índole a uno o cualquiera de los correos electrónicos señalados en la cláusula precedente, pertenecientes al estudiante."
       ]
     },
     {
       "id": "decimo_noveno",
-      "titulo": "DÉCIMO NOVENO: Domicilio Convencional.",
+      "titulo": "VIGÉSIMO PRIMERO: Domicilio Convencional.",
       "parrafos": [
         "En este acto las partes fijan como domicilio la ciudad de Santiago y declaran que la ley aplicable será la ley chilena, en todo lo concerniente a la interpretación, ejecución y cumplimiento e incumplimiento del presente Contrato, sin perjuicio de lo establecido en el artículo 50 letra a) de la Ley sobre protección a los derechos del consumidor."
       ]
     },
     {
       "id": "vigesimo",
-      "titulo": "VIGÉSIMO: Exclusión de calidad de apoderado:",
+      "titulo": "VIGÉSIMO SEGUNDO: Exclusión de calidad de apoderado:",
       "parrafos": [
         "En este acto, el Estudiante o Alumno y/o el Sostenedor Financiero declaran expresamente que el Sostenedor Financiero, no tiene la calidad de apoderado académico del Estudiante o Alumno, que le permita solicitar información académica o curricular del Estudiante."
       ]
     },
     {
       "id": "vigesimo_primero",
-      "titulo": "VIGÉSIMO PRIMERO: Declaración.",
+      "titulo": "VIGÉSIMO TERCERO: Declaración.",
       "parrafos": [
         "Los Contratantes declaran haber leído detalladamente el presente Contrato, declarando su conformidad.",
         "El presente instrumento incluye el Anexo N° 1 denominado Requerimientos Técnicos Campus Virtual UNIACC. En señal de aceptación las partes Contratantes firman el presente Contrato y su Anexo original, en dos copias, quedando una copia en poder del Estudiante o Alumno y/o el Sostenedor Financiero, según corresponda, y la restante en poder de la Universidad."
@@ -243,9 +263,9 @@
           "Procesador Pentium® IV a 1.4 GHz o superior (recomendado procesador i3 o superior).",
           "Memoria RAM 4GB o superior (recomendado 8GB).",
           "Resolución de Pantalla 800x600 o superior (recomendado 1024 x 768).",
-          "Acceso a Internet de Banda Ancha: cursos sin videoconferencia 1Mb+ (recomendado 6Mb); con videoconferencia mínimo 2Mbps (recomendado 10Mbps). No se recomienda Banda Ancha Móvil.",
+          "Acceso a Internet de Banda Ancha: para cursos sin requerimiento de videoconferencias, 1 Mb o superior (recomendado 6 Mb); para cursos con demanda de videoconferencias, mínimo 2 Mbps (recomendado 10 Mbps). No se recomienda Banda Ancha Móvil por inestabilidad, cobertura e inconstancia en el ancho de banda.",
           "Microsoft Office 2010 o superior.",
-          "Navegador: Firefox 8+, Internet Explorer 8+, u otros (Safari, Chrome, Opera) en versión reciente.",
+          "Navegador: Firefox 8 o superior (recomendado Firefox 20 o superior), Internet Explorer 8 o superior (versión preferida 10). Otros navegadores pueden funcionar correctamente en sus últimas versiones: Safari, Google Chrome u Opera.",
           "Adobe Reader.",
           "Winzip o Winrar.",
           "Adobe Flash Player."
@@ -257,7 +277,7 @@
           "Micrófono",
           "Audífonos",
           "Webcam (resolución mínima de 800 x 600)",
-          "Internet Banda Ancha o Wi-Fi domiciliaria superior a 2Mbps (recomendado 10Mbps o superior)."
+          "Internet Banda Ancha o Wi-Fi domiciliaria superior a 2 Mbps (recomendado 10 Mbps o superior). No se recomienda el uso de Internet Banda Ancha Móvil por su conexión inestable."
         ]
       }
     ],
