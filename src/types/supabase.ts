@@ -1381,6 +1381,7 @@ export type Database = {
           p_periodo?: string | null;
           p_tipo?: string | null;
           p_estado?: string | null;
+          p_email_ejecutivo?: string | null;
         };
         Returns: MnpCasoRematriculaRow[];
       };
@@ -1402,6 +1403,7 @@ export type Database = {
         Args: {
           p_anio: number;
           p_semestre: number;
+          p_email_ejecutivo?: string | null;
         };
         Returns: KpiProgresoRematricula[];
       };
@@ -1411,6 +1413,7 @@ export type Database = {
           p_semestre: number;
           p_etapa?: string | null;
           p_q?: string | null;
+          p_email_ejecutivo?: string | null;
         };
         Returns: MnpProgresoRematriculaRow[];
       };

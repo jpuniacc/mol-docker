@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 
 import { admisionApiBaseUrl } from '@/constants/admisionApi'
+import { urlConCarteraEjecutivo } from '@/stores/carteraEjecutivo'
 
 function admisionUrl(path: string): string {
   const base = admisionApiBaseUrl().replace(/\/$/, '')
@@ -233,7 +234,9 @@ export function useMatriculados() {
       if (filters.fechaDesde) q.set('fechaDesde', filters.fechaDesde)
       if (filters.fechaHasta) q.set('fechaHasta', filters.fechaHasta)
 
-      const response = await fetch(admisionUrl('/api/matriculados?' + q.toString()))
+      const destino = urlConCarteraEjecutivo(admisionUrl('/api/matriculados?' + q.toString()))
+      if (typeof destino !== 'string') throw new Error(destino.error)
+      const response = await fetch(destino)
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`)
       }
@@ -276,7 +279,9 @@ export function useMatriculados() {
 
   async function fetchStats(): Promise<MatriculadosStats | null> {
     try {
-      const response = await fetch(admisionUrl('/api/matriculados/stats'))
+      const destino = urlConCarteraEjecutivo(admisionUrl('/api/matriculados/stats'))
+      if (typeof destino !== 'string') throw new Error(destino.error)
+      const response = await fetch(destino)
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`)
       }

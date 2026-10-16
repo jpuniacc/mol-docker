@@ -1,10 +1,18 @@
 import { supabase } from '@/services/supabaseClient'
+import { useCarteraEjecutivoStore } from '@/stores/carteraEjecutivo'
 import type {
   EtapaProgresoRematricula,
   KpiProgresoRematricula,
   MnpProgresoRematriculaRow,
   VLogMolSesionTimelineRow,
 } from '@/types/supabase'
+import { AVISO_CARTERA_SIN_CORREO } from '@/utils/alcanceCarteraEjecutivo'
+
+function correoEjecutivo(): { email: string | null } | { error: string } {
+  const cartera = useCarteraEjecutivoStore()
+  if (cartera.bloqueado) return { error: AVISO_CARTERA_SIN_CORREO }
+  return { email: cartera.emailConsulta }
+}
 
 export async function refreshProgresoRematricula(
   anio: number,
@@ -21,9 +29,12 @@ export async function fetchKpiProgresoRematricula(
   anio: number,
   semestre: number,
 ): Promise<{ data: KpiProgresoRematricula | null; error: string | null }> {
+  const alcance = correoEjecutivo()
+  if ('error' in alcance) return { data: null, error: alcance.error }
   const { data, error } = await supabase.rpc('kpi_mnp_progreso_rematricula', {
     p_anio: anio,
     p_semestre: semestre,
+    p_email_ejecutivo: alcance.email,
   })
   const row = Array.isArray(data) ? data[0] : null
   return {
@@ -40,11 +51,14 @@ export async function listarProgresoRematricula(
     q?: string | null
   },
 ): Promise<{ data: MnpProgresoRematriculaRow[]; error: string | null }> {
+  const alcance = correoEjecutivo()
+  if ('error' in alcance) return { data: [], error: alcance.error }
   const { data, error } = await supabase.rpc('listar_mnp_progreso_rematricula', {
     p_anio: anio,
     p_semestre: semestre,
     p_etapa: filtros?.etapa ?? null,
     p_q: filtros?.q ?? null,
+    p_email_ejecutivo: alcance.email,
   })
   return {
     data: (data ?? []) as MnpProgresoRematriculaRow[],

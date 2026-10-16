@@ -1,4 +1,5 @@
 import { admisionApiBaseUrl } from '@/constants/admisionApi'
+import { urlConCarteraEjecutivo } from '@/stores/carteraEjecutivo'
 import type { ContratoMatriculaViewModel } from '@/types/contratoMatricula'
 
 export type ContratoFirmaEnsureRequest = ContratoMatriculaViewModel & {
@@ -185,7 +186,9 @@ export async function listContratoFirmas(): Promise<{
   error?: string
 }> {
   try {
-    const res = await fetchWithTimeout(firmaUrl(''), { method: 'GET' })
+    const destino = urlConCarteraEjecutivo(firmaUrl(''))
+    if (typeof destino !== 'string') return { ok: false, data: [], error: destino.error }
+    const res = await fetchWithTimeout(destino, { method: 'GET' })
     let data: unknown
     try {
       data = await res.json()

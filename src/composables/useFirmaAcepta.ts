@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 
 import { admisionApiBaseUrl } from '@/constants/admisionApi'
+import { urlConCarteraEjecutivo } from '@/stores/carteraEjecutivo'
 
 export interface FirmaAceptaRow {
   ano_mat: number
@@ -105,7 +106,9 @@ export function useFirmaAcepta() {
     loading.value = true
     error.value = null
     try {
-      const response = await fetch(`${admisionApiBaseUrl()}/api/firma-acepta`)
+      const destino = urlConCarteraEjecutivo(`${admisionApiBaseUrl()}/api/firma-acepta`)
+      if (typeof destino !== 'string') throw new Error(destino.error)
+      const response = await fetch(destino)
       const json = (await response.json()) as {
         data?: unknown[]
         total?: number

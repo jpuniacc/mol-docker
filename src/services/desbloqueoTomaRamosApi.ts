@@ -1,4 +1,5 @@
 import { admisionApiBaseUrl } from '@/constants/admisionApi'
+import { urlConCarteraEjecutivo } from '@/stores/carteraEjecutivo'
 
 export type DesbloqueoTomaRamosFila = {
   id: number
@@ -33,7 +34,9 @@ async function leerJson<T>(res: Response): Promise<T | null> {
 export async function listarDesbloqueoTomaRamos(): Promise<
   { ok: true; filas: DesbloqueoTomaRamosFila[] } | { ok: false; message: string }
 > {
-  const res = await fetch(`${admisionApiBaseUrl()}/api/rematricula/desbloqueo-toma-ramos`)
+  const destino = urlConCarteraEjecutivo(`${admisionApiBaseUrl()}/api/rematricula/desbloqueo-toma-ramos`)
+  if (typeof destino !== 'string') return { ok: false, message: destino.error }
+  const res = await fetch(destino)
   const body = await leerJson<{ ok?: boolean; filas?: DesbloqueoTomaRamosFila[]; message?: string }>(
     res,
   )
@@ -67,9 +70,11 @@ export async function buscarDesbloqueoTomaRamos(rut: string): Promise<
   | { ok: false; message: string }
 > {
   const params = new URLSearchParams({ rut })
-  const res = await fetch(
+  const destino = urlConCarteraEjecutivo(
     `${admisionApiBaseUrl()}/api/rematricula/desbloqueo-toma-ramos/buscar?${params}`,
   )
+  if (typeof destino !== 'string') return { ok: false, message: destino.error }
+  const res = await fetch(destino)
   const body = await leerJson<{
     ok?: boolean
     message?: string
@@ -94,7 +99,11 @@ export async function importarDesbloqueoTomaRamos(
   filas: FilaDesbloqueoEntrada[],
   actualizadoPor: string,
 ): Promise<{ ok: boolean; insertadas: number; errores: string[]; message?: string }> {
-  const res = await fetch(`${admisionApiBaseUrl()}/api/rematricula/desbloqueo-toma-ramos/importar`, {
+  const destino = urlConCarteraEjecutivo(`${admisionApiBaseUrl()}/api/rematricula/desbloqueo-toma-ramos/importar`)
+  if (typeof destino !== 'string') {
+    return { ok: false, insertadas: 0, errores: [], message: destino.error }
+  }
+  const res = await fetch(destino, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ filas, actualizadoPor }),
@@ -116,7 +125,9 @@ export async function importarDesbloqueoTomaRamos(
 export async function desbloquearTomaRamos(input: FilaDesbloqueoEntrada & { actualizadoPor: string }): Promise<
   { ok: true } | { ok: false; message: string }
 > {
-  const res = await fetch(`${admisionApiBaseUrl()}/api/rematricula/desbloqueo-toma-ramos/desbloquear`, {
+  const destino = urlConCarteraEjecutivo(`${admisionApiBaseUrl()}/api/rematricula/desbloqueo-toma-ramos/desbloquear`)
+  if (typeof destino !== 'string') return { ok: false, message: destino.error }
+  const res = await fetch(destino, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
@@ -129,7 +140,9 @@ export async function desbloquearTomaRamos(input: FilaDesbloqueoEntrada & { actu
 export async function bloquearTomaRamos(input: FilaDesbloqueoEntrada & { actualizadoPor: string }): Promise<
   { ok: true } | { ok: false; message: string }
 > {
-  const res = await fetch(`${admisionApiBaseUrl()}/api/rematricula/desbloqueo-toma-ramos/bloquear`, {
+  const destino = urlConCarteraEjecutivo(`${admisionApiBaseUrl()}/api/rematricula/desbloqueo-toma-ramos/bloquear`)
+  if (typeof destino !== 'string') return { ok: false, message: destino.error }
+  const res = await fetch(destino, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
@@ -142,7 +155,9 @@ export async function bloquearTomaRamos(input: FilaDesbloqueoEntrada & { actuali
 }
 
 export async function quitarDesbloqueoTomaRamos(id: number): Promise<{ ok: true } | { ok: false; message: string }> {
-  const res = await fetch(`${admisionApiBaseUrl()}/api/rematricula/desbloqueo-toma-ramos/${id}`, {
+  const destino = urlConCarteraEjecutivo(`${admisionApiBaseUrl()}/api/rematricula/desbloqueo-toma-ramos/${id}`)
+  if (typeof destino !== 'string') return { ok: false, message: destino.error }
+  const res = await fetch(destino, {
     method: 'DELETE',
   })
   const body = await leerJson<{ ok?: boolean; message?: string }>(res)

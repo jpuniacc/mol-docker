@@ -1,4 +1,5 @@
 import { admisionApiBaseUrl } from '@/constants/admisionApi'
+import { urlConCarteraEjecutivo } from '@/stores/carteraEjecutivo'
 
 export type EncuestaDiscapacidadFila = {
   id: string
@@ -31,7 +32,9 @@ export async function listarEncuestaDiscapacidad(): Promise<
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 60_000)
   try {
-    const res = await fetch(`${admisionApiBaseUrl()}/api/rematricula/discapacidad/encuesta`, {
+    const destino = urlConCarteraEjecutivo(`${admisionApiBaseUrl()}/api/rematricula/discapacidad/encuesta`)
+    if (typeof destino !== 'string') return { ok: false, error: destino.error }
+    const res = await fetch(destino, {
       signal: controller.signal,
     })
     let body: unknown

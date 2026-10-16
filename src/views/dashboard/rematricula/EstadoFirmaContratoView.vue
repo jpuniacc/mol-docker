@@ -22,6 +22,7 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet'
 import { admisionApiBaseUrl } from '@/constants/admisionApi'
+import { urlConCarteraEjecutivo } from '@/stores/carteraEjecutivo'
 
 const { data, total, lastSync, loading, syncing, hasNewData, error, fetchFirmaAcepta, syncFirmaAceptaBackground } = useFirmaAcepta()
 const { nextRefreshMessage } = useAutoRefresh()
@@ -29,8 +30,11 @@ const { nextRefreshMessage } = useAutoRefresh()
 // PDFs servidos por uniacc-api (filesystem bajo STORAGE_PATH)
 function verDocumentoFirmado(tipo: 'contratos' | 'mandatos', rut: string | null, codigo: string | null) {
   if (!rut || !codigo) return
-  const url = `${admisionApiBaseUrl()}/api/firma-acepta/documento/${tipo}/${rut}/${codigo}`
-  window.open(url, '_blank')
+  const destino = urlConCarteraEjecutivo(
+    `${admisionApiBaseUrl()}/api/firma-acepta/documento/${tipo}/${rut}/${codigo}`,
+  )
+  if (typeof destino !== 'string') return
+  window.open(destino, '_blank')
 }
 
 // Filtros

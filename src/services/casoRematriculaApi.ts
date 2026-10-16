@@ -1,4 +1,6 @@
 import { supabase } from '@/services/supabaseClient'
+import { useCarteraEjecutivoStore } from '@/stores/carteraEjecutivo'
+import { AVISO_CARTERA_SIN_CORREO } from '@/utils/alcanceCarteraEjecutivo'
 import type {
   MnpCasoRematriculaEstado,
   MnpCasoRematriculaRow,
@@ -63,10 +65,13 @@ export async function listarCasosRematricula(filtros?: {
   tipo?: string | null
   estado?: string | null
 }): Promise<{ data: MnpCasoRematriculaRow[]; error: string | null }> {
+  const cartera = useCarteraEjecutivoStore()
+  if (cartera.bloqueado) return { data: [], error: AVISO_CARTERA_SIN_CORREO }
   const { data, error } = await supabase.rpc('listar_mnp_casos_rematricula', {
     p_periodo: filtros?.periodo ?? null,
     p_tipo: filtros?.tipo ?? null,
     p_estado: filtros?.estado ?? null,
+    p_email_ejecutivo: cartera.emailConsulta,
   })
   return {
     data: (data ?? []) as MnpCasoRematriculaRow[],
