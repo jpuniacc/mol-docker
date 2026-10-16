@@ -1,5 +1,17 @@
 import { admisionApiBaseUrl } from '@/constants/admisionApi'
 
+export type ApoderadoPreviewResponse = {
+  ok: boolean
+  nuevo?: {
+    nombre: string
+    telefono: string
+    email: string
+  }
+  puedeConfirmar?: boolean
+  error?: string
+  code?: string
+}
+
 export type ApoderadoRefreshResponse = {
   ok: boolean
   apoderado?: {
@@ -25,6 +37,18 @@ export type ApoderadoRefreshResponse = {
 
 const TIMEOUT_MS = 60_000
 
+export async function previewApoderadoFromErp(input: {
+  codcli: string
+  casoId?: string | null
+  rutAlumno?: string | null
+  nombreAlumno?: string | null
+  carrera?: string | null
+  jornada?: string | null
+  esMock?: boolean
+}): Promise<ApoderadoPreviewResponse> {
+  return postApoderado('/api/rematricula/apoderado/preview-from-erp', input)
+}
+
 export async function refreshApoderadoFromErp(input: {
   codcli: string
   casoId?: string | null
@@ -34,8 +58,23 @@ export async function refreshApoderadoFromErp(input: {
   jornada?: string | null
   esMock?: boolean
 }): Promise<ApoderadoRefreshResponse> {
+  return postApoderado('/api/rematricula/apoderado/refresh-from-erp', input)
+}
+
+async function postApoderado(
+  path: string,
+  input: {
+    codcli: string
+    casoId?: string | null
+    rutAlumno?: string | null
+    nombreAlumno?: string | null
+    carrera?: string | null
+    jornada?: string | null
+    esMock?: boolean
+  },
+): Promise<ApoderadoRefreshResponse & ApoderadoPreviewResponse> {
   const base = admisionApiBaseUrl()
-  const url = `${base}/api/rematricula/apoderado/refresh-from-erp`
+  const url = `${base}${path}`
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
@@ -70,10 +109,10 @@ export async function refreshApoderadoFromErp(input: {
 
     if (!res.ok) {
       return {
+        ...body,
         ok: false,
         error: body.error || `Error HTTP ${res.status}`,
         code: body.code,
-        ...body,
       }
     }
 

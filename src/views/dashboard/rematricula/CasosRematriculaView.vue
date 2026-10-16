@@ -16,6 +16,14 @@ import { toast } from 'vue-sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -36,7 +44,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { listarCasosRematricula, resolverCasoRematricula } from '@/services/casoRematriculaApi'
-import { refreshApoderadoFromErp } from '@/services/apoderadoRefreshFromErpApi'
+import { refreshApoderadoFromErp, previewApoderadoFromErp } from '@/services/apoderadoRefreshFromErpApi'
 import {
   listContratoFirmas,
   type ContratoFirmaFirmanteEstado,
@@ -48,6 +56,11 @@ import { fetchKpiProgresoRematricula, refreshProgresoRematricula } from '@/servi
 import { supabase } from '@/services/supabaseClient'
 import { useAuthStore } from '@/stores/auth'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
+import {
+  antiguoDesdePayload,
+  cierraCasoTrasConfirmar,
+  datoVisible,
+} from '@/utils/comparacionApoderado'
 import type {
   EtapaProgresoRematricula,
   KpiProgresoRematricula,
@@ -96,6 +109,12 @@ const detalleOpen = ref(false)
 const motivo = ref('')
 const resolviendo = ref(false)
 const actualizandoApoderado = ref(false)
+const comparacionOpen = ref(false)
+const comparacion = ref<{
+  row: MnpCasoRematriculaRow
+  nuevo: { nombre: string; telefono: string; email: string }
+  puedeConfirmar: boolean
+} | null>(null)
 const urlArchivo = ref<string | null>(null)
 const archivoConsultado = ref(false)
 const apoderadoRefrescado = ref<{
@@ -272,17 +291,6 @@ function payloadTexto(row: MnpCasoRematriculaRow, key: string): string | null {
   return typeof v === 'string' && v.trim() ? v : null
 }
 
-function nombreApoderadoDesdeErp(apo: {
-  nombreApoderado: string | null
-  apellidoPaternoApoderado: string | null
-  apellidoMaternoApoderado: string | null
-}): string {
-  return [apo.nombreApoderado, apo.apellidoPaternoApoderado, apo.apellidoMaternoApoderado]
-    .filter((p): p is string => Boolean(p && p.trim()))
-    .join(' ')
-    .trim()
-}
-
 function quienFaltaFirma(firmantes: ContratoFirmaFirmanteEstado[]): string {
   return firmantes.filter((f) => !f.ready).map((f) => f.rol).join(', ') || '—'
 }
@@ -418,7 +426,11 @@ async function cargar() {
   await Promise.all([cargarCasos(), cargarFirmas(), cargarKpi()])
 }
 
-async function actualizarDatosApoderado(rowOrigen?: MnpCasoRematriculaRow | null) {
+function nombreApoderadoVisible(row: MnpCasoRematriculaRow) {
+  return antiguoDesdePayload(row.payload)
+}
+
+async function consultarDatosApoderado(rowOrigen?: MnpCasoRematriculaRow | null) {
   const row = rowOrigen ?? seleccionado.value
   if (!row || row.tipo !== 'APODERADO_DATOS' || row.estado !== 'EN_REVISION') return
   if (!row.codcli?.trim()) {
@@ -427,9 +439,43 @@ async function actualizarDatosApoderado(rowOrigen?: MnpCasoRematriculaRow | null
   }
   actualizandoApoderado.value = true
   try {
-    if (seleccionado.value?.id !== row.id) {
-      await abrirDetalle(row)
+    const visto = await previewApoderadoFromErp({
+      codcli: row.codcli,
+      casoId: row.id,
+      rutAlumno: row.rut_alumno,
+      nombreAlumno: row.nombre_alumno,
+      carrera: row.carrera,
+      jornada: row.jornada,
+    })
+    if (!visto.ok || !visto.nuevo) {
+      toast.error(visto.error || 'No se pudo consultar el ERP.')
+      return
     }
+    comparacion.value = {
+      row,
+      nuevo: visto.nuevo,
+      puedeConfirmar: visto.puedeConfirmar === true,
+    }
+    comparacionOpen.value = true
+  } finally {
+    actualizandoApoderado.value = false
+  }
+}
+
+function cerrarComparacion() {
+  comparacionOpen.value = false
+}
+
+function onComparacionOpenChange(abierto: boolean) {
+  if (!abierto) cerrarComparacion()
+}
+
+async function confirmarDatosApoderado() {
+  const actual = comparacion.value
+  if (!actual?.puedeConfirmar) return
+  const row = actual.row
+  actualizandoApoderado.value = true
+  try {
     const refreshed = await refreshApoderadoFromErp({
       codcli: row.codcli,
       casoId: row.id,
@@ -438,16 +484,10 @@ async function actualizarDatosApoderado(rowOrigen?: MnpCasoRematriculaRow | null
       carrera: row.carrera,
       jornada: row.jornada,
     })
-    if (!refreshed.ok || !refreshed.apoderado) {
-      toast.error(refreshed.error || 'No se pudo actualizar desde el ERP.')
+    if (!cierraCasoTrasConfirmar(refreshed)) {
+      toast.error(refreshed.error || 'No se pudo encolar el aviso al alumno.')
       return
     }
-    const apo = refreshed.apoderado
-    const nombre = nombreApoderadoDesdeErp(apo) || '—'
-    const telefono = apo.telefonoApoder || apo.telefonoApoderado || '—'
-    const email = apo.mailApoder || '—'
-    apoderadoRefrescado.value = { nombre, telefono, email }
-
     const quien = auth.email?.trim() || auth.displayNombreCompleto?.trim() || 'consejero'
     const { error } = await resolverCasoRematricula({
       id: row.id,
@@ -459,7 +499,8 @@ async function actualizarDatosApoderado(rowOrigen?: MnpCasoRematriculaRow | null
       toast.error(`Datos actualizados en MOL, pero no se pudo cerrar el caso: ${error}`)
       return
     }
-    toast.success(`Datos actualizados: ${nombre}. Queda en Resueltos.`)
+    toast.success('Datos actualizados. El alumno puede continuar la rematrícula.')
+    cerrarComparacion()
     onDetalleOpenChange(false)
     await cargarCasos()
   } finally {
@@ -703,7 +744,7 @@ onMounted(() => {
                     size="sm"
                     class="cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90"
                     :disabled="actualizandoApoderado"
-                    @click="actualizarDatosApoderado(row)"
+                    @click="consultarDatosApoderado(row)"
                   >
                     {{ actualizandoApoderado ? '…' : 'Datos actualizados' }}
                   </Button>
@@ -1023,7 +1064,7 @@ onMounted(() => {
               type="button"
               class="cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90"
               :disabled="actualizandoApoderado || resolviendo"
-              @click="actualizarDatosApoderado()"
+              @click="consultarDatosApoderado()"
             >
               {{ actualizandoApoderado ? 'Actualizando…' : 'Datos actualizados' }}
             </Button>
@@ -1063,5 +1104,62 @@ onMounted(() => {
         </SheetFooter>
       </SheetContent>
     </Sheet>
+
+    <Dialog :open="comparacionOpen" @update:open="onComparacionOpenChange">
+      <DialogContent class="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Datos del apoderado</DialogTitle>
+          <DialogDescription>
+            {{ comparacion?.row.nombre_alumno || 'Alumno' }}. Nada se guarda hasta confirmar.
+          </DialogDescription>
+        </DialogHeader>
+        <div v-if="comparacion" class="grid gap-3 sm:grid-cols-2">
+          <div class="rounded-lg border border-zinc-200 p-3 text-sm">
+            <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Vistos por el alumno
+            </p>
+            <p class="mt-3 text-xs text-zinc-500">Nombre</p>
+            <p class="font-semibold text-zinc-900">
+              {{ datoVisible(nombreApoderadoVisible(comparacion.row).nombre) }}
+            </p>
+            <p class="mt-3 text-xs text-zinc-500">Teléfono</p>
+            <p class="font-semibold text-zinc-900">
+              {{ datoVisible(nombreApoderadoVisible(comparacion.row).telefono) }}
+            </p>
+            <p class="mt-3 text-xs text-zinc-500">Correo</p>
+            <p class="font-semibold text-zinc-900">
+              {{ datoVisible(nombreApoderadoVisible(comparacion.row).email) }}
+            </p>
+          </div>
+          <div class="rounded-lg border border-[#E8621A] bg-[#fff7f2] p-3 text-sm">
+            <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Nuevos en el ERP
+            </p>
+            <p class="mt-3 text-xs text-zinc-500">Nombre</p>
+            <p class="font-semibold text-zinc-900">{{ datoVisible(comparacion.nuevo.nombre) }}</p>
+            <p class="mt-3 text-xs text-zinc-500">Teléfono</p>
+            <p class="font-semibold text-zinc-900">{{ datoVisible(comparacion.nuevo.telefono) }}</p>
+            <p class="mt-3 text-xs text-zinc-500">Correo</p>
+            <p class="font-semibold text-zinc-900">{{ datoVisible(comparacion.nuevo.email) }}</p>
+          </div>
+        </div>
+        <p v-if="comparacion && !comparacion.puedeConfirmar" class="text-sm text-amber-800">
+          Falta el correo personal validado del alumno. Confirmar queda deshabilitado.
+        </p>
+        <DialogFooter>
+          <Button type="button" variant="outline" class="cursor-pointer" @click="cerrarComparacion">
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            class="cursor-pointer bg-uniacc-orange text-white hover:bg-uniacc-orange/90"
+            :disabled="!comparacion?.puedeConfirmar || actualizandoApoderado"
+            @click="confirmarDatosApoderado"
+          >
+            {{ actualizandoApoderado ? 'Confirmando…' : 'Confirmar' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
