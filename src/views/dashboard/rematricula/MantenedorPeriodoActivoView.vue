@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 import { CheckCircle2, RefreshCw } from 'lucide-vue-next'
 
 import { Badge } from '@/components/ui/badge'
@@ -62,7 +63,7 @@ async function alternarPromediosCerrados() {
   if (ok) {
     toast.success(!actual ? 'Promedios marcados como cerrados.' : 'Promedios marcados como abiertos.')
   } else {
-    toast.error(store.error ?? 'No se pudo actualizar el cierre de promedios.')
+    mostrarErrorRematricula(store.error ?? 'No se pudo actualizar el cierre de promedios.')
   }
 }
 
@@ -85,7 +86,7 @@ async function confirmarActivacion() {
       confirmOpen.value = false
       pendingRow.value = null
     } else {
-      toast.error(store.error ?? 'No se pudo activar el periodo')
+      mostrarErrorRematricula(store.error ?? 'No se pudo activar el periodo')
     }
   } finally {
     activating.value = false

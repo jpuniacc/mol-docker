@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -86,7 +86,7 @@ async function cargar(): Promise<void> {
   try {
     const res = await listContratoFirmas()
     if (!res.ok) {
-      toast.error(res.error ?? 'No se pudo cargar el listado de firmas.')
+      mostrarErrorRematricula(res.error ?? 'No se pudo cargar el listado de firmas.')
       rows.value = []
       return
     }
@@ -115,8 +115,13 @@ async function abrirDetalle(row: ContratoFirmaListRow): Promise<void> {
     if (isPdfFetchStale(generation, numOperacion) || controller.signal.aborted) return
 
     if (!res.ok) {
-      pdfError.value = res.error
-      toast.error(res.error)
+      pdfError.value = `No pudimos traer el contrato de la operación ${numOperacion}. El registro sigue aquí.`
+      mostrarErrorRematricula(res.error, {
+        numOperacion: String(numOperacion),
+        reintentar: () => {
+          void abrirDetalle(row)
+        },
+      })
       return
     }
     pdfUrl.value = URL.createObjectURL(res.blob)

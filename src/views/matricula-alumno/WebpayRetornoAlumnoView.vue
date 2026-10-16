@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Loader2 } from 'lucide-vue-next'
-import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -88,7 +88,7 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
   const medioMatricula = alumnoCtx.medioMatricula
   const medioArancel: MedioConcepto | null = alumnoCtx.medioArancel
   if (medioMatricula == null) {
-    toast.error('No encontramos cómo seguir con el pago.')
+    mostrarErrorRematricula('No encontramos cómo seguir con el pago.')
     mostrarReintentar.value = true
     return
   }
@@ -105,7 +105,7 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
     const monto =
       paso.concepto === 'matricula' ? alumnoCtx.webpayMontoMatricula : alumnoCtx.webpayMontoArancel
     if (monto == null || !Number.isInteger(monto) || monto <= 0) {
-      toast.error('No encontramos el monto del siguiente pago.')
+      mostrarErrorRematricula('No encontramos el monto del siguiente pago.')
       mostrarReintentar.value = true
       return
     }
@@ -117,7 +117,7 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
       monto,
     })
     if (!creado.ok) {
-      toast.error(creado.error)
+      mostrarErrorRematricula(creado.error)
       mostrarReintentar.value = true
       return
     }
@@ -150,7 +150,7 @@ function alDescargar(): void {
   try {
     descargarVoucherWebpay(voucher.value)
   } catch {
-    toast.error('No se pudo descargar el voucher.')
+    mostrarErrorRematricula('No se pudo descargar el voucher.')
   }
 }
 

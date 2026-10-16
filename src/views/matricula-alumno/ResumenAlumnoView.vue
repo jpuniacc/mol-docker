@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Download, Loader2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -62,7 +63,7 @@ watch(
     void postGrabarPlanPagos(armado.payload).then((res) => {
       if (!res.ok) {
         grabacionIniciada.value = false
-        toast.error(res.error)
+        mostrarErrorRematricula(res.error)
         return
       }
       if (!res.already) toast.success('Plan de pagos guardado en TEST.')
@@ -201,7 +202,7 @@ async function descargarContrato(): Promise<void> {
   const numOp = (alumnoCtx.pagoMatricula?.numOperacion ?? vm?.numOperacion ?? '').trim()
   const operacionValida = numOp.length > 0 && numOp !== '—'
   if (!vm && !operacionValida) {
-    toast.error('Confirma el plan de pagos antes de descargar el contrato.')
+    mostrarErrorRematricula('Confirma el plan de pagos antes de descargar el contrato.')
     return
   }
 
@@ -217,13 +218,13 @@ async function descargarContrato(): Promise<void> {
     }
 
     if (!vm) {
-      toast.error('No se pudo descargar el contrato.')
+      mostrarErrorRematricula('No se pudo descargar el contrato.')
       return
     }
 
     const res = await downloadContratoPreviewPdf(vm)
     if (!res.ok || !res.blob) {
-      toast.error(res.error || 'No se pudo generar el contrato')
+      mostrarErrorRematricula(res.error || 'No se pudo generar el contrato')
       return
     }
     guardarPdf(res.blob, `contrato-${operacionValida ? numOp : 'borrador'}.pdf`)

@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 import { RefreshCw, Save } from 'lucide-vue-next'
 
 import { Button } from '@/components/ui/button'
@@ -66,16 +67,16 @@ function parseSegundos(
 ): number | null {
   const trimmed = String(raw ?? '').trim()
   if (!trimmed) {
-    toast.error(`${label}: ingresa un número entero válido.`)
+    mostrarErrorRematricula(`${label}: ingresa un número entero válido.`)
     return null
   }
   const n = Number.parseInt(trimmed, 10)
   if (!Number.isFinite(n) || String(n) !== trimmed) {
-    toast.error(`${label}: ingresa un número entero válido.`)
+    mostrarErrorRematricula(`${label}: ingresa un número entero válido.`)
     return null
   }
   if (n < min || n > max) {
-    toast.error(`${label}: debe estar entre ${min} y ${max} segundos.`)
+    mostrarErrorRematricula(`${label}: debe estar entre ${min} y ${max} segundos.`)
     return null
   }
   return n
@@ -160,7 +161,7 @@ async function confirmarGuardar() {
     confirmSaveOpen.value = false
     syncDraftFromStore()
   } else {
-    toast.error(store.error ?? 'No se pudo guardar.')
+    mostrarErrorRematricula(store.error ?? 'No se pudo guardar.')
   }
 }
 

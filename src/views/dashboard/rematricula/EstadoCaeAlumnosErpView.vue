@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 import { CloudDownload, RefreshCw, Search } from 'lucide-vue-next'
 
 import { Button } from '@/components/ui/button'
@@ -46,7 +47,7 @@ async function cargarDatos() {
 async function actualizarDesdeErp() {
   const result = await store.syncFromErp()
   if (!result.ok) {
-    toast.error(result.error ?? 'No se pudo actualizar desde ERP')
+    mostrarErrorRematricula(result.error ?? 'No se pudo actualizar desde ERP')
     return
   }
   const periodo = result.periodo ? ` (${result.periodo})` : ''

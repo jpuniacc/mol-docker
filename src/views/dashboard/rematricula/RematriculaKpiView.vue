@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ChevronRight, GraduationCap, Layers, Users } from 'lucide-vue-next'
-import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -154,7 +154,7 @@ async function abrirDetalle(fila: MnpProgresoRematriculaRow) {
       periodoActivo.semestre!,
     )
     if (error) {
-      toast.error(`Error al cargar el detalle: ${error}`)
+      mostrarErrorRematricula(`Error al cargar el detalle: ${error}`)
       timelineError.value = true
       return
     }
@@ -183,7 +183,7 @@ async function cargarEtapa(etapa: EtapaProgresoRematricula) {
   cargandoEtapa.value = null
   if (error) {
     errorEtapa.value = error
-    toast.error(`Error al cargar alumnos: ${error}`)
+    mostrarErrorRematricula(`Error al cargar alumnos: ${error}`)
     return
   }
   alumnosPorEtapa.value = {
@@ -215,7 +215,7 @@ async function cargarKpi() {
       periodoActivo.semestre!
     )
     if (error) {
-      toast.error(`Error al cargar KPI: ${error}`)
+      mostrarErrorRematricula(`Error al cargar KPI: ${error}`)
       return
     }
     kpi.value = data
@@ -234,7 +234,7 @@ async function actualizarProgreso() {
       periodoActivo.semestre!
     )
     if (error) {
-      toast.error(`Error al actualizar progreso: ${error}`)
+      mostrarErrorRematricula(`Error al actualizar progreso: ${error}`)
       return
     }
     

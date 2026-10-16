@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { FileDown, FileUp, RefreshCw, Search, Trash2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -104,19 +105,19 @@ function onArchivo(ev: Event) {
 
 async function subirExcel() {
   if (!archivo.value) {
-    toast.error('Selecciona un archivo Excel')
+    mostrarErrorRematricula('Selecciona un archivo Excel')
     return
   }
   importando.value = true
   try {
     const parsed = filasDesdeExcel(await archivo.value.arrayBuffer())
     if (parsed.error) {
-      toast.error(parsed.error)
+      mostrarErrorRematricula(parsed.error)
       return
     }
     const result = await importarDesbloqueoTomaRamos(parsed.filas, actor.value)
     if (result.insertadas === 0) {
-      toast.error(result.errores[0] ?? result.message ?? 'No se cargó ninguna fila')
+      mostrarErrorRematricula(result.errores[0] ?? result.message ?? 'No se cargó ninguna fila')
       return
     }
     toast.success(`Desbloqueados: ${result.insertadas}`)
@@ -136,7 +137,7 @@ async function buscar() {
   try {
     const result = await buscarDesbloqueoTomaRamos(rutBusqueda.value)
     if (!result.ok) {
-      toast.error(result.message)
+      mostrarErrorRematricula(result.message)
       return
     }
     busqueda.value = {
@@ -158,7 +159,7 @@ async function desbloquearFila(fila: { rutCuerpo: string; dv: string; codcli: st
     actualizadoPor: actor.value,
   })
   if (!result.ok) {
-    toast.error(result.message)
+    mostrarErrorRematricula(result.message)
     return
   }
   toast.success('Alumno desbloqueado en MOL')
@@ -183,7 +184,7 @@ async function bloquear(fila: DesbloqueoTomaRamosFila) {
     actualizadoPor: actor.value,
   })
   if (!result.ok) {
-    toast.error(result.message)
+    mostrarErrorRematricula(result.message)
     return
   }
   toast.success('El pago vuelve a exigir la regularización de deuda')
@@ -194,7 +195,7 @@ async function bloquear(fila: DesbloqueoTomaRamosFila) {
 async function quitar(fila: DesbloqueoTomaRamosFila) {
   const result = await quitarDesbloqueoTomaRamos(fila.id)
   if (!result.ok) {
-    toast.error(result.message)
+    mostrarErrorRematricula(result.message)
     return
   }
   toast.success('Fila quitada')

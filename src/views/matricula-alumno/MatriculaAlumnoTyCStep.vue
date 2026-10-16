@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 
 import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
 import RichTextContent from '@/components/rich-text/RichTextContent.vue'
@@ -95,7 +96,7 @@ async function registrarAccionTyC(accion: TyCAccionLog): Promise<boolean> {
 
   if (err) {
     console.warn('[tycAudit]', err)
-    toast.error('No se pudo registrar la respuesta de TyC en auditoría.')
+    mostrarErrorRematricula('No se pudo registrar la respuesta de TyC en auditoría.')
     return false
   }
   return true

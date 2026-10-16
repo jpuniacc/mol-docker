@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 import { Copy, RefreshCw, Search } from 'lucide-vue-next'
 
 import { Button } from '@/components/ui/button'
@@ -101,7 +102,7 @@ async function onVigente(row: MnpMvBeneficioPeriodoRow, aplica: boolean): Promis
   const res = await actualizarAplicaBeneficioPeriodo(row.id, aplica)
   savingId.value = null
   if (res.error) {
-    toast.error(res.error)
+    mostrarErrorRematricula(res.error)
     return
   }
   row.aplica = aplica
@@ -118,7 +119,7 @@ async function confirmarCopia(): Promise<void> {
   const res = await copiarBeneficioPeriodo(periodo.value, destino.value)
   copying.value = false
   if (res.error) {
-    toast.error(res.error)
+    mostrarErrorRematricula(res.error)
     return
   }
   const nuevo = destino.value.trim()

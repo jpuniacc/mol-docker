@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -317,12 +318,12 @@ function codCarrParaPreflight(): string {
 async function asegurarPreflightPagare(force = false): Promise<boolean> {
   const rut = rutMostrado.value
   if (!rut || rut === '—') {
-    toast.error('Sin RUT para consultar correlativos ERP')
+    mostrarErrorRematricula('Sin RUT para consultar correlativos ERP')
     return false
   }
   const codCarr = codCarrParaPreflight()
   if (!codCarr) {
-    toast.error('Sin código de carrera para preflight ERP')
+    mostrarErrorRematricula('Sin código de carrera para preflight ERP')
     return false
   }
   if (!force && corrpagnumPreview.value) return true
@@ -339,7 +340,7 @@ async function asegurarPreflightPagare(force = false): Promise<boolean> {
     error: preflight.error,
   })
   if (!ok || !corrpagnumPreview.value) {
-    toast.error(preflight.error || 'No se pudo obtener CORRPAGNUM del preflight ERP')
+    mostrarErrorRematricula(preflight.error || 'No se pudo obtener CORRPAGNUM del preflight ERP')
     return false
   }
   return true
@@ -350,12 +351,12 @@ async function generarCuotasPagare() {
   const dia = diaVencimientoActual()
   const hoy = hoyIsoLocal()
   if (!fecha || fecha < hoy) {
-    toast.error('Fecha de inicio inválida')
+    mostrarErrorRematricula('Fecha de inicio inválida')
     sincronizarFechaInicioConDiaVencimiento()
     return
   }
   if (Number(fecha.slice(8, 10)) !== dia) {
-    toast.error(`La fecha de inicio debe caer el día ${dia}`)
+    mostrarErrorRematricula(`La fecha de inicio debe caer el día ${dia}`)
     sincronizarFechaInicioConDiaVencimiento()
     return
   }
@@ -365,7 +366,7 @@ async function generarCuotasPagare() {
 
   const corrpag = (corrpagnumPreview.value ?? '').trim()
   if (!/^\d+$/.test(corrpag)) {
-    toast.error('Falta peek CORRPAGNUM del preflight')
+    mostrarErrorRematricula('Falta peek CORRPAGNUM del preflight')
     return
   }
 
@@ -373,7 +374,7 @@ async function generarCuotasPagare() {
   try {
     corrpagAra = incrementPeek(corrpag, 1)
   } catch {
-    toast.error('Peek CORRPAGNUM no numérico')
+    mostrarErrorRematricula('Peek CORRPAGNUM no numérico')
     return
   }
 
@@ -387,7 +388,7 @@ async function generarCuotasPagare() {
     n: totalCuotasActual(),
   })
   if (!result.ok) {
-    toast.error(result.error)
+    mostrarErrorRematricula(result.error)
     return
   }
 
@@ -685,7 +686,7 @@ async function onConvenioSubido(payload: {
   alumnoCtx.setConvenioDocumento(payload.convenioId, payload.doc)
   const refId = payload.documentoId?.trim() || payload.doc.storagePath?.trim()
   if (!refId) {
-    toast.error('No se pudo abrir el caso: el documento no tiene una referencia válida.')
+    mostrarErrorRematricula('No se pudo abrir el caso: el documento no tiene una referencia válida.')
     return
   }
   const ctx = contextoMolAuditoria({
@@ -853,7 +854,7 @@ async function entrarSiBecaEstatalOPlan() {
   }
   const periodo = periodoFormaPago()
   if (!periodo) {
-    toast.error('No se pudo verificar la beca ministerial: faltan codcli o periodo activo.')
+    mostrarErrorRematricula('No se pudo verificar la beca ministerial: faltan codcli o periodo activo.')
     subPaso.value = 'verificacion-estatal'
     return
   }
@@ -864,7 +865,7 @@ async function entrarSiBecaEstatalOPlan() {
   })
   if (error) {
     console.warn('[forma-pago] resolución beca ministerial', error)
-    toast.error('No se pudo verificar la beca ministerial. Intenta de nuevo.')
+    mostrarErrorRematricula('No se pudo verificar la beca ministerial. Intenta de nuevo.')
     subPaso.value = 'verificacion-estatal'
     return
   }
@@ -896,7 +897,7 @@ async function correrVerificacionCae(reintento = false) {
   const anio = periodoActivo.anio
   const semestre = periodoActivo.semestre
   if (!codcli || anio == null || semestre == null) {
-    toast.error('No se pudo verificar CAE: faltan codcli o periodo activo.')
+    mostrarErrorRematricula('No se pudo verificar CAE: faltan codcli o periodo activo.')
     subPaso.value = 'becas'
     return
   }
@@ -932,7 +933,7 @@ async function correrVerificacionCae(reintento = false) {
 
     if (error || !data) {
       console.warn('[verificacionCae]', error)
-      toast.error('No se pudo verificar CAE. Intenta de nuevo.')
+      mostrarErrorRematricula('No se pudo verificar CAE. Intenta de nuevo.')
       subPaso.value = 'verificacion-cae'
       return
     }
@@ -1052,7 +1053,7 @@ async function cargarArancelDesdeErp(p: PlanPagosMvRow) {
   if (!params) {
     arancelSp.reset()
     const faltan = camposFaltantesErp(p)
-    toast.error(
+    mostrarErrorRematricula(
       `Faltan datos para consultar arancel en ERP: ${faltan.join(', ') || 'desconocidos'}.`,
     )
     return
@@ -1060,7 +1061,7 @@ async function cargarArancelDesdeErp(p: PlanPagosMvRow) {
 
   const ok = await arancelSp.fetchFromErp(params)
   if (!ok) {
-    toast.error(arancelSp.error || 'No se pudo obtener matrícula/arancel desde el ERP.')
+    mostrarErrorRematricula(arancelSp.error || 'No se pudo obtener matrícula/arancel desde el ERP.')
   }
 }
 
@@ -1176,7 +1177,7 @@ async function abrirPagoMatricula() {
   try {
     const rut = rutMostrado.value
     if (!rut || rut === '—') {
-      toast.error('Sin RUT para validar deuda / pagar matrícula')
+      mostrarErrorRematricula('Sin RUT para validar deuda / pagar matrícula')
       return
     }
     if (deudaNet.data == null) {
@@ -1407,13 +1408,15 @@ function contextoCrearWebpay(): { codcli: string; anio: number; periodo: 1 | 2 }
 async function iniciarWebpay(concepto: 'matricula' | 'arancel'): Promise<boolean> {
   const ctx = contextoCrearWebpay()
   if (!ctx) {
-    toast.error('Faltan codcli o periodo de matrícula para Webpay')
+    cerrarPagoMatriculaDialog()
+    mostrarErrorRematricula('Faltan codcli o periodo de matrícula para Webpay')
     return false
   }
   const monto =
     concepto === 'matricula' ? montoNetoMatricula() : montoWebpayArancel(montoNetoArancel())
   if (!Number.isInteger(monto) || monto <= 0) {
-    toast.error('El monto a pagar no es un entero mayor que cero')
+    cerrarPagoMatriculaDialog()
+    mostrarErrorRematricula('El monto a pagar no es un entero mayor que cero')
     return false
   }
   persistirMediosYMontosWebpay()
@@ -1427,7 +1430,8 @@ async function iniciarWebpay(concepto: 'matricula' | 'arancel'): Promise<boolean
       monto,
     })
     if (!creado.ok) {
-      toast.error(creado.error)
+      cerrarPagoMatriculaDialog()
+      mostrarErrorRematricula(creado.error)
       return false
     }
     redirigirAWebpay(creado.url, creado.token)
@@ -1484,7 +1488,7 @@ async function abrirPlanSiVieneDeWebpay(): Promise<void> {
 
 async function continuarSelectorMedios() {
   if (!puedeContinuarSelectorMedios.value) {
-    toast.error('Selecciona Pagaré para continuar. Webpay te lleva al pago al elegirlo.')
+    mostrarErrorRematricula('Selecciona Pagaré para continuar. Webpay te lleva al pago al elegirlo.')
     return
   }
   const medioMat = medioPagoMatricula.value
@@ -1553,22 +1557,22 @@ async function confirmarPagareMatricula() {
   const fecha = pagareFechaInicio.value
   const dia = Number(pagareDiaVencimiento.value)
   if (dia !== 5 && dia !== 15 && dia !== 25) {
-    toast.error('Selecciona día de vencimiento 5, 15 o 25')
+    mostrarErrorRematricula('Selecciona día de vencimiento 5, 15 o 25')
     return
   }
   if (!fecha || fecha < hoy) {
-    toast.error('La fecha de inicio no puede ser anterior a hoy')
+    mostrarErrorRematricula('La fecha de inicio no puede ser anterior a hoy')
     return
   }
   const diaMes = Number(fecha.slice(8, 10))
   if (diaMes !== dia) {
-    toast.error(`La fecha de inicio debe caer el día ${dia} del mes`)
+    mostrarErrorRematricula(`La fecha de inicio debe caer el día ${dia} del mes`)
     sincronizarFechaInicioConDiaVencimiento()
     return
   }
   const nCuotas = totalCuotasActual()
   if (cuotasEsperadasPagare.value === 0 || pagareCuotasPreview.value.length !== cuotasEsperadasPagare.value) {
-    toast.error('Debes generar las cuotas del pagaré antes de confirmar')
+    mostrarErrorRematricula('Debes generar las cuotas del pagaré antes de confirmar')
     return
   }
   const montoMat = medioPagoMatricula.value === 'pagare' ? montoNetoMatricula() : 0

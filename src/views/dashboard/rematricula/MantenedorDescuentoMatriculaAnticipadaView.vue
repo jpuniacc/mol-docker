@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 import { Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-vue-next'
 
 import { Badge } from '@/components/ui/badge'
@@ -126,7 +127,7 @@ async function saveForm() {
     : await store.create(payload)
 
   if (!result.ok) {
-    toast.error(result.error ?? 'No se pudo guardar')
+    mostrarErrorRematricula(result.error ?? 'No se pudo guardar')
     return
   }
   toast.success(editingId.value ? 'Descuento actualizado' : 'Descuento creado')
@@ -138,7 +139,7 @@ async function confirmDelete() {
   if (!row) return
   const result = await store.remove(row.id)
   if (!result.ok) {
-    toast.error(result.error ?? 'No se pudo eliminar')
+    mostrarErrorRematricula(result.error ?? 'No se pudo eliminar')
     return
   }
   toast.success('Descuento eliminado')

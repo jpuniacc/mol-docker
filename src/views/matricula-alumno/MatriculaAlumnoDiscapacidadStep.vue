@@ -3,6 +3,7 @@ import { nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Check, Info } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
@@ -145,7 +146,7 @@ async function omitir() {
   guardando.value = true
   try {
     if (!(await persistirEncuesta({ contesta: false, tipo: null, afirmaciones: [] }))) {
-      toast.error('No se pudo guardar la encuesta. Intenta de nuevo.')
+      mostrarErrorRematricula('No se pudo guardar la encuesta. Intenta de nuevo.')
       return
     }
     alumnoCtx.setDiscapacidad({ contesta: false, tipo: null, afirmaciones: [] })
@@ -168,7 +169,7 @@ async function guardar() {
     return
   }
   if (!tipoDiscapacidad.value) {
-    toast.error('Selecciona el tipo de discapacidad.')
+    mostrarErrorRematricula('Selecciona el tipo de discapacidad.')
     return
   }
   guardando.value = true
@@ -179,7 +180,7 @@ async function guardar() {
       afirmaciones: [...afirmaciones.value],
     }
     if (!(await persistirEncuesta(respuesta))) {
-      toast.error('No se pudo guardar la encuesta. Intenta de nuevo.')
+      mostrarErrorRematricula('No se pudo guardar la encuesta. Intenta de nuevo.')
       return
     }
     alumnoCtx.setDiscapacidad(respuesta)

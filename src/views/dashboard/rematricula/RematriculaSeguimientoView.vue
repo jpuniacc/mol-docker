@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -102,7 +102,7 @@ async function cargar(refrescar = false) {
         periodoActivo.anio,
         periodoActivo.semestre,
       )
-      if (refreshError) toast.error(`Error al actualizar progreso: ${refreshError}`)
+      if (refreshError) mostrarErrorRematricula(`Error al actualizar progreso: ${refreshError}`)
     }
     const etapa = filtroEtapa.value === 'todas' ? null : (filtroEtapa.value as EtapaProgresoRematricula)
     const q = busqueda.value.trim() || null
@@ -117,7 +117,7 @@ async function cargar(refrescar = false) {
     )
 
     if (error) {
-      toast.error(`Error al cargar seguimiento: ${error}`)
+      mostrarErrorRematricula(`Error al cargar seguimiento: ${error}`)
       rows.value = []
       return
     }
@@ -143,7 +143,7 @@ async function abrirTimeline(row: MnpProgresoRematriculaRow) {
     )
 
     if (error) {
-      toast.error(`Error al cargar timeline: ${error}`)
+      mostrarErrorRematricula(`Error al cargar timeline: ${error}`)
       timelineError.value = true
       return
     }

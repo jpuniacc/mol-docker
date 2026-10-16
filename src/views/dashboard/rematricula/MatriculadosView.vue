@@ -15,6 +15,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 
 const { 
   data, total, 
@@ -147,7 +148,7 @@ async function handleRefresh() {
       description: `${result.inserted || 0} nuevos, ${result.updated || 0} actualizados`
     })
   } else {
-    toast.error('Error en sincronización')
+    mostrarErrorRematricula('Error en sincronización')
   }
 }
 
@@ -163,7 +164,7 @@ async function handleExport() {
     await exportCSV()
     toast.success('Exportación completada')
   } catch (e) {
-    toast.error('Error al exportar')
+    mostrarErrorRematricula('Error al exportar')
   }
 }
 

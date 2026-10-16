@@ -24,6 +24,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import { LogOut, Menu } from 'lucide-vue-next'
+import ModalErrorRematricula from '@/components/rematricula/ModalErrorRematricula.vue'
 import DashboardSidebarNav from './DashboardSidebarNav.vue'
 
 const route = useRoute()
@@ -64,6 +65,7 @@ function logout() {
 </script>
 
 <template>
+  <ModalErrorRematricula />
   <RouterView v-if="isMatriculaWizard" />
 
   <SidebarProvider v-else class="min-h-svh">

@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 import { ChevronLeft, ChevronRight, CloudDownload, Eye, RefreshCw, Search } from 'lucide-vue-next'
 
 import PlanPagosAlumnoDetalleDialog from '@/components/rematricula/PlanPagosAlumnoDetalleDialog.vue'
@@ -136,7 +137,7 @@ async function sincronizarDesdeErp() {
   try {
     const result = await syncAlumnosPeriodoFromErp()
     if (!result.ok) {
-      toast.error(result.error ?? 'No se pudo sincronizar desde ERP')
+      mostrarErrorRematricula(result.error ?? 'No se pudo sincronizar desde ERP')
       return
     }
     toast.success(

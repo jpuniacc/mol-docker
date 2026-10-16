@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 import { CheckCircle2, RefreshCw } from 'lucide-vue-next'
 
 import { Badge } from '@/components/ui/badge'
@@ -72,7 +73,7 @@ async function confirmarActivacion() {
       confirmOpen.value = false
       pendingRow.value = null
     } else {
-      toast.error(store.error ?? 'No se pudo activar el ambiente')
+      mostrarErrorRematricula(store.error ?? 'No se pudo activar el ambiente')
     }
   } finally {
     activating.value = false
@@ -89,7 +90,7 @@ async function ping(ambiente: ErpSpAmbiente) {
       toast.success(lastPing.value)
     } else {
       lastPing.value = `${ambiente.toUpperCase()}: falló — ${res.error ?? res.message}`
-      toast.error(lastPing.value)
+      mostrarErrorRematricula(lastPing.value)
     }
   } finally {
     pinging.value = null

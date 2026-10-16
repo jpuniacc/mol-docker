@@ -3,20 +3,16 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import ModalErrorRematricula from '@/components/rematricula/ModalErrorRematricula.vue'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { sanitizeUsernameInput } from '@/composables/utils'
+import { campoLoginVacio } from '@/utils/errorRematriculaCatalogo'
+import { mostrarBloqueoIngreso, mostrarFalloIngreso } from '@/stores/errorRematricula'
 import {
   MSG_ACCESO_MNP_NO_VIGENTE,
   MSG_ACCESO_MNP_VERIFICACION_FALLIDA,
+  MSG_SITUACION_ACADEMICA,
   TITULO_ACCESO_NO_VIGENTE,
 } from '@/constants/accesoMnp'
 import {
@@ -25,6 +21,7 @@ import {
 } from '@/constants/arancelDiferenciado'
 import {
   CORREO_BECA_SUBDERE,
+  MSG_BECA_SUBDERE,
   TITULO_BECA_SUBDERE,
   tomarAvisoSubdere,
 } from '@/constants/carteraOficial'
@@ -35,7 +32,6 @@ import {
   tomarAvisoNoVigente,
 } from '@/services/accesoNoVigenteApi'
 import {
-  TYC_RECHAZO_MODAL_ENTENDIDO,
   TYC_RECHAZO_MODAL_MENSAJE,
   TYC_RECHAZO_MODAL_TITULO,
 } from '@/constants/terminosCondicionesMol'
@@ -54,51 +50,77 @@ const tituloRematricula = computed(() => periodoActivo.tituloRematricula)
 const username = ref('')
 const password = ref('')
 const loading = ref(false)
-const modalTyCRechazadoOpen = ref(false)
-const modalNoVigenteOpen = ref(false)
-const modalSubdereOpen = ref(false)
-const modalArancelDiferenciadoOpen = ref(false)
-
-function syncModalTyCRechazado() {
-  modalTyCRechazadoOpen.value = route.query.tycRechazado === '1'
-}
-
-onMounted(() => {
-  syncModalTyCRechazado()
-  if (tomarAvisoNoVigente()) {
-    modalNoVigenteOpen.value = true
-  }
-  if (tomarAvisoSubdere()) {
-    modalSubdereOpen.value = true
-  }
-  if (tomarAvisoArancelDiferenciado()) {
-    modalArancelDiferenciadoOpen.value = true
-  }
-  void periodoActivo.ensureLoaded()
-})
-
-watch(
-  () => route.query.tycRechazado,
-  () => syncModalTyCRechazado(),
-)
+const campoVacio = ref<'login-username' | 'login-password' | null>(null)
 
 function cerrarModalTyCRechazado() {
-  modalTyCRechazadoOpen.value = false
   if (route.query.tycRechazado === '1') {
     void router.replace({ name: 'login' })
   }
 }
 
+function abrirTyCRechazado() {
+  mostrarBloqueoIngreso({
+    titulo: TYC_RECHAZO_MODAL_TITULO,
+    cuerpo: TYC_RECHAZO_MODAL_MENSAJE,
+    alCerrar: cerrarModalTyCRechazado,
+  })
+}
+
+function abrirAvisosDeBloqueo() {
+  if (route.query.tycRechazado === '1') {
+    abrirTyCRechazado()
+    return
+  }
+  if (tomarAvisoNoVigente()) {
+    mostrarBloqueoIngreso({
+      titulo: TITULO_ACCESO_NO_VIGENTE,
+      cuerpo: MSG_SITUACION_ACADEMICA,
+      correo: CORREO_BECA_SUBDERE,
+    })
+    return
+  }
+  if (tomarAvisoSubdere()) {
+    mostrarBloqueoIngreso({
+      titulo: TITULO_BECA_SUBDERE,
+      cuerpo: MSG_BECA_SUBDERE,
+      correo: CORREO_BECA_SUBDERE,
+    })
+    return
+  }
+  if (tomarAvisoArancelDiferenciado()) {
+    mostrarBloqueoIngreso({
+      titulo: TITULO_ARANCEL_DIFERENCIADO,
+      cuerpo: MSG_SITUACION_ACADEMICA,
+      correo: CORREO_BECA_SUBDERE,
+    })
+  }
+}
+
+onMounted(() => {
+  abrirAvisosDeBloqueo()
+  void periodoActivo.ensureLoaded()
+})
+
+watch(
+  () => route.query.tycRechazado,
+  () => {
+    if (route.query.tycRechazado === '1') abrirTyCRechazado()
+  },
+)
+
 function onUsernameModelUpdate(value: string | number | undefined) {
   username.value = sanitizeUsernameInput(String(value ?? ''))
+  if (username.value.trim()) campoVacio.value = null
 }
 
 async function onSubmit() {
-  const u = username.value.trim()
-  if (!u || !password.value) {
-    toast.error('Ingresa usuario y contraseña.')
+  const vacio = campoLoginVacio(username.value, password.value)
+  campoVacio.value = vacio
+  if (vacio) {
+    document.getElementById(vacio)?.focus()
     return
   }
+  const u = username.value.trim()
 
   loading.value = true
   try {
@@ -108,7 +130,7 @@ async function onSubmit() {
       typeof window !== 'undefined' ? window.location.href : null
     )
     if (!result.ok) {
-      toast.error(result.message)
+      mostrarFalloIngreso(result.message)
       return
     }
     await auth.loginFromFlow(result, typeof window !== 'undefined' ? window.location.href : null)
@@ -117,32 +139,48 @@ async function onSubmit() {
 
     if (!result.mvUsuario) {
       if (alumnoMnp.error) {
-        toast.error(MSG_ACCESO_MNP_VERIFICACION_FALLIDA)
+        mostrarFalloIngreso(MSG_ACCESO_MNP_VERIFICACION_FALLIDA)
         auth.logout()
         return
       }
       if (alumnoMnp.excluidoMol) {
         await registrarIntentoSubdere([...alumnoMnp.filas])
         auth.logout()
-        modalSubdereOpen.value = true
+        mostrarBloqueoIngreso({
+          titulo: TITULO_BECA_SUBDERE,
+          cuerpo: MSG_BECA_SUBDERE,
+          correo: CORREO_BECA_SUBDERE,
+        })
         return
       }
       if (alumnoMnp.accesoBloqueadoNoVigente) {
         const filas = [...alumnoMnp.filas]
         await registrarIntentoNoVigente(filas)
         tomarAvisoNoVigente()
-        modalNoVigenteOpen.value = true
         auth.logout()
+        mostrarBloqueoIngreso({
+          titulo: TITULO_ACCESO_NO_VIGENTE,
+          cuerpo: MSG_SITUACION_ACADEMICA,
+          correo: CORREO_BECA_SUBDERE,
+        })
         return
       }
       if (alumnoMnp.accesoBloqueadoArancelDiferenciado) {
         await registrarIntentoArancelDiferenciado([...alumnoMnp.filas])
         auth.logout()
-        modalArancelDiferenciadoOpen.value = true
+        mostrarBloqueoIngreso({
+          titulo: TITULO_ARANCEL_DIFERENCIADO,
+          cuerpo: MSG_SITUACION_ACADEMICA,
+          correo: CORREO_BECA_SUBDERE,
+        })
         return
       }
       if (alumnoMnp.filas.length === 0) {
-        toast.error(MSG_ACCESO_MNP_NO_VIGENTE)
+        mostrarBloqueoIngreso({
+          titulo: TITULO_ACCESO_NO_VIGENTE,
+          cuerpo: MSG_ACCESO_MNP_NO_VIGENTE,
+          correo: CORREO_BECA_SUBDERE,
+        })
         auth.logout()
         return
       }
@@ -226,7 +264,11 @@ async function onSubmit() {
                   autocomplete="username"
                   placeholder="nombre.apellido"
                   :disabled="loading"
-                  class="h-11 rounded-lg border-zinc-300 pr-10 placeholder:text-zinc-400 focus-visible:ring-uniacc-orange"
+                  :aria-invalid="campoVacio === 'login-username'"
+                  :class="[
+                    'h-11 rounded-lg pr-10 placeholder:text-zinc-400 focus-visible:ring-uniacc-orange',
+                    campoVacio === 'login-username' ? 'border-red-600' : 'border-zinc-300',
+                  ]"
                   @update:model-value="onUsernameModelUpdate"
                 />
                 <User
@@ -234,6 +276,7 @@ async function onSubmit() {
                   aria-hidden="true"
                 />
               </div>
+              <p v-if="campoVacio === 'login-username'" class="text-sm text-red-700">Ingresa tu usuario.</p>
             </div>
 
             <div class="space-y-2">
@@ -246,13 +289,21 @@ async function onSubmit() {
                   autocomplete="current-password"
                   placeholder="••••••••"
                   :disabled="loading"
-                  class="h-11 rounded-lg border-zinc-300 pr-10 placeholder:text-zinc-400 focus-visible:ring-uniacc-orange"
+                  :aria-invalid="campoVacio === 'login-password'"
+                  :class="[
+                    'h-11 rounded-lg pr-10 placeholder:text-zinc-400 focus-visible:ring-uniacc-orange',
+                    campoVacio === 'login-password' ? 'border-red-600' : 'border-zinc-300',
+                  ]"
+                  @update:model-value="(v: string | number | undefined) => {
+                    if (String(v ?? '') && campoVacio === 'login-password') campoVacio = null
+                  }"
                 />
                 <Lock
                   class="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-zinc-400"
                   aria-hidden="true"
                 />
               </div>
+              <p v-if="campoVacio === 'login-password'" class="text-sm text-red-700">Ingresa tu contraseña.</p>
             </div>
 
             <Button
@@ -278,99 +329,6 @@ async function onSubmit() {
       </div>
     </main>
 
-    <Dialog :open="modalNoVigenteOpen" @update:open="(v: boolean) => (modalNoVigenteOpen = v)">
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{{ TITULO_ACCESO_NO_VIGENTE }}</DialogTitle>
-          <DialogDescription class="text-left leading-relaxed text-zinc-700">
-            Tu situación académica requiere revisión. Comunícate con
-            <a
-              :href="`mailto:${CORREO_BECA_SUBDERE}`"
-              class="cursor-pointer font-medium text-[#1E3A5F] underline underline-offset-2"
-            >{{ CORREO_BECA_SUBDERE }}</a>, indicando tu RUT y teléfono de contacto.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            type="button"
-            class="cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90"
-            @click="modalNoVigenteOpen = false"
-          >
-            Entendido
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <Dialog
-      :open="modalArancelDiferenciadoOpen"
-      @update:open="(v: boolean) => (modalArancelDiferenciadoOpen = v)"
-    >
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{{ TITULO_ARANCEL_DIFERENCIADO }}</DialogTitle>
-          <DialogDescription class="text-left leading-relaxed text-zinc-700">
-            Tu situación académica requiere revisión. Comunícate con
-            <a
-              :href="`mailto:${CORREO_BECA_SUBDERE}`"
-              class="cursor-pointer font-medium text-[#1E3A5F] underline underline-offset-2"
-            >{{ CORREO_BECA_SUBDERE }}</a>, indicando tu RUT y teléfono de contacto.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            type="button"
-            class="cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90"
-            @click="modalArancelDiferenciadoOpen = false"
-          >
-            Entendido
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <Dialog :open="modalSubdereOpen" @update:open="(v: boolean) => (modalSubdereOpen = v)">
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{{ TITULO_BECA_SUBDERE }}</DialogTitle>
-          <DialogDescription class="text-left leading-relaxed text-zinc-700">
-            El estado de tu Beca SUBDERE requiere revisión. Comunícate con
-            <a
-              :href="`mailto:${CORREO_BECA_SUBDERE}`"
-              class="cursor-pointer font-medium text-[#1E3A5F] underline underline-offset-2"
-            >{{ CORREO_BECA_SUBDERE }}</a>, indicando tu RUT y teléfono de contacto.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            type="button"
-            class="cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90"
-            @click="modalSubdereOpen = false"
-          >
-            Entendido
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <Dialog :open="modalTyCRechazadoOpen" @update:open="(v: boolean) => (v ? (modalTyCRechazadoOpen = true) : cerrarModalTyCRechazado())">
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{{ TYC_RECHAZO_MODAL_TITULO }}</DialogTitle>
-          <DialogDescription>
-            {{ TYC_RECHAZO_MODAL_MENSAJE }}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            type="button"
-            class="bg-uniacc-orange hover:bg-uniacc-orange/90"
-            @click="cerrarModalTyCRechazado"
-          >
-            {{ TYC_RECHAZO_MODAL_ENTENDIDO }}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ModalErrorRematricula />
   </div>
 </template>

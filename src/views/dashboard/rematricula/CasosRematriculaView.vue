@@ -12,6 +12,7 @@ import {
   UserRound,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -390,7 +391,7 @@ async function cargarCasos() {
       estado: null,
     })
     if (error) {
-      toast.error(error)
+      mostrarErrorRematricula(error)
       rows.value = []
       return
     }
@@ -405,7 +406,7 @@ async function cargarFirmas() {
   try {
     const res = await listContratoFirmas()
     if (!res.ok) {
-      toast.error(res.error ?? 'No se pudo cargar firmas de contrato.')
+      mostrarErrorRematricula(res.error ?? 'No se pudo cargar firmas de contrato.')
       firmas.value = []
       return
     }
@@ -434,7 +435,7 @@ async function consultarDatosApoderado(rowOrigen?: MnpCasoRematriculaRow | null)
   const row = rowOrigen ?? seleccionado.value
   if (!row || row.tipo !== 'APODERADO_DATOS' || row.estado !== 'EN_REVISION') return
   if (!row.codcli?.trim()) {
-    toast.error('El caso no tiene codcli.')
+    mostrarErrorRematricula('El caso no tiene codcli.')
     return
   }
   actualizandoApoderado.value = true
@@ -448,7 +449,7 @@ async function consultarDatosApoderado(rowOrigen?: MnpCasoRematriculaRow | null)
       jornada: row.jornada,
     })
     if (!visto.ok || !visto.nuevo) {
-      toast.error(visto.error || 'No se pudo consultar el ERP.')
+      mostrarErrorRematricula(visto.error || 'No se pudo consultar el ERP.')
       return
     }
     comparacion.value = {
@@ -485,7 +486,7 @@ async function confirmarDatosApoderado() {
       jornada: row.jornada,
     })
     if (!cierraCasoTrasConfirmar(refreshed)) {
-      toast.error(refreshed.error || 'No se pudo encolar el aviso al alumno.')
+      mostrarErrorRematricula(refreshed.error || 'No se pudo encolar el aviso al alumno.')
       return
     }
     const quien = auth.email?.trim() || auth.displayNombreCompleto?.trim() || 'consejero'
@@ -496,7 +497,7 @@ async function confirmarDatosApoderado() {
       motivo: 'Datos de apoderado actualizados desde ERP',
     })
     if (error) {
-      toast.error(`Datos actualizados en MOL, pero no se pudo cerrar el caso: ${error}`)
+      mostrarErrorRematricula(`Datos actualizados en MOL, pero no se pudo cerrar el caso: ${error}`)
       return
     }
     toast.success('Datos actualizados. El alumno puede continuar la rematrícula.')
@@ -512,7 +513,7 @@ async function resolver(estado: 'APROBADO' | 'RECHAZADO') {
   const row = seleccionado.value
   if (!row) return
   if (estado === 'RECHAZADO' && !motivo.value.trim()) {
-    toast.error('Indica el motivo del rechazo.')
+    mostrarErrorRematricula('Indica el motivo del rechazo.')
     return
   }
   resolviendo.value = true
@@ -525,7 +526,7 @@ async function resolver(estado: 'APROBADO' | 'RECHAZADO') {
       motivo: motivo.value.trim() || null,
     })
     if (error) {
-      toast.error(error)
+      mostrarErrorRematricula(error)
       return
     }
     toast.success(

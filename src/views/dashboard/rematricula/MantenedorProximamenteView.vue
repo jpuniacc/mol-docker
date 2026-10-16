@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 import { RefreshCw, Save } from 'lucide-vue-next'
 
 import { Button } from '@/components/ui/button'
@@ -47,7 +48,7 @@ async function recargar() {
 
 async function guardar() {
   if (!mensajeProximamenteGuardable(mensajeDraft.value)) {
-    toast.error('Escribe un mensaje.')
+    mostrarErrorRematricula('Escribe un mensaje.')
     return
   }
   const ok = await store.save({
@@ -58,7 +59,7 @@ async function guardar() {
     toast.success(activoDraft.value ? 'Próximamente quedó prendido.' : 'Próximamente quedó apagado.')
     syncDraftFromStore()
   } else {
-    toast.error(store.error ?? 'No se pudo guardar.')
+    mostrarErrorRematricula(store.error ?? 'No se pudo guardar.')
   }
 }
 

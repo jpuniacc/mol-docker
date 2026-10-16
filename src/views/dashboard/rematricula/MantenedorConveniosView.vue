@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 import { FileUp, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-vue-next'
 
 import { Badge } from '@/components/ui/badge'
@@ -175,17 +176,17 @@ function pctDisplay(d: ConvenioDescuentoInput): string {
 
 async function saveForm() {
   if (!form.value.institucion.trim()) {
-    toast.error('La institución es obligatoria')
+    mostrarErrorRematricula('La institución es obligatoria')
     return
   }
   const periodos = keysToPeriodos(selectedPeriodKeys.value)
   if (periodos.length === 0) {
-    toast.error('Seleccione al menos un periodo de vigencia')
+    mostrarErrorRematricula('Seleccione al menos un periodo de vigencia')
     return
   }
   for (const d of form.value.descuentos) {
     if (d.aplica && (d.porcentaje == null || d.porcentaje < 0 || d.porcentaje > 1)) {
-      toast.error(`Porcentaje inválido en ${d.oferta_codigo}`)
+      mostrarErrorRematricula(`Porcentaje inválido en ${d.oferta_codigo}`)
       return
     }
     if (!d.aplica) d.porcentaje = null
@@ -198,7 +199,7 @@ async function saveForm() {
   }
   const result = await store.upsert(payload)
   if (!result.ok) {
-    toast.error(result.error ?? 'No se pudo guardar')
+    mostrarErrorRematricula(result.error ?? 'No se pudo guardar')
     return
   }
   toast.success(editingId.value ? 'Convenio actualizado' : 'Convenio creado')
@@ -209,7 +210,7 @@ async function removeRow(row: ConvenioInstitucionalCompleto) {
   if (!confirm(`¿Desactivar convenio "${row.institucion}"?`)) return
   const result = await store.softDelete(row.id)
   if (!result.ok) {
-    toast.error(result.error ?? 'No se pudo desactivar')
+    mostrarErrorRematricula(result.error ?? 'No se pudo desactivar')
     return
   }
   toast.success('Convenio desactivado')
@@ -223,18 +224,18 @@ function onImportFileChange(ev: Event) {
 
 async function runImport() {
   if (!importFile.value) {
-    toast.error('Seleccione un archivo Excel')
+    mostrarErrorRematricula('Seleccione un archivo Excel')
     return
   }
   const periodos = keysToPeriodos(importPeriodKeys.value)
   if (periodos.length === 0) {
-    toast.error('Seleccione periodos destino')
+    mostrarErrorRematricula('Seleccione periodos destino')
     return
   }
   const buffer = await importFile.value.arrayBuffer()
   const result = await store.importFromExcel(buffer, periodos)
   if (result.ok === 0) {
-    toast.error(result.errors[0] ?? 'Importación fallida')
+    mostrarErrorRematricula(result.errors[0] ?? 'Importación fallida')
     return
   }
   toast.success(`Importados/actualizados: ${result.ok}`)

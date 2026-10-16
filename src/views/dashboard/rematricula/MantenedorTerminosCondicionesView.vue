@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 import { ChevronDown, ChevronUp, RefreshCw, Save } from 'lucide-vue-next'
 
 import RichTextContent from '@/components/rich-text/RichTextContent.vue'
@@ -56,11 +57,11 @@ async function recargar() {
 
 function solicitarGuardar() {
   if (!tituloDraft.value.trim()) {
-    toast.error('Ingresa un título para el documento.')
+    mostrarErrorRematricula('Ingresa un título para el documento.')
     return
   }
   if (isRichTextHtmlEmpty(contenidoDraft.value)) {
-    toast.error('El contenido no puede estar vacío.')
+    mostrarErrorRematricula('El contenido no puede estar vacío.')
     return
   }
   confirmSaveOpen.value = true
@@ -72,7 +73,7 @@ async function confirmarGuardar() {
     toast.success('Términos y condiciones actualizados.')
     confirmSaveOpen.value = false
   } else {
-    toast.error(store.error ?? 'No se pudo guardar.')
+    mostrarErrorRematricula(store.error ?? 'No se pudo guardar.')
   }
 }
 

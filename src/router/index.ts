@@ -1,10 +1,12 @@
 import { createRouter, createWebHistory, type RouteLocationNormalized } from 'vue-router'
-import { toast } from 'vue-sonner'
 
 import {
   MSG_ACCESO_MNP_NO_VIGENTE,
   MSG_ACCESO_MNP_VERIFICACION_FALLIDA,
+  TITULO_ACCESO_NO_VIGENTE,
 } from '@/constants/accesoMnp'
+import { CORREO_BECA_SUBDERE } from '@/constants/carteraOficial'
+import { mostrarBloqueoIngreso, mostrarFalloIngreso } from '@/stores/errorRematricula'
 import {
   allowedRouteNamesFromMenu,
   routeNameAllowedByMenu,
@@ -524,7 +526,15 @@ router.beforeEach(async (to) => {
     !datosMnp.loading &&
     datosMnp.cantidadRegistros === 0
   ) {
-    toast.error(datosMnp.error ? MSG_ACCESO_MNP_VERIFICACION_FALLIDA : MSG_ACCESO_MNP_NO_VIGENTE)
+    if (datosMnp.error) {
+      mostrarFalloIngreso(MSG_ACCESO_MNP_VERIFICACION_FALLIDA)
+    } else {
+      mostrarBloqueoIngreso({
+        titulo: TITULO_ACCESO_NO_VIGENTE,
+        cuerpo: MSG_ACCESO_MNP_NO_VIGENTE,
+        correo: CORREO_BECA_SUBDERE,
+      })
+    }
     auth.logout()
     return { name: 'login', query: { redirect: to.fullPath } }
   }

@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { AppWindow, Check, Circle, Download, Loader2, Mail } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 
 import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
 import ContratoPrestacionServiciosPreview from '@/components/rematricula/ContratoPrestacionServiciosPreview.vue'
@@ -294,7 +295,7 @@ function abrirFirma(email: string): void {
   const ventana = window.open(link, '_blank')
   abriendoFirma = false
   if (!ventana) {
-    toast.error(
+    mostrarErrorRematricula(
       'El navegador bloqueó la ventana de firma. Permite ventanas emergentes e inténtalo de nuevo.',
     )
   }
@@ -621,14 +622,14 @@ onUnmounted(() => {
 async function descargaBorrador(): Promise<void> {
   const vm = viewModel.value
   if (!vm) {
-    toast.error('Confirma el plan de pagos antes de descargar el contrato.')
+    mostrarErrorRematricula('Confirma el plan de pagos antes de descargar el contrato.')
     return
   }
   descargando.value = true
   try {
     const res = await downloadContratoPreviewPdf(vm)
     if (!res.ok || !res.blob) {
-      toast.error(res.error || 'No se pudo generar el PDF')
+      mostrarErrorRematricula(res.error || 'No se pudo generar el PDF')
       return
     }
     const url = URL.createObjectURL(res.blob)

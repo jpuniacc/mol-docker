@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { Clock, FileUp, Loader2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
+import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -67,7 +68,7 @@ async function subir() {
     })
     if (res.error || !res.storagePath) {
       error.value = res.error ?? 'No se pudo subir el documento.'
-      toast.error(error.value)
+      mostrarErrorRematricula(error.value)
       return
     }
     emit('subido', {
