@@ -30,6 +30,7 @@ export const DASHBOARD_MENU_ROUTE_NAMES = [
   'dashboard-rematricula-kpi',
   'dashboard-rematricula-seguimiento',
   'dashboard-encuesta-discapacidad',
+  'dashboard-nps-rematricula',
   'dashboard-gestion-firmas',
   'dashboard-mantenedor-descuento-matricula-anticipada',
   'dashboard-mantenedor-terminos-condiciones',

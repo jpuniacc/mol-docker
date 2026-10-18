@@ -377,6 +377,17 @@ const routes = [
           import('../views/dashboard/rematricula/EncuestaDiscapacidadView.vue'),
       },
       {
+        path: '/dashboard/nps-rematricula',
+        name: 'dashboard-nps-rematricula',
+        meta: {
+          requiresAdminAdmision: true,
+          requiresSoloGrupoDvU: true,
+          requiresPerfilUsuarioIn: [1, 2, 3],
+        },
+        component: () =>
+          import('../views/dashboard/rematricula/NpsRematriculaView.vue'),
+      },
+      {
         path: '/dashboard/gestion-firmas',
         name: 'dashboard-gestion-firmas',
         meta: {

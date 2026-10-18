@@ -20,6 +20,7 @@ import {
   Percent,
   School,
   Settings,
+  Star,
   Unlock,
   Users,
   Wallet,
@@ -48,6 +49,7 @@ const ICON_MAP: Record<string, Component> = {
   PenLine,
   LayoutDashboard,
   ListOrdered,
+  Star,
 }
 
 export function menuIconFromKey(iconKey: string | null | undefined): Component {
