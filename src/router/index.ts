@@ -107,6 +107,16 @@ const routes = [
     component: () => import('../views/auth/ProximamenteView.vue'),
   },
   {
+    path: '/webpay-qa',
+    name: 'webpay-qa',
+    component: () => import('../views/webpay-qa/WebpayQaView.vue'),
+  },
+  {
+    path: '/webpay-qa/retorno',
+    name: 'webpay-qa-retorno',
+    component: () => import('../views/webpay-qa/WebpayQaRetornoView.vue'),
+  },
+  {
     path: '/dashboard',
     name: 'dashboard',
     component: () => import('../views/dashboard/layout/DashboardView.vue'),
