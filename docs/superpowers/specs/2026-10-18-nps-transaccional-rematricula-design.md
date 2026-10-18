@@ -39,12 +39,13 @@ Omitir la encuesta no se persiste como respuesta. Si el estudiante vuelve al res
 
 Nueva tabla, por ejemplo `mnp_nps_rematricula`, con:
 
-- Identidad del alumno (`rut` / `codcli`)
+- Identidad del alumno: `rut` y `codcli` (ambos obligatorios)
+- Contexto académico: `codigo_carrera` y `jornada` (desde la fuente MNP del alumno al momento de responder)
 - Periodo (`anio`, `semestre`)
 - Calificación `1..5`
 - Comentario nullable
 - Marca de tiempo de creación
-- Restricción de unicidad por alumno + periodo
+- Restricción de unicidad por `codcli` + periodo
 
 API mínima:
 
