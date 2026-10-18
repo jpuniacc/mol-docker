@@ -7,6 +7,7 @@ import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import NpsRematriculaCard from '@/components/rematricula/NpsRematriculaCard.vue'
 import { useContratoMatriculaViewModel } from '@/composables/useContratoMatriculaViewModel'
 import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
 import { downloadContratoFirmaPdf } from '@/services/contratoFirmaApi'
@@ -256,6 +257,8 @@ async function descargarContrato(): Promise<void> {
             {{ alumnoCtx.discapacidad.tipo }}
           </p>
         </div>
+
+        <NpsRematriculaCard />
 
         <section
           v-if="pagosWebpay"
