@@ -29,8 +29,13 @@ async function iniciar(): Promise<void> {
     return
   }
 
-  enviando.value = true
   const codcliLimpio = String(codcli.value).trim()
+  if (codcliLimpio && !/^9999\d{4}$/.test(codcliLimpio)) {
+    error.value = 'El codcli de prueba debe tener 8 dígitos y comenzar con 9999 (ej. 99999999).'
+    return
+  }
+
+  enviando.value = true
   const res = await crearWebpayQa({
     monto: montoNum,
     concepto: concepto.value,

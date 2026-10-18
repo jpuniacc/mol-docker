@@ -6,7 +6,18 @@ import {
   type FilaPublica,
 } from '@/services/webpayPlusApi'
 
-export type FilaQa = FilaPublica & { token: string | null }
+/** Forma pública de /api/webpay-qa/transaccion (sin codcli ni datos de tarjeta). */
+export type FilaQa = Pick<
+  FilaPublica,
+  | 'buyOrder'
+  | 'concepto'
+  | 'monto'
+  | 'estado'
+  | 'authorizationCode'
+  | 'paymentTypeCode'
+  | 'installmentsNumber'
+  | 'ambiente'
+> & { token: string | null }
 
 export type CrearWebpayQaOk = { ok: true; buyOrder: string; token: string; url: string }
 export type CrearWebpayQaError = { ok: false; error: string }
@@ -38,10 +49,6 @@ function esEstado(v: unknown): v is EstadoWebpay {
   return v === 'creada' || v === 'autorizada' || v === 'rechazada' || v === 'abortada'
 }
 
-function esPeriodo(v: unknown): v is 1 | 2 {
-  return v === 1 || v === 2
-}
-
 function esAmbiente(v: unknown): v is FilaPublica['ambiente'] {
   return v === 'integracion' || v === 'produccion'
 }
@@ -51,37 +58,22 @@ function textoONulo(v: unknown): string | null {
 }
 
 function parseFilaQa(body: Record<string, unknown>): FilaQa | null {
-  const semestre = Number(body.semestrePeriodo)
-  const correlativo = Number(body.correlativo)
   const monto = Number(body.monto)
-  const anioPeriodo = Number(body.anioPeriodo)
   if (
     typeof body.buyOrder !== 'string' ||
-    typeof body.sessionId !== 'string' ||
-    typeof body.codcli !== 'string' ||
     !esConcepto(body.concepto) ||
     !esEstado(body.estado) ||
-    !esPeriodo(semestre) ||
     !esAmbiente(body.ambiente) ||
-    !Number.isInteger(anioPeriodo) ||
-    !Number.isInteger(correlativo) ||
     !Number.isFinite(monto)
   ) {
     return null
   }
   return {
     buyOrder: body.buyOrder,
-    sessionId: body.sessionId,
     concepto: body.concepto,
-    codcli: body.codcli,
-    anioPeriodo,
-    semestrePeriodo: semestre,
-    correlativo,
     monto,
     estado: body.estado,
     authorizationCode: textoONulo(body.authorizationCode),
-    responseCode:
-      body.responseCode == null || body.responseCode === '' ? null : Number(body.responseCode),
     paymentTypeCode: textoONulo(body.paymentTypeCode),
     installmentsNumber:
       body.installmentsNumber == null || body.installmentsNumber === ''
@@ -89,8 +81,6 @@ function parseFilaQa(body: Record<string, unknown>): FilaQa | null {
         : Number.isFinite(Number(body.installmentsNumber))
           ? Number(body.installmentsNumber)
           : null,
-    cardLast4: textoONulo(body.cardLast4),
-    transactionDate: textoONulo(body.transactionDate),
     ambiente: body.ambiente,
     token: typeof body.token === 'string' ? body.token : null,
   }
