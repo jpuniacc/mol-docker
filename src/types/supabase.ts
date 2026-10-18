@@ -494,6 +494,23 @@ export type MnpDiscapacidadEncuestaRow = {
   es_mock: boolean;
 };
 
+/** Fila de `mnp_nps_rematricula` (NPS transaccional de facilidad rematrícula). */
+export type MnpNpsRematricula = {
+  id: string
+  creado_en: string
+  rut_alumno: string
+  codcli: string
+  codigo_carrera: string
+  jornada: string
+  anio_periodo: number
+  semestre_periodo: number
+  periodo_label: string | null
+  calificacion: number
+  comentario: string | null
+  sesion_id: string | null
+  url_origen: string | null
+}
+
 /** Fila de `mnp_resolucion_cae` (resolución CAE por periodo). */
 export type MnpResolucionCaeRow = {
   id: string;
@@ -1348,6 +1365,30 @@ export type Database = {
         };
         Returns: string;
       };
+      guardar_mnp_nps_rematricula: {
+        Args: {
+          p_rut_alumno: string
+          p_codcli: string
+          p_codigo_carrera: string
+          p_jornada: string
+          p_anio_periodo: number
+          p_semestre_periodo: number
+          p_calificacion: number
+          p_comentario?: string | null
+          p_periodo_label?: string | null
+          p_sesion_id?: string | null
+          p_url_origen?: string | null
+        }
+        Returns: string
+      }
+      estado_mnp_nps_rematricula: {
+        Args: {
+          p_codcli: string
+          p_anio_periodo: number
+          p_semestre_periodo: number
+        }
+        Returns: Json
+      }
       abrir_mnp_caso_rematricula: {
         Args: {
           p_periodo: string;
