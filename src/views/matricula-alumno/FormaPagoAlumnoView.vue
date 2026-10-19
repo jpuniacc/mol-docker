@@ -195,7 +195,11 @@ function persistirNumeroOperacion(num: string): void {
 }
 
 function sesionNumOperacion(): string | undefined {
-  const sesion = (alumnoCtx.pagoMatricula?.numOperacion ?? '').trim()
+  const sesion = (
+    alumnoCtx.numOperacionCuenta ??
+    alumnoCtx.pagoMatricula?.numOperacion ??
+    ''
+  ).trim()
   return /^\d+$/.test(sesion) ? sesion : undefined
 }
 
@@ -1640,12 +1644,7 @@ async function confirmarPagareMatricula() {
   const cuotasDetalle: MockCuotaPagareDetalle[] = pagareCuotasPreview.value.map(
     ({ seleccionado: _sel, ...rest }) => rest,
   )
-  const almacenado = (
-    alumnoCtx.numOperacionCuenta ??
-    alumnoCtx.pagoMatricula?.numOperacion ??
-    ''
-  ).trim()
-  const numOperacion = /^\d+$/.test(almacenado) ? almacenado : undefined
+  const numOperacion = sesionNumOperacion()
   const contrato = (contratoPreview.value ?? '').trim() || undefined
   const payload: MockPagoMatricula = {
     medio: 'pagare',
