@@ -238,6 +238,19 @@ function iniciarCuentaRegresiva(): void {
   }, ESPERA_ENLACE_MS)
 }
 
+function identidadFirma(): { rut: string; codcli: string } | undefined {
+  const rut = fuente.rutMostrado.value.trim()
+  const codcli = fuente.codcliMostrado.value.trim()
+  if (!rut || rut === '—' || !codcli || codcli === '—') return undefined
+  return { rut, codcli }
+}
+
+function volverAFormaDePagoSiNumeroAjeno(error: string): boolean {
+  if (!error.toLowerCase().includes('otro alumno')) return false
+  void router.push({ name: 'matricula-alumno-forma-pago' })
+  return true
+}
+
 async function prepararFirma(numOperacion: string): Promise<void> {
   if (esperaOperacion.value === numOperacion) return
   const pendientes = firmantes.value.filter((firmante) => !firmante.ready)
@@ -274,6 +287,12 @@ async function prepararFirma(numOperacion: string): Promise<void> {
   if (fallo) {
     esperaOperacion.value = null
     errorEnlaces.value = fallo
+    mostrarErrorRematricula(fallo, {
+      reintentar: () => {
+        esperaOperacion.value = null
+        void prepararFirma(numOperacion)
+      },
+    })
     return
   }
   enlacesFirma.value = { ...enlacesFirma.value, ...obtenidos }
@@ -486,8 +505,10 @@ function aplicarEstadoOk(estado: Extract<ContratoFirmaEstadoResponse, { ok: true
 }
 
 async function pollEstado(numOperacion: string): Promise<void> {
-  const res = await getContratoFirmaEstado(numOperacion)
-  if (unmounted || !res.ok) {
+  const res = await getContratoFirmaEstado(numOperacion, identidadFirma())
+  if (unmounted) return
+  if (!res.ok) {
+    volverAFormaDePagoSiNumeroAjeno(res.error)
     return
   }
   aplicarEstadoOk(res)
@@ -505,8 +526,12 @@ async function restaurarFirmaExistente(): Promise<void> {
   if (!num || num === '—') return
   restaurandoFirma.value = true
   try {
-    const res = await getContratoFirmaEstado(num)
-    if (unmounted || !res.ok) return
+    const res = await getContratoFirmaEstado(num, identidadFirma())
+    if (unmounted) return
+    if (!res.ok) {
+      volverAFormaDePagoSiNumeroAjeno(res.error)
+      return
+    }
     aplicarEstadoOk(res)
     if (!res.ready) iniciarPoll(res.numOperacion)
   } finally {
@@ -591,6 +616,7 @@ async function enviarAFirmar(): Promise<void> {
 
     if (!res.ok) {
       cerrarProgresoError()
+      if (volverAFormaDePagoSiNumeroAjeno(res.error)) return
       errorFirma.value = res.error
       return
     }

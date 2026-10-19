@@ -252,36 +252,6 @@ export async function pedirNumeroOperacion(
   }
 }
 
-export async function pedirCorrelativoOperacion(input: {
-  peek: string
-  rut: string
-  codcli: string
-  actualEnError: boolean
-}): Promise<{ ok: true; numOperacion: string } | { ok: false; error: string }> {
-  try {
-    const res = await fetchWithTimeout(firmaUrl('/correlativo'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
-    })
-    let data: unknown
-    try {
-      data = await res.json()
-    } catch {
-      return { ok: false, error: `Error HTTP ${res.status}` }
-    }
-    if (!res.ok) return { ok: false, error: errorFromUnknown(data, `Error HTTP ${res.status}`) }
-    const num =
-      data && typeof data === 'object' ? (data as { numOperacion?: unknown }).numOperacion : null
-    if (typeof num !== 'string' || !/^\d+$/.test(num)) {
-      return { ok: false, error: 'No se obtuvo un correlativo nuevo' }
-    }
-    return { ok: true, numOperacion: num }
-  } catch (e) {
-    return { ok: false, error: abortMessage(e) }
-  }
-}
-
 export async function listContratoFirmas(): Promise<{
   ok: boolean
   data: ContratoFirmaListRow[]
