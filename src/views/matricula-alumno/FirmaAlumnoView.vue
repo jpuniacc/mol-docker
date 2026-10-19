@@ -40,12 +40,16 @@ import { armarGrabarCuentaWebpay } from '@/utils/grabarCuentaWebpay'
 import { numeroOperacionContrato } from '@/utils/numeroOperacionContrato'
 import { ordenGrabadoWebpay } from '@/utils/ordenGrabadoWebpay'
 import { hoyIsoLocal } from '@/utils/pagareCuotasDraft'
+import {
+  ESPERA_REINTENTO_ENLACE_MS,
+  esEnlaceFirmaPendiente,
+  intentosAntesDelModalEnlace,
+} from '@/utils/reintentoEnlaceFirma'
 
 const POLL_MS = 5000
 const PASO_ENVIO_MS = 2_000
 const AVISO_LENTO_MS = 30_000
 const ESPERA_ENLACE_MS = 1_000
-const REINTENTOS_ENLACE = 3
 
 type PasoEnvioFirma = 'generando' | 'enviando' | 'listo'
 type EstadoPasoEnvio = 'pendiente' | 'actual' | 'listo'
@@ -269,12 +273,17 @@ async function prepararFirma(numOperacion: string): Promise<void> {
     }
     let enlace: string | null = null
     let ultimoError = 'No se pudo preparar el enlace de firma.'
-    for (let intento = 0; intento < REINTENTOS_ENLACE && !enlace; intento += 1) {
-      if (intento > 0) await esperar(ESPERA_ENLACE_MS)
+    const tope = intentosAntesDelModalEnlace()
+    for (let intento = 0; intento < tope && !enlace; intento += 1) {
+      if (intento > 0) await esperar(ESPERA_REINTENTO_ENLACE_MS)
       if (unmounted) return
       const res = await getEnlaceFirmaFirmante(numOperacion, firmante.email)
-      if (res.ok) enlace = res.signatureLink
-      else ultimoError = res.error
+      if (res.ok) {
+        enlace = res.signatureLink
+        continue
+      }
+      ultimoError = res.error
+      if (!esEnlaceFirmaPendiente(res.error)) break
     }
     if (!enlace) {
       fallo = ultimoError
@@ -501,6 +510,7 @@ function aplicarEstadoOk(estado: Extract<ContratoFirmaEstadoResponse, { ok: true
     })
     return
   }
+  if (errorEnlaces.value || preparandoEnlaces.value) return
   void prepararFirma(estado.numOperacion)
 }
 
