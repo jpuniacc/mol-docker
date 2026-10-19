@@ -54,6 +54,7 @@ import { fmtMontoClp, fetchPlanPagosMvByCodcli } from '@/services/fetchPlanPagos
 import { fetchMontoCaeAprobadoAlumno } from '@/services/fetchMnpEstadoCaeAlumnos'
 import { contextoMolAuditoria, type ContextoMolAuditoriaOpciones } from '@/services/molAuditContext'
 import { ejecutarVerificacionCae } from '@/services/verificacionCae'
+import { pedirNumeroOperacion } from '@/services/contratoFirmaApi'
 import { registrarFormaPagoAudit } from '@/services/formaPagoAuditLog'
 import { rutSinDv } from '@/services/alumnoDeudaNetApi'
 import { crearWebpay, redirigirAWebpay } from '@/services/webpayPlusApi'
@@ -162,10 +163,64 @@ const { docs: docsPagoArancel } = storeToRefs(docpagArancel)
 const { loading: cargandoDeuda, tieneDeuda, deudaValor } = storeToRefs(deudaNet)
 const {
   corrpagnumPreview,
-  correlativoPreview,
   contratoPreview,
   loading: cargandoPreflight,
 } = storeToRefs(preflight)
+
+const operacionLista = ref(false)
+const operacionReintentar = ref(false)
+const pidiendoNumero = ref(false)
+
+function identidadNumeroOperacion(): {
+  rut: string
+  codcli: string
+  anio: number
+  semestre: number
+} | null {
+  const rut = rutMostrado.value.trim()
+  const codcli = codcliMostrado.value.trim()
+  const anio = periodoActivo.anio
+  const semestre = periodoActivo.semestre
+  if (!rut || rut === '—' || !codcli || codcli === '—') return null
+  if (anio == null || semestre == null) return null
+  return { rut, codcli, anio, semestre }
+}
+
+function persistirNumeroOperacion(num: string): void {
+  alumnoCtx.setNumOperacionCuenta(num)
+  const pago = alumnoCtx.pagoMatricula
+  if (pago) {
+    alumnoCtx.setPagoMatricula({ ...pago, numOperacion: num })
+  }
+}
+
+function sesionNumOperacion(): string | undefined {
+  const sesion = (alumnoCtx.pagoMatricula?.numOperacion ?? '').trim()
+  return /^\d+$/.test(sesion) ? sesion : undefined
+}
+
+async function solicitarNumeroOperacion(): Promise<void> {
+  const identidad = identidadNumeroOperacion()
+  if (!identidad) return
+  pidiendoNumero.value = true
+  operacionReintentar.value = false
+  try {
+    const res = await pedirNumeroOperacion({
+      ...identidad,
+      sesionNum: sesionNumOperacion(),
+    })
+    if (res.ok) {
+      persistirNumeroOperacion(res.numOperacion)
+      operacionLista.value = true
+      return
+    }
+    operacionLista.value = false
+    if (res.code === 'identidad-incompleta') return
+    operacionReintentar.value = true
+  } finally {
+    pidiendoNumero.value = false
+  }
+}
 
 const deudaModalOpen = ref(false)
 const pagoMatriculaDialogOpen = ref(false)
@@ -964,9 +1019,13 @@ onMounted(async () => {
     cargarCatalogoPeriodo(),
     cargarDescuentosMatricula(),
   ])
+  void solicitarNumeroOperacion()
   await Promise.all([refrescarCasosConvenio(), cargarReservaMatricula()])
 
   let p = (await cargarPlanPagosAlumno()) ?? plan.value
+  if (!operacionLista.value && !pidiendoNumero.value) {
+    void solicitarNumeroOperacion()
+  }
   if (!p) return
 
   p = await refrescarPlanSiFaltanParamsErp(p)
@@ -1581,7 +1640,12 @@ async function confirmarPagareMatricula() {
   const cuotasDetalle: MockCuotaPagareDetalle[] = pagareCuotasPreview.value.map(
     ({ seleccionado: _sel, ...rest }) => rest,
   )
-  const numOperacion = (correlativoPreview.value ?? '').trim() || undefined
+  const almacenado = (
+    alumnoCtx.numOperacionCuenta ??
+    alumnoCtx.pagoMatricula?.numOperacion ??
+    ''
+  ).trim()
+  const numOperacion = /^\d+$/.test(almacenado) ? almacenado : undefined
   const contrato = (contratoPreview.value ?? '').trim() || undefined
   const payload: MockPagoMatricula = {
     medio: 'pagare',
@@ -1706,7 +1770,22 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div v-if="!operacionLista" class="space-y-4">
+    <p class="text-sm text-zinc-700">
+      Estamos procesando tu operación para continuar con el pago
+    </p>
+    <Button
+      v-if="operacionReintentar"
+      variant="outline"
+      type="button"
+      class="cursor-pointer"
+      :disabled="pidiendoNumero"
+      @click="solicitarNumeroOperacion"
+    >
+      Reintentar
+    </Button>
+  </div>
+  <div v-else class="space-y-6">
     <!-- Verificación CAE (solo alumno_cae = Si) -->
     <MatriculaAlumnoVerificacionCaeStep
       v-if="subPaso === 'verificacion-cae'"

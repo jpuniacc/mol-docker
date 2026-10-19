@@ -170,11 +170,113 @@ export async function getEnlaceFirmaFirmante(
 
 export async function getContratoFirmaEstado(
   numOperacion: string,
+  identidad?: { rut: string; codcli: string },
 ): Promise<ContratoFirmaEstadoResponse> {
   const op = encodeURIComponent(numOperacion)
+  const params = new URLSearchParams()
+  const rut = identidad?.rut.trim() ?? ''
+  const codcli = identidad?.codcli.trim() ?? ''
+  if (rut && rut !== '—' && codcli && codcli !== '—') {
+    params.set('rut', rut)
+    params.set('codcli', codcli)
+  }
+  const qs = params.size > 0 ? `?${params.toString()}` : ''
   try {
-    const res = await fetchWithTimeout(firmaUrl(`/${op}`), { method: 'GET' })
+    const res = await fetchWithTimeout(firmaUrl(`/${op}${qs}`), { method: 'GET' })
     return await readEstadoResponse(res)
+  } catch (e) {
+    return { ok: false, error: abortMessage(e) }
+  }
+}
+
+export type PedirNumeroOperacionInput = {
+  rut: string
+  codcli: string
+  anio: number
+  semestre: number
+  sesionNum?: string
+}
+
+export type PedirNumeroOperacionResult =
+  | { ok: true; numOperacion: string }
+  | { ok: false; code: 'identidad-incompleta' | 'reintentar' }
+
+export async function pedirNumeroOperacion(
+  input: PedirNumeroOperacionInput,
+): Promise<PedirNumeroOperacionResult> {
+  const body: {
+    rut: string
+    codcli: string
+    anio: number
+    semestre: number
+    sesionNum?: string
+  } = {
+    rut: input.rut,
+    codcli: input.codcli,
+    anio: input.anio,
+    semestre: input.semestre,
+  }
+  const sesionNum = (input.sesionNum ?? '').trim()
+  if (sesionNum) body.sesionNum = sesionNum
+
+  try {
+    const res = await fetchWithTimeout(firmaUrl('/correlativo'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    let data: unknown
+    try {
+      data = await res.json()
+    } catch {
+      return { ok: false, code: 'reintentar' }
+    }
+    if (res.status === 409) {
+      const code =
+        data && typeof data === 'object' ? (data as { code?: unknown }).code : null
+      if (code === 'identidad-incompleta') {
+        return { ok: false, code: 'identidad-incompleta' }
+      }
+    }
+    if (res.status === 503 || !res.ok) {
+      return { ok: false, code: 'reintentar' }
+    }
+    const num =
+      data && typeof data === 'object' ? (data as { numOperacion?: unknown }).numOperacion : null
+    if (typeof num !== 'string' || !/^\d+$/.test(num)) {
+      return { ok: false, code: 'reintentar' }
+    }
+    return { ok: true, numOperacion: num }
+  } catch {
+    return { ok: false, code: 'reintentar' }
+  }
+}
+
+export async function pedirCorrelativoOperacion(input: {
+  peek: string
+  rut: string
+  codcli: string
+  actualEnError: boolean
+}): Promise<{ ok: true; numOperacion: string } | { ok: false; error: string }> {
+  try {
+    const res = await fetchWithTimeout(firmaUrl('/correlativo'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    let data: unknown
+    try {
+      data = await res.json()
+    } catch {
+      return { ok: false, error: `Error HTTP ${res.status}` }
+    }
+    if (!res.ok) return { ok: false, error: errorFromUnknown(data, `Error HTTP ${res.status}`) }
+    const num =
+      data && typeof data === 'object' ? (data as { numOperacion?: unknown }).numOperacion : null
+    if (typeof num !== 'string' || !/^\d+$/.test(num)) {
+      return { ok: false, error: 'No se obtuvo un correlativo nuevo' }
+    }
+    return { ok: true, numOperacion: num }
   } catch (e) {
     return { ok: false, error: abortMessage(e) }
   }
