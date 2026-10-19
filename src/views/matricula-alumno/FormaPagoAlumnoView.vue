@@ -1459,12 +1459,25 @@ function lineasBeneficioParaContratoWebpay(): ContratoDescuentoLinea[] {
   return lineas
 }
 
-function contextoCrearWebpay(): { codcli: string; anio: number; periodo: 1 | 2 } | null {
+function contextoCrearWebpay(): {
+  codcli: string
+  codcliAcademico: string
+  rut: string
+  anio: number
+  periodo: 1 | 2
+} | null {
   const periodo = periodoFormaPago()
   const codcli = rutSinDv(fuente.rutMostrado.value)
-  if (!periodo || !/^\d{7,8}$/.test(codcli)) return null
+  const rut = pickCampoAlumno(fuente.rutMostrado.value)
+  if (!periodo || !rut || !/^\d{7,8}$/.test(codcli)) return null
   if (periodo.semestre !== 1 && periodo.semestre !== 2) return null
-  return { codcli, anio: periodo.anio, periodo: periodo.semestre }
+  return {
+    codcli,
+    codcliAcademico: periodo.codcli,
+    rut,
+    anio: periodo.anio,
+    periodo: periodo.semestre,
+  }
 }
 
 /** Devuelve true si la pestaña salió hacia Webpay. */
@@ -1487,6 +1500,8 @@ async function iniciarWebpay(concepto: 'matricula' | 'arancel'): Promise<boolean
   try {
     const creado = await crearWebpay({
       codcli: ctx.codcli,
+      codcliAcademico: ctx.codcliAcademico,
+      rut: ctx.rut,
       anio: ctx.anio,
       periodo: ctx.periodo,
       concepto,

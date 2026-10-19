@@ -971,13 +971,21 @@ function persistirMediosYMontosWebpay(): void {
   alumnoCtx.setWebpayMontoArancel(montoNetoArancel())
 }
 
-function contextoCrearWebpay(): { codcli: string; anio: number; periodo: 1 | 2 } | null {
+function contextoCrearWebpay(): {
+  codcli: string
+  codcliAcademico: string
+  rut: string
+  anio: number
+  periodo: 1 | 2
+} | null {
   const codcli = rutSinDv(fuente.rutMostrado.value)
+  const rut = pickCampoAlumno(fuente.rutMostrado.value)
+  const codcliAcademico = pickCampoAlumno(fuente.codcliMostrado.value)
   const anio = periodoActivo.anio
   const semestre = periodoActivo.semestre
-  if (!/^\d{7,8}$/.test(codcli) || anio == null) return null
+  if (!rut || !codcliAcademico || !/^\d{7,8}$/.test(codcli) || anio == null) return null
   if (semestre !== 1 && semestre !== 2) return null
-  return { codcli, anio, periodo: semestre }
+  return { codcli, codcliAcademico, rut, anio, periodo: semestre }
 }
 
 async function iniciarWebpay(concepto: 'matricula' | 'arancel'): Promise<void> {
@@ -996,6 +1004,8 @@ async function iniciarWebpay(concepto: 'matricula' | 'arancel'): Promise<void> {
   try {
     const creado = await crearWebpay({
       codcli: ctx.codcli,
+      codcliAcademico: ctx.codcliAcademico,
+      rut: ctx.rut,
       anio: ctx.anio,
       periodo: ctx.periodo,
       concepto,

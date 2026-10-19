@@ -13,6 +13,7 @@ import {
   type ConceptoWebpay,
   type FilaPublica,
 } from '@/services/webpayPlusApi'
+import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
 import { useAuthStore } from '@/stores/auth'
 import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import {
@@ -30,6 +31,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const datosMnp = useDatosAlumnoMnpStore()
 const alumnoCtx = useMatriculaAlumnoContextStore()
+const fuente = useAlumnoRematriculaFuente()
 
 const cargando = ref(true)
 const mensaje = ref('')
@@ -109,8 +111,17 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
       mostrarReintentar.value = true
       return
     }
+    const codcliAcademico = fuente.codcliMostrado.value.trim()
+    const rut = fuente.rutMostrado.value.trim()
+    if (!codcliAcademico || codcliAcademico === '—' || !rut || rut === '—') {
+      mostrarErrorRematricula('Faltan codcli académico o RUT para continuar el pago')
+      mostrarReintentar.value = true
+      return
+    }
     const creado = await crearWebpay({
       codcli: fila.codcli,
+      codcliAcademico,
+      rut,
       anio: fila.anioPeriodo,
       periodo: fila.semestrePeriodo,
       concepto: paso.concepto,

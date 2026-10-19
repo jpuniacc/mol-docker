@@ -4,7 +4,12 @@ export type ConceptoWebpay = 'matricula' | 'arancel'
 export type EstadoWebpay = 'creada' | 'autorizada' | 'rechazada' | 'abortada'
 
 export type CrearWebpayInput = {
+  /** RUT sin dígito verificador: código de orden de compra Transbank. */
   codcli: string
+  /** Código académico de mnp.rematricula_operacion (no es el codcli de Transbank). */
+  codcliAcademico: string
+  /** RUT completo, con dígito verificador. */
+  rut: string
   anio: number
   periodo: 1 | 2
   concepto: ConceptoWebpay
