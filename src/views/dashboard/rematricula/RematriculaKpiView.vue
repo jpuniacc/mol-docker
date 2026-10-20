@@ -86,6 +86,7 @@ const cargandoEtapa = ref<EtapaProgresoRematricula | null>(null)
 const errorEtapa = ref<string | null>(null)
 const busquedaEtapa = ref('')
 const filtroEspera = ref<FiltroEsperaFormaPago>('todos')
+const filtroBucketExacto = ref<BucketEsperaFormaPago | null>(null)
 const filasVisibles = ref(FILAS_POR_PAGINA)
 const timelineOpen = ref(false)
 const timelineLoading = ref(false)
@@ -148,12 +149,11 @@ const alumnosFiltrados = computed(() => {
         return texto.includes(q)
       })
   if (etapa !== 'forma_pago') return porTexto
-  return porTexto.filter(fila =>
-    coincideFiltroEspera(
-      bucketEsperaFormaPago(fila.espera_cae, fila.espera_ministerial),
-      filtroEspera.value,
-    ),
-  )
+  const exacto = filtroBucketExacto.value
+  return porTexto.filter(fila => {
+    const bucket = bucketEsperaFormaPago(fila.espera_cae, fila.espera_ministerial)
+    return exacto ? bucket === exacto : coincideFiltroEspera(bucket, filtroEspera.value)
+  })
 })
 
 const desgloseFormaPago = computed(() => {
@@ -238,6 +238,7 @@ async function toggleEtapa(etapa: EtapaProgresoRematricula) {
   etapaAbierta.value = etapa
   busquedaEtapa.value = ''
   filtroEspera.value = 'todos'
+  filtroBucketExacto.value = null
   filasVisibles.value = FILAS_POR_PAGINA
   if (!alumnosPorEtapa.value[etapa]) {
     await cargarEtapa(etapa)
@@ -245,12 +246,15 @@ async function toggleEtapa(etapa: EtapaProgresoRematricula) {
 }
 
 function seleccionarFiltroEspera(filtro: FiltroEsperaFormaPago) {
+  filtroBucketExacto.value = null
   filtroEspera.value = filtro
   filasVisibles.value = FILAS_POR_PAGINA
 }
 
-async function abrirFormaPagoConFiltro(filtro: FiltroEsperaFormaPago) {
-  seleccionarFiltroEspera(filtro)
+async function abrirFormaPagoConFiltro(bucket: BucketEsperaFormaPago) {
+  seleccionarFiltroEspera(bucket)
+  // Modo exacto: el listado coincide con el conteo exclusivo del desglose.
+  filtroBucketExacto.value = bucket
   if (etapaAbierta.value === 'forma_pago') return
   etapaAbierta.value = 'forma_pago'
   busquedaEtapa.value = ''
