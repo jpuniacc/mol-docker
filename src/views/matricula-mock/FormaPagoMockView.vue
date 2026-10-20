@@ -44,7 +44,6 @@ import {
 } from '@/components/ui/table'
 import ConvenioVigenteUpload from '@/components/rematricula/ConvenioVigenteUpload.vue'
 import { useMockAlumnoFuente } from '@/composables/useMockAlumnoFuente'
-import { tieneCae } from '@/constants/verificacionCae'
 import { Check, CreditCard, FileText } from 'lucide-vue-next'
 import { rutSinDv } from '@/services/alumnoDeudaNetApi'
 import { crearWebpay, redirigirAWebpay } from '@/services/webpayPlusApi'
@@ -60,6 +59,12 @@ import { fetchBeneficioPeriodo } from '@/services/fetchBeneficioPeriodo'
 import { fmtMontoClp, fetchPlanPagosMvByCodcli } from '@/services/fetchPlanPagosMv'
 import { contextoMolAuditoria, type ContextoMolAuditoriaOpciones } from '@/services/molAuditContext'
 import { ejecutarVerificacionCae } from '@/services/verificacionCae'
+import {
+  consultarResolucionBecaEstatal,
+  reservarDescuentoMatricula,
+} from '@/services/reservaDescuentoMatricula'
+import { esperaDesdeConsolidado, requiereVerificacionCae } from '@/utils/esperaConsolidado'
+import MatriculaAlumnoVerificacionEstatalStep from '@/views/matricula-alumno/MatriculaAlumnoVerificacionEstatalStep.vue'
 import { registrarFormaPagoAudit } from '@/services/formaPagoAuditLog'
 import {
   beneficioSeleccionable,
@@ -407,7 +412,7 @@ const paramsErpPantalla = computed(() => {
   ]
 })
 
-type SubPaso = 'verificacion-cae' | 'becas' | 'pago'
+type SubPaso = 'verificacion-cae' | 'verificacion-estatal' | 'becas' | 'pago'
 const subPaso = ref<SubPaso>('becas')
 
 const fmt = fmtMontoClp
@@ -422,8 +427,19 @@ const plan = computed(() => mockCtx.selectedPlanPagos)
 
 const verificandoCae = ref(false)
 const reintentandoCae = ref(false)
+const reintentandoEstatal = ref(false)
 
 const carteraBeneficiosRow = ref<CarteraBeneficioRow | null>(null)
+const esperaConsolidado = computed(() =>
+  esperaDesdeConsolidado(carteraBeneficiosRow.value?.consolidado),
+)
+const requiereCae = computed(() =>
+  requiereVerificacionCae(carteraBeneficiosRow.value?.consolidado, plan.value),
+)
+const nombresBecaEstatal = computed(() => {
+  const texto = esperaConsolidado.value.textoMinisterial
+  return texto ? [texto] : []
+})
 const cargandoCarteraBeneficios = ref(false)
 const errorCarteraBeneficios = ref<string | null>(null)
 
@@ -669,10 +685,118 @@ watch(catalogoAplica, () => {
   initBeneficiosSeleccionados()
 })
 
+function periodoFormaPago(): { codcli: string; anio: number; semestre: number } | null {
+  const codcli = pickCampoAlumno(fuente.codcliMostrado.value)
+  const anio = periodoActivo.anio
+  const semestre = periodoActivo.semestre
+  if (!codcli || anio == null || semestre == null) return null
+  return { codcli, anio, semestre }
+}
+
+async function reservarEspera(motivo: 'CAE' | 'ESTATAL') {
+  const periodo = periodoFormaPago()
+  if (!periodo) return
+  const { error } = await reservarDescuentoMatricula({
+    codcli: periodo.codcli,
+    anioPeriodo: periodo.anio,
+    semestrePeriodo: periodo.semestre,
+    rutAlumno: pickCampoAlumno(fuente.rutMostrado.value),
+    motivo,
+  })
+  if (error) console.warn('[forma-pago] reserva de matrícula', error)
+}
+
+async function abrirCasoEsperaMinisterial() {
+  const periodo = periodoFormaPago()
+  if (!periodo) return
+  const ctx = contextoMolAuditoria({
+    rutAlumno: pickCampoAlumno(fuente.rutMostrado.value),
+    codcli: periodo.codcli,
+    nombreAlumno: pickCampoAlumno(fuente.nombreMostrado.value),
+    anioPeriodo: periodo.anio,
+    semestrePeriodo: periodo.semestre,
+    esMock: mockCtx.tieneAlumnoSeleccionado,
+  })
+  const { error } = await abrirCasoRematricula({
+    periodo: periodoCatalogoLabel(periodo.anio, periodo.semestre),
+    tipo: 'ESTATAL_MINEDUC',
+    estado: 'ABIERTO',
+    codcli: periodo.codcli,
+    rutAlumno: ctx.rutAlumno,
+    nombreAlumno: ctx.nombreAlumno,
+    carrera: (plan.value?.carrera ?? plan.value?.nombre_carrera ?? '').trim() || undefined,
+    jornada: (plan.value?.jornada_carrera ?? '').trim() || undefined,
+    titulo: 'Beca ministerial en espera',
+    detalle: esperaConsolidado.value.textoMinisterial ?? 'BECA MINISTERIAL',
+    refTipo: 'log_evento',
+    esMock: ctx.esMock,
+  })
+  if (error) console.warn('[forma-pago] caso ministerial', error)
+}
+
+async function entrarSiBecaEstatalOPlan() {
+  if (errorCarteraBeneficios.value) return
+  if (!esperaConsolidado.value.ministerial) {
+    subPaso.value = 'becas'
+    return
+  }
+  const periodo = periodoFormaPago()
+  if (!periodo) {
+    toast.error('No se pudo verificar la beca ministerial: faltan codcli o periodo activo.')
+    subPaso.value = 'verificacion-estatal'
+    return
+  }
+  const { disponible, error } = await consultarResolucionBecaEstatal({
+    codcli: periodo.codcli,
+    anioPeriodo: periodo.anio,
+    semestrePeriodo: periodo.semestre,
+  })
+  if (error) {
+    toast.error('No se pudo verificar la beca ministerial. Intenta de nuevo.')
+    subPaso.value = 'verificacion-estatal'
+    return
+  }
+  if (disponible) {
+    subPaso.value = 'becas'
+    return
+  }
+  await reservarEspera('ESTATAL')
+  await abrirCasoEsperaMinisterial()
+  subPaso.value = 'verificacion-estatal'
+}
+
+async function correrVerificacionEstatal() {
+  reintentandoEstatal.value = true
+  try {
+    await entrarSiBecaEstatalOPlan()
+  } finally {
+    reintentandoEstatal.value = false
+  }
+}
+
+async function decidirEsperaInicial() {
+  if (errorCarteraBeneficios.value) return
+  if (!requiereCae.value) {
+    await entrarSiBecaEstatalOPlan()
+  } else if (mockCtx.verificacionCae?.resultado === 'continua') {
+    await entrarSiBecaEstatalOPlan()
+  } else if (mockCtx.verificacionCae?.resultado === 'pendiente_resolucion') {
+    await reservarEspera('CAE')
+    subPaso.value = 'verificacion-cae'
+  } else {
+    await correrVerificacionCae()
+  }
+}
+
+async function reintentarTrasCartera() {
+  await cargarCarteraBeneficios()
+  await decidirEsperaInicial()
+}
+
 async function correrVerificacionCae(reintento = false) {
   const p = plan.value
-  if (!p || !tieneCae(p)) {
-    subPaso.value = 'becas'
+  if (!p || !requiereCae.value) {
+    await entrarSiBecaEstatalOPlan()
     return
   }
 
@@ -681,7 +805,7 @@ async function correrVerificacionCae(reintento = false) {
   const semestre = periodoActivo.semestre
   if (!codcli || anio == null || semestre == null) {
     toast.error('No se pudo verificar CAE: faltan codcli o periodo activo.')
-    subPaso.value = 'becas'
+    subPaso.value = 'verificacion-cae'
     return
   }
 
@@ -724,10 +848,11 @@ async function correrVerificacionCae(reintento = false) {
     mockCtx.setVerificacionCae({ resultado: data.resultado })
 
     if (data.resultado === 'continua') {
-      subPaso.value = 'becas'
+      await entrarSiBecaEstatalOPlan()
       return
     }
 
+    await reservarEspera('CAE')
     subPaso.value = 'verificacion-cae'
   } finally {
     verificandoCae.value = false
@@ -747,6 +872,7 @@ onMounted(async () => {
   ])
   await refrescarCasosConvenio()
 
+  if (errorCarteraBeneficios.value) return
   let p = plan.value
   if (!p) return
 
@@ -754,15 +880,7 @@ onMounted(async () => {
 
   await Promise.all([cargarArancelDesdeErp(p), precargarDeudaSiHayRut()])
 
-  if (!tieneCae(p)) {
-    subPaso.value = 'becas'
-  } else if (mockCtx.verificacionCae?.resultado === 'continua') {
-    subPaso.value = 'becas'
-  } else if (mockCtx.verificacionCae?.resultado === 'pendiente_resolucion') {
-    subPaso.value = 'verificacion-cae'
-  } else {
-    await correrVerificacionCae()
-  }
+  await decidirEsperaInicial()
 
   if (subPaso.value === 'becas') await abrirPlanSiVieneDeWebpay()
 })
@@ -1224,14 +1342,32 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
 <template>
   <div class="space-y-6">
     <!-- Verificación CAE (solo alumno_cae = Si) -->
+    <div v-if="errorCarteraBeneficios && subPaso !== 'verificacion-cae'" class="space-y-4">
+      <p class="text-sm text-red-700">{{ errorCarteraBeneficios }}</p>
+      <Button variant="outline" type="button" class="cursor-pointer" @click="reintentarTrasCartera">
+        Reintentar
+      </Button>
+    </div>
+
     <MatriculaMockVerificacionCaeStep
-      v-if="subPaso === 'verificacion-cae'"
+      v-else-if="subPaso === 'verificacion-cae'"
       :estado="estadoVerificacionCae"
       :reintentando="reintentandoCae"
       :periodo-label="periodoActivoLabel"
       :nombre-alumno="nombreMostrado"
       :codcli="codcliMostrado"
       @reintentar="correrVerificacionCae(true)"
+      @volver="volverDatosPersonales"
+    />
+
+    <MatriculaAlumnoVerificacionEstatalStep
+      v-else-if="subPaso === 'verificacion-estatal'"
+      :periodo-label="periodoActivoLabel"
+      :nombre-alumno="nombreMostrado"
+      :codcli="codcliMostrado"
+      :beneficios="nombresBecaEstatal"
+      :reintentando="reintentandoEstatal"
+      @reintentar="correrVerificacionEstatal"
       @volver="volverDatosPersonales"
     />
 

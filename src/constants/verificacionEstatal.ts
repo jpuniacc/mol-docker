@@ -5,7 +5,7 @@ export const VERIFICACION_ESTATAL_UI = {
   badgeEnEspera: 'En espera',
   pendienteTitulo: 'Rematrícula en espera',
   pendienteMensaje:
-    'Tienes una beca ministerial vigente en tu plan. UNIACC no la renueva por este portal. Tu rematrícula queda en espera hasta que MINEDUC confirme la renovación.',
+    'Tienes una beca ministerial vigente. UNIACC no la renueva por este portal. Tu rematrícula queda en espera hasta que MINEDUC confirme la renovación.',
   pendienteAclaracion: 'Esto no significa que tu rematrícula fue rechazada.',
   pasosTitulo: '¿Qué ocurre ahora?',
   pasos: [

@@ -67,6 +67,7 @@ import {
   type CarteraBeneficioRow,
   type CatalogoBeneficioAplica,
 } from '@/utils/carteraBeneficiosUi'
+import { esperaDesdeConsolidado, requiereVerificacionCae } from '@/utils/esperaConsolidado'
 import {
   anioNotasRematricula,
   filasBeneficioConPromedio,
@@ -583,21 +584,26 @@ const periodoBeneficioLabel = computed(
 const beneficiosSeleccionados = ref<Record<number, boolean>>({})
 const descuentosMatriculaCatalogo = ref<TpMnpDescuentoMatriculaAnticipadaRow[]>([])
 
-const tieneBecaEstatalAsignada = computed(() =>
-  beneficios.value.some((b) => b.flujo === 'ESTATAL'),
+const esperaConsolidado = computed(() =>
+  esperaDesdeConsolidado(carteraBeneficiosRow.value?.consolidado),
 )
 
-const nombresBecaEstatal = computed(() =>
-  beneficios.value.filter((b) => b.flujo === 'ESTATAL').map((b) => b.descripcion),
+const requiereCae = computed(() =>
+  requiereVerificacionCae(carteraBeneficiosRow.value?.consolidado, plan.value),
 )
+
+const nombresBecaEstatal = computed(() => {
+  const texto = esperaConsolidado.value.textoMinisterial
+  return texto ? [texto] : []
+})
 
 const descuentoMatriculaAplicadoConFila = computed(() =>
   descuentoMatriculaAplicado({
     filas: descuentosMatriculaCatalogo.value,
     periodo: periodoActivoLabel.value ?? '',
     hoy: fechaChileIso(),
-    tieneCae: tieneCae(plan.value),
-    tieneBecaEstatal: tieneBecaEstatalAsignada.value,
+    tieneCae: requiereCae.value,
+    tieneBecaEstatal: esperaConsolidado.value.ministerial,
     reserva: reservaMatricula.value,
   }),
 )
@@ -906,8 +912,37 @@ async function guardarReservaMatricula(motivo: 'CAE' | 'ESTATAL') {
   reservaMatricula.value = data
 }
 
+async function abrirCasoEsperaMinisterial() {
+  const periodo = periodoFormaPago()
+  if (!periodo) return
+  const ctx = contextoMolAuditoria({
+    rutAlumno: pickCampoAlumno(fuente.rutMostrado.value),
+    codcli: periodo.codcli,
+    nombreAlumno: pickCampoAlumno(fuente.nombreMostrado.value),
+    anioPeriodo: periodo.anio,
+    semestrePeriodo: periodo.semestre,
+    esMock: false,
+  })
+  const { error } = await abrirCasoRematricula({
+    periodo: periodoCatalogoLabel(periodo.anio, periodo.semestre),
+    tipo: 'ESTATAL_MINEDUC',
+    estado: 'ABIERTO',
+    codcli: periodo.codcli,
+    rutAlumno: ctx.rutAlumno,
+    nombreAlumno: ctx.nombreAlumno,
+    carrera: (plan.value?.carrera ?? plan.value?.nombre_carrera ?? '').trim() || undefined,
+    jornada: (plan.value?.jornada_carrera ?? '').trim() || undefined,
+    titulo: 'Beca ministerial en espera',
+    detalle: esperaConsolidado.value.textoMinisterial ?? 'BECA MINISTERIAL',
+    refTipo: 'log_evento',
+    esMock: false,
+  })
+  if (error) console.warn('[forma-pago] caso ministerial', error)
+}
+
 async function entrarSiBecaEstatalOPlan() {
-  if (!tieneBecaEstatalAsignada.value) {
+  if (errorCarteraBeneficios.value) return
+  if (!esperaConsolidado.value.ministerial) {
     subPaso.value = 'becas'
     return
   }
@@ -933,6 +968,7 @@ async function entrarSiBecaEstatalOPlan() {
     return
   }
   await guardarReservaMatricula('ESTATAL')
+  await abrirCasoEsperaMinisterial()
   subPaso.value = 'verificacion-estatal'
 }
 
@@ -945,10 +981,29 @@ async function correrVerificacionEstatal() {
   }
 }
 
+async function decidirEsperaInicial() {
+  if (errorCarteraBeneficios.value) return
+  if (!requiereCae.value) {
+    await entrarSiBecaEstatalOPlan()
+  } else if (alumnoCtx.verificacionCae?.resultado === 'continua') {
+    await entrarSiBecaEstatalOPlan()
+  } else if (alumnoCtx.verificacionCae?.resultado === 'pendiente_resolucion') {
+    await guardarReservaMatricula('CAE')
+    subPaso.value = 'verificacion-cae'
+  } else {
+    await correrVerificacionCae()
+  }
+}
+
+async function reintentarTrasCartera() {
+  await cargarCarteraBeneficios()
+  await decidirEsperaInicial()
+}
+
 async function correrVerificacionCae(reintento = false) {
   const p = plan.value
-  if (!p || !tieneCae(p)) {
-    subPaso.value = 'becas'
+  if (!p || !requiereCae.value) {
+    await entrarSiBecaEstatalOPlan()
     return
   }
 
@@ -957,7 +1012,7 @@ async function correrVerificacionCae(reintento = false) {
   const semestre = periodoActivo.semestre
   if (!codcli || anio == null || semestre == null) {
     mostrarErrorRematricula('No se pudo verificar CAE: faltan codcli o periodo activo.')
-    subPaso.value = 'becas'
+    subPaso.value = 'verificacion-cae'
     return
   }
 
@@ -1030,22 +1085,14 @@ onMounted(async () => {
   if (!operacionLista.value && !pidiendoNumero.value) {
     void solicitarNumeroOperacion()
   }
+  if (errorCarteraBeneficios.value) return
   if (!p) return
 
   p = await refrescarPlanSiFaltanParamsErp(p)
 
   await Promise.all([cargarArancelDesdeErp(p), precargarDeudaSiHayRut()])
 
-  if (!tieneCae(p)) {
-    await entrarSiBecaEstatalOPlan()
-  } else if (alumnoCtx.verificacionCae?.resultado === 'continua') {
-    await entrarSiBecaEstatalOPlan()
-  } else if (alumnoCtx.verificacionCae?.resultado === 'pendiente_resolucion') {
-    await guardarReservaMatricula('CAE')
-    subPaso.value = 'verificacion-cae'
-  } else {
-    await correrVerificacionCae()
-  }
+  await decidirEsperaInicial()
 
   if (subPaso.value === 'becas') await abrirPlanSiVieneDeWebpay()
 })
@@ -1812,6 +1859,18 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
       @reintentar="correrVerificacionCae(true)"
       @volver="volverDatosPersonales"
     />
+
+    <div v-else-if="errorCarteraBeneficios" class="space-y-4">
+      <p class="text-sm text-red-700">{{ errorCarteraBeneficios }}</p>
+      <Button
+        variant="outline"
+        type="button"
+        class="cursor-pointer"
+        @click="reintentarTrasCartera"
+      >
+        Reintentar
+      </Button>
+    </div>
 
     <MatriculaAlumnoVerificacionEstatalStep
       v-else-if="subPaso === 'verificacion-estatal'"
