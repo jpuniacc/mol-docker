@@ -55,3 +55,6 @@ docs/01. Certificados SSL Web (Wildcard)/
 *.pfx
 *.p12
 **/pass.txt
+
+# Git worktrees locales
+.worktrees/
