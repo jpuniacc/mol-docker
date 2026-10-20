@@ -187,50 +187,52 @@ BEGIN
       %s AS matriculado_ok
     FROM universo u
   ),
-  con_etapa AS (
-    SELECT
-      h.*,
-      CASE
-        WHEN h.matriculado_ok THEN 'matriculado'
-        WHEN h.firma_ok THEN 'firma'
-        WHEN h.forma_pago_ok THEN 'forma_pago'
-        WHEN h.datos_ok THEN 'datos'
-        WHEN h.tyc_acepta THEN 'tyc'
-        WHEN h.tiene_ingreso THEN 'ingreso'
-        ELSE 'sin_ingreso'
-      END AS etapa_actual
-    FROM hitos h
-  ),
+  -- Flags de espera antes de etapa: standby CAE/Ministerial cuenta como forma_pago
+  -- (el alumno ya entró al flujo de pago aunque no confirmó el medio).
   con_espera AS (
     SELECT
-      ce.*,
+      h.*,
       (
         EXISTS (
           SELECT 1
           FROM public.mnp_caso_rematricula caso
-          WHERE caso.codcli = ce.codcli
-            AND caso.periodo = (ce.anio_periodo::text || '-0' || ce.semestre_periodo::text)
+          WHERE caso.codcli = h.codcli
+            AND caso.periodo = (h.anio_periodo::text || '-0' || h.semestre_periodo::text)
             AND caso.tipo = 'CAE_RESOLUCION'
             AND caso.estado IN ('ABIERTO', 'EN_REVISION')
         )
         OR EXISTS (
           SELECT 1
           FROM public.mnp_verificacion_cae_mol v
-          WHERE v.codcli = ce.codcli
-            AND v.anio_periodo = ce.anio_periodo
-            AND v.semestre_periodo = ce.semestre_periodo
+          WHERE v.codcli = h.codcli
+            AND v.anio_periodo = h.anio_periodo
+            AND v.semestre_periodo = h.semestre_periodo
             AND v.resultado = 'pendiente_resolucion'
         )
       ) AS espera_cae,
       EXISTS (
         SELECT 1
         FROM public.mnp_caso_rematricula caso
-        WHERE caso.codcli = ce.codcli
-          AND caso.periodo = (ce.anio_periodo::text || '-0' || ce.semestre_periodo::text)
+        WHERE caso.codcli = h.codcli
+          AND caso.periodo = (h.anio_periodo::text || '-0' || h.semestre_periodo::text)
           AND caso.tipo = 'ESTATAL_MINEDUC'
           AND caso.estado IN ('ABIERTO', 'EN_REVISION')
       ) AS espera_ministerial
-    FROM con_etapa ce
+    FROM hitos h
+  ),
+  con_etapa AS (
+    SELECT
+      ce.*,
+      CASE
+        WHEN ce.matriculado_ok THEN 'matriculado'
+        WHEN ce.firma_ok THEN 'firma'
+        WHEN ce.forma_pago_ok OR ce.espera_cae OR ce.espera_ministerial THEN 'forma_pago'
+        WHEN ce.datos_ok THEN 'datos'
+        WHEN ce.tyc_acepta THEN 'tyc'
+        WHEN ce.tiene_ingreso THEN 'ingreso'
+        ELSE 'sin_ingreso'
+      END AS etapa_actual
+    FROM con_espera ce
   ),
   ultima_actividad AS (
     SELECT
@@ -301,7 +303,7 @@ BEGIN
           END
         FROM ultimos_logs
       ) AS ultima_label
-    FROM con_espera ce
+    FROM con_etapa ce
   )
   INSERT INTO public.mnp_progreso_rematricula (
     codcli, anio_periodo, semestre_periodo, rut, rut_norm,
@@ -334,7 +336,7 @@ BEGIN
     ce.espera_cae,
     ce.espera_ministerial,
     now() AS actualizado_en
-  FROM con_espera ce
+  FROM con_etapa ce
   LEFT JOIN ultima_actividad ua ON ua.codcli = ce.codcli
     AND ua.anio_periodo = ce.anio_periodo
     AND ua.semestre_periodo = ce.semestre_periodo

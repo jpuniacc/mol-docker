@@ -42,7 +42,9 @@ Los estados abiertos coinciden con la bandeja de Casos Rematrícula.
 
 En `refresh_mnp_progreso_rematricula` (botón «Actualizar progreso» / cron). No hay escritura en vivo en cada click del portal.
 
-Los flags pueden quedar `true` en otras etapas si el caso sigue abierto; el **desglose del embudo** solo se muestra y se agrega para `etapa_actual = 'forma_pago'`.
+**Etapa del embudo:** si `espera_cae` o `espera_ministerial` es verdadero, `etapa_actual` es al menos `forma_pago` (salvo que ya esté en `firma` o `matriculado`). Así, un alumno en standby CAE/Ministerial no queda en Datos OK aunque no haya confirmado el medio de pago.
+
+El **desglose del embudo** se muestra y se agrega solo para `etapa_actual = 'forma_pago'`.
 
 Filas antiguas o flags nulos en lectura se tratan como `false`.
 
