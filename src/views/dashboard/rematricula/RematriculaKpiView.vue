@@ -43,6 +43,25 @@ import {
   lineasDetalleActividad,
   permanenciaEtapa,
 } from '@/utils/etapaProgresoRematricula'
+import {
+  bucketEsperaFormaPago,
+  coincideFiltroEspera,
+  etiquetaBucketEsperaFormaPago,
+  etiquetaFiltroEsperaFormaPago,
+  type BucketEsperaFormaPago,
+  type FiltroEsperaFormaPago,
+} from '@/utils/esperaFormaPagoKpi'
+
+const FILTROS_ESPERA: FiltroEsperaFormaPago[] = ['todos', 'cae', 'ministerial', 'ambos', 'resto']
+
+const ORDEN_BUCKETS_ESPERA: BucketEsperaFormaPago[] = ['cae', 'ministerial', 'ambos', 'resto']
+
+const KPI_KEY_BUCKET: Record<BucketEsperaFormaPago, keyof KpiProgresoRematricula> = {
+  cae: 'forma_pago_espera_cae',
+  ministerial: 'forma_pago_espera_ministerial',
+  ambos: 'forma_pago_espera_ambos',
+  resto: 'forma_pago_resto',
+}
 
 const ORDEN_EMBUDO_ASC: EtapaProgresoRematricula[] = [
   'sin_ingreso',
@@ -66,6 +85,7 @@ const alumnosPorEtapa = ref<Partial<Record<EtapaProgresoRematricula, MnpProgreso
 const cargandoEtapa = ref<EtapaProgresoRematricula | null>(null)
 const errorEtapa = ref<string | null>(null)
 const busquedaEtapa = ref('')
+const filtroEspera = ref<FiltroEsperaFormaPago>('todos')
 const filasVisibles = ref(FILAS_POR_PAGINA)
 const timelineOpen = ref(false)
 const timelineLoading = ref(false)
@@ -117,15 +137,33 @@ const alumnosFiltrados = computed(() => {
   if (!etapa) return []
   const filas = alumnosPorEtapa.value[etapa] ?? []
   const q = busquedaEtapa.value.trim().toLowerCase()
-  if (!q) return filas
-  return filas.filter(fila => {
-    const rut = formatearRut(fila.rut ?? '').toLowerCase()
-    const texto = [fila.rut, rut, fila.nombre_alumno, fila.codcli, fila.nombre_carrera]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase()
-    return texto.includes(q)
-  })
+  const porTexto = !q
+    ? filas
+    : filas.filter(fila => {
+        const rut = formatearRut(fila.rut ?? '').toLowerCase()
+        const texto = [fila.rut, rut, fila.nombre_alumno, fila.codcli, fila.nombre_carrera]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        return texto.includes(q)
+      })
+  if (etapa !== 'forma_pago') return porTexto
+  return porTexto.filter(fila =>
+    coincideFiltroEspera(
+      bucketEsperaFormaPago(fila.espera_cae, fila.espera_ministerial),
+      filtroEspera.value,
+    ),
+  )
+})
+
+const desgloseFormaPago = computed(() => {
+  if (!kpi.value) return []
+  const datos = kpi.value
+  return ORDEN_BUCKETS_ESPERA.map(bucket => ({
+    bucket,
+    label: etiquetaBucketEsperaFormaPago(bucket),
+    count: Number(datos[KPI_KEY_BUCKET[bucket]] ?? 0),
+  }))
 })
 
 const alumnosVisibles = computed(() => alumnosFiltrados.value.slice(0, filasVisibles.value))
@@ -199,9 +237,25 @@ async function toggleEtapa(etapa: EtapaProgresoRematricula) {
   }
   etapaAbierta.value = etapa
   busquedaEtapa.value = ''
+  filtroEspera.value = 'todos'
   filasVisibles.value = FILAS_POR_PAGINA
   if (!alumnosPorEtapa.value[etapa]) {
     await cargarEtapa(etapa)
+  }
+}
+
+function seleccionarFiltroEspera(filtro: FiltroEsperaFormaPago) {
+  filtroEspera.value = filtro
+  filasVisibles.value = FILAS_POR_PAGINA
+}
+
+async function abrirFormaPagoConFiltro(filtro: FiltroEsperaFormaPago) {
+  seleccionarFiltroEspera(filtro)
+  if (etapaAbierta.value === 'forma_pago') return
+  etapaAbierta.value = 'forma_pago'
+  busquedaEtapa.value = ''
+  if (!alumnosPorEtapa.value.forma_pago) {
+    await cargarEtapa('forma_pago')
   }
 }
 
@@ -363,6 +417,21 @@ onMounted(async () => {
               </span>
               <span class="text-lg font-semibold">{{ item.count }}</span>
             </button>
+            <div
+              v-if="item.etapa === 'forma_pago' && desgloseFormaPago.length"
+              class="space-y-1 border-t px-3 py-2"
+            >
+              <button
+                v-for="linea in desgloseFormaPago"
+                :key="linea.bucket"
+                type="button"
+                class="flex w-full cursor-pointer items-center justify-between rounded px-2 py-1 text-sm text-muted-foreground hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                @click.stop="abrirFormaPagoConFiltro(linea.bucket)"
+              >
+                <span class="pl-7">{{ linea.label }}</span>
+                <span class="tabular-nums font-medium text-foreground">{{ linea.count }}</span>
+              </button>
+            </div>
             <div v-if="etapaAbierta === item.etapa" class="space-y-3 border-t px-3 py-3">
               <p v-if="cargandoEtapa === item.etapa" class="text-sm text-muted-foreground">
                 Cargando alumnos...
@@ -378,6 +447,20 @@ onMounted(async () => {
                   :aria-label="`Buscar alumnos en ${item.label}`"
                   @click.stop
                 />
+                <div v-if="item.etapa === 'forma_pago'" class="flex flex-wrap gap-2">
+                  <Button
+                    v-for="f in FILTROS_ESPERA"
+                    :key="f"
+                    type="button"
+                    size="sm"
+                    :variant="filtroEspera === f ? 'default' : 'outline'"
+                    class="cursor-pointer"
+                    :aria-pressed="filtroEspera === f"
+                    @click="seleccionarFiltroEspera(f)"
+                  >
+                    {{ etiquetaFiltroEsperaFormaPago(f) }}
+                  </Button>
+                </div>
                 <p v-if="alumnosFiltrados.length === 0" class="text-sm text-muted-foreground">
                   No hay alumnos en esta etapa.
                 </p>
@@ -408,6 +491,8 @@ onMounted(async () => {
                             >
                               {{ etiquetaPermanenciaEtapa(marcaPermanencia(fila).horas ?? 0) }}
                             </Badge>
+                            <Badge v-if="fila.espera_cae" variant="outline">CAE</Badge>
+                            <Badge v-if="fila.espera_ministerial" variant="outline">Ministerial</Badge>
                           </div>
                         </TableCell>
                         <TableCell>{{ fila.nombre_carrera || '—' }}</TableCell>
