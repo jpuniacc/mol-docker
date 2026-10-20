@@ -101,6 +101,8 @@ const ORDEN_EMBUDO: EtapaProgresoRematricula[] = [
 
 const rows = ref<MnpCasoRematriculaRow[]>([])
 const loading = ref(false)
+/** Cubre todo `cargar()` (refresh de progreso + casos + firmas + KPI). */
+const actualizando = ref(false)
 const panelPrincipal = ref<PanelPrincipal>('casos')
 const filtroTipo = ref<string>('todos')
 const filtroCola = ref<FiltroCola>('pendientes')
@@ -155,6 +157,21 @@ const conteosCola = computed(() => {
   ).length
   const resueltos = rows.value.filter((r) => ESTADOS_RESUELTOS.includes(r.estado)).length
   return { pendientes, resueltos, todos: rows.value.length }
+})
+
+const estaActualizando = computed(
+  () => actualizando.value || loading.value || loadingFirmas.value || loadingKpi.value,
+)
+
+const mensajeActualizacion = computed(() => {
+  if (!estaActualizando.value) return null
+  if (actualizando.value && !loading.value && !loadingFirmas.value && !loadingKpi.value) {
+    return 'Actualizando progreso del embudo…'
+  }
+  if (loading.value || loadingFirmas.value || loadingKpi.value) {
+    return 'Actualizando casos, firmas y embudo…'
+  }
+  return 'Actualizando datos…'
 })
 
 const filasVisibles = computed(() => {
@@ -417,14 +434,20 @@ async function cargarFirmas() {
 }
 
 async function cargar() {
-  await periodoActivo.ensureLoaded()
-  const anio = periodoActivo.anio
-  const sem = periodoActivo.semestre
-  if (anio != null && sem != null) {
-    const { error } = await refreshProgresoRematricula(anio, sem)
-    if (error) console.warn('[Casos] refresh progreso:', error)
+  if (actualizando.value) return
+  actualizando.value = true
+  try {
+    await periodoActivo.ensureLoaded()
+    const anio = periodoActivo.anio
+    const sem = periodoActivo.semestre
+    if (anio != null && sem != null) {
+      const { error } = await refreshProgresoRematricula(anio, sem)
+      if (error) console.warn('[Casos] refresh progreso:', error)
+    }
+    await Promise.all([cargarCasos(), cargarFirmas(), cargarKpi()])
+  } finally {
+    actualizando.value = false
   }
-  await Promise.all([cargarCasos(), cargarFirmas(), cargarKpi()])
 }
 
 function nombreApoderadoVisible(row: MnpCasoRematriculaRow) {
@@ -570,23 +593,35 @@ onMounted(() => {
             size="sm"
             variant="outline"
             class="cursor-pointer gap-1.5"
-            :disabled="loading || loadingFirmas || loadingKpi"
+            :disabled="estaActualizando"
+            :aria-busy="estaActualizando"
             @click="cargar"
           >
             <RefreshCw
               class="h-3.5 w-3.5"
-              :class="loading || loadingKpi ? 'animate-spin' : ''"
+              :class="estaActualizando ? 'animate-spin' : ''"
               aria-hidden="true"
             />
-            Actualizar
+            {{ estaActualizando ? 'Actualizando…' : 'Actualizar' }}
           </Button>
         </div>
       </div>
 
+      <div
+        v-if="mensajeActualizacion"
+        class="flex items-center gap-2 rounded-md border border-border/80 bg-muted/50 px-3 py-2 text-sm text-muted-foreground"
+        role="status"
+        aria-live="polite"
+      >
+        <RefreshCw class="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
+        <span>{{ mensajeActualizacion }}</span>
+      </div>
+
       <!-- Embudo compacto -->
       <div
-        v-if="embudoEtapas.length > 0 || loadingKpi"
+        v-if="embudoEtapas.length > 0 || loadingKpi || actualizando"
         class="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        :aria-busy="loadingKpi || actualizando"
       >
         <div
           v-for="item in embudoEtapas"
@@ -596,7 +631,10 @@ onMounted(() => {
           <span class="text-[11px] text-muted-foreground">{{ item.label }}</span>
           <span class="text-sm font-semibold tabular-nums">{{ item.count }}</span>
         </div>
-        <p v-if="loadingKpi && !kpi" class="text-xs text-muted-foreground self-center">
+        <p
+          v-if="(loadingKpi || actualizando) && !kpi"
+          class="self-center text-xs text-muted-foreground"
+        >
           Cargando embudo…
         </p>
       </div>
@@ -692,7 +730,14 @@ onMounted(() => {
 
       <Card class="border-border/80 shadow-sm">
         <CardContent class="p-0">
-          <Table>
+          <Table
+            :aria-busy="estaActualizando"
+            :class="
+              estaActualizando && filasVisibles.length > 0
+                ? 'opacity-60 transition-opacity duration-200'
+                : 'transition-opacity duration-200'
+            "
+          >
             <TableHeader>
               <TableRow>
                 <TableHead class="w-10"></TableHead>
@@ -762,9 +807,12 @@ onMounted(() => {
                 </TableCell>
               </TableRow>
 
-              <TableRow v-if="loading">
+              <TableRow v-if="loading || (actualizando && filasVisibles.length === 0)">
                 <TableCell colspan="7" class="py-10 text-center text-sm text-muted-foreground">
-                  Cargando casos…
+                  <span class="inline-flex items-center gap-2">
+                    <RefreshCw class="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                    {{ actualizando && !loading ? 'Actualizando datos…' : 'Cargando casos…' }}
+                  </span>
                 </TableCell>
               </TableRow>
 
