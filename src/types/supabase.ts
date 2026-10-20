@@ -252,6 +252,10 @@ export type MnpProgresoRematriculaRow = {
   excluido_mol: boolean;
   rematriculable: boolean;
   sin_match_mol: boolean;
+  /** Bloqueo activo CAE (caso abierto o verificación pendiente). */
+  espera_cae?: boolean | null;
+  /** Bloqueo activo Beca Ministerial (caso ESTATAL_MINEDUC abierto). */
+  espera_ministerial?: boolean | null;
   actualizado_en: string;
 };
 
@@ -269,6 +273,10 @@ export type KpiProgresoRematricula = {
   tyc: number;
   datos: number;
   forma_pago: number;
+  forma_pago_espera_cae: number;
+  forma_pago_espera_ministerial: number;
+  forma_pago_espera_ambos: number;
+  forma_pago_resto: number;
   firma: number;
   matriculado: number;
   rematriculables: number;
