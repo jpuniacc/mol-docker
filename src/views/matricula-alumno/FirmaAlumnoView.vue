@@ -30,13 +30,10 @@ import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import { useMatriculaFlujoPreflightStore } from '@/stores/datos_erp/matricula_flujo_preflight'
 import { esPropioSostenedor } from '@/utils/apoderadoResponsable'
 import { estadoFirmaDual } from '@/utils/firmaDual'
-import {
-  armarGrabarCuentaMixta,
-  armarGrabarPlanPagos,
-  postGrabarPlanPagos,
-} from '@/services/grabarPlanPagosApi'
+import { postGrabarPlanPagos } from '@/services/grabarPlanPagosApi'
 import { asignarDocumentosDescuento } from '@/utils/documentosDescuentoContrato'
 import { armarGrabarCuentaWebpay } from '@/utils/grabarCuentaWebpay'
+import { decisionMatriculaFirma } from '@/utils/matriculaTrasFirma'
 import { numeroOperacionContrato } from '@/utils/numeroOperacionContrato'
 import { ordenGrabadoWebpay } from '@/utils/ordenGrabadoWebpay'
 import { hoyIsoLocal } from '@/utils/pagareCuotasDraft'
@@ -80,7 +77,6 @@ const esperaOperacion = ref<string | null>(null)
 const firmaHabilitada = ref(false)
 const contratoFirmadoRegistrado = ref(false)
 const grabandoPlan = ref(false)
-const planGrabado = ref(false)
 const errorGrabacion = ref<string | null>(null)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
@@ -435,67 +431,6 @@ async function grabarCuentaWebpay(cerrarFicha: boolean): Promise<boolean> {
   return true
 }
 
-async function grabarPlanFirmado(): Promise<boolean> {
-  if (planGrabado.value || grabandoPlan.value) return planGrabado.value
-  if (ambosWebpay.value) {
-    const orden = ordenGrabadoWebpay({
-      ambosWebpay: true,
-      numOperacion: numeroOperacionContrato(null, alumnoCtx.numOperacionCuenta),
-      firmasListas: true,
-    })
-    // 'grabar' aquí solo ocurre si falta el número: se graba y cierra en una sola llamada.
-    const cerrarFicha = orden.tipo === 'cerrar-ficha' || orden.tipo === 'grabar'
-    if (!(await grabarCuentaWebpay(cerrarFicha))) return false
-    planGrabado.value = true
-    return true
-  }
-  const medioMat = alumnoCtx.medioMatricula
-  const medioAra = alumnoCtx.medioArancel
-  const matriculaConTarjeta =
-    medioMat === 'webpay' && alumnoCtx.webpayMatriculaEstado === 'autorizada'
-  const arancelConTarjeta = medioAra === 'webpay' && alumnoCtx.webpayArancelEstado === 'autorizada'
-  const mixto =
-    (matriculaConTarjeta && medioAra === 'pagare') || (arancelConTarjeta && medioMat === 'pagare')
-  const armado = mixto
-    ? armarGrabarCuentaMixta({
-        rut: fuente.rutMostrado.value,
-        codcliAcademico: fuente.codcliMostrado.value,
-        codigoCarrera: alumnoMnp.primeraFila?.codigo_carrera ?? '',
-        ano: periodoActivo.anio,
-        periodo: periodoActivo.semestre,
-        caja: preflight.steps?.caja.row?.caja ?? null,
-        pago: alumnoCtx.pagoMatricula,
-        medioMatricula: matriculaConTarjeta ? 'webpay' : 'pagare',
-        medioArancel: arancelConTarjeta ? 'webpay' : 'pagare',
-        montoWebpayMatricula: alumnoCtx.webpayMontoMatricula,
-        montoWebpayArancel: alumnoCtx.webpayMontoArancel,
-      })
-    : armarGrabarPlanPagos({
-        rut: fuente.rutMostrado.value,
-        codcliAcademico: fuente.codcliMostrado.value,
-        codigoCarrera: alumnoMnp.primeraFila?.codigo_carrera ?? '',
-        ano: periodoActivo.anio,
-        periodo: periodoActivo.semestre,
-        caja: preflight.steps?.caja.row?.caja ?? null,
-        pago: alumnoCtx.pagoMatricula,
-      })
-  if (!armado.ok) {
-    errorGrabacion.value = armado.error
-    return false
-  }
-  grabandoPlan.value = true
-  errorGrabacion.value = null
-  const res = await postGrabarPlanPagos(armado.payload)
-  grabandoPlan.value = false
-  if (unmounted) return false
-  if (!res.ok) {
-    errorGrabacion.value = res.error
-    return false
-  }
-  planGrabado.value = true
-  return true
-}
-
 function aplicarEstadoOk(estado: Extract<ContratoFirmaEstadoResponse, { ok: true }>): void {
   firmantes.value = estado.firmantes
   numOperacionFirma.value = estado.numOperacion
@@ -503,11 +438,16 @@ function aplicarEstadoOk(estado: Extract<ContratoFirmaEstadoResponse, { ok: true
     contratoFirmadoRegistrado.value = true
     void registrarPasoFirma('firmado', estado.numOperacion)
   }
-  if (estado.ready) {
+  const decision = decisionMatriculaFirma(estado)
+  if (decision === 'avanzar') {
+    errorGrabacion.value = null
     clearEsperaFirma()
-    void grabarPlanFirmado().then((ok) => {
-      if (ok && !unmounted) completarYNavegar()
-    })
+    completarYNavegar()
+    return
+  }
+  if (decision === 'mostrar-error') {
+    errorGrabacion.value = estado.errorMatricula || 'No se pudo actualizar la matrícula.'
+    clearEsperaFirma()
     return
   }
   if (errorEnlaces.value || preparandoEnlaces.value) return

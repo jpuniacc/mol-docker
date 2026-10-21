@@ -107,6 +107,11 @@ const routes = [
     component: () => import('../views/auth/ProximamenteView.vue'),
   },
   {
+    path: '/prueba-pixarron',
+    name: 'prueba-pixarron',
+    component: () => import('../views/prueba/PruebaPixarronView.vue'),
+  },
+  {
     path: '/webpay-qa',
     name: 'webpay-qa',
     component: () => import('../views/webpay-qa/WebpayQaView.vue'),

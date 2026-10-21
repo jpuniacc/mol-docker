@@ -22,6 +22,8 @@ export type ContratoFirmaEstadoResponse =
       documentId: string
       ready: boolean
       firmantes: ContratoFirmaFirmanteEstado[]
+      matriculaActualizada?: boolean
+      errorMatricula?: string | null
     }
   | { ok: false; error: string }
 

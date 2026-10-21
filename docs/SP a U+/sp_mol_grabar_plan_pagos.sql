@@ -2,7 +2,9 @@
 -- El contrato de MT_CTADOC se arma aquí: @ano + @periodo + @codcarr + CORRCONTRATO.
 -- CORRCONTRATO se reserva en esta transacción. Si el grabado falla, el número vuelve atrás.
 -- Los CORRPAGNUM entran reservados. Este SP pide el número de operación y las dos boletas.
--- Inserta MT_POSBEN (estado 4) por cada beneficio que llega en @beneficios.
+-- Inserta MT_POSBEN en estado 4 (asignado) por cada beneficio que llega en @beneficios.
+-- Estado 2 es aprobado: si ya existe para el mismo alumno, carrera, año y periodo,
+-- se actualiza a estado 4. Otro estado en esa clave se rechaza.
 -- El cargo (DOCITEM y boleta 41) es el bruto: pagaré más beneficios de ese concepto.
 -- Cada beneficio además es un pago (MT_CTAPAG con la forma de pago del beneficio
 -- y MT_CTADEP contra esa boleta). El pagaré tipo 5 queda por el saldo.
@@ -88,6 +90,7 @@ BEGIN
            AND p.CODCARR = @codcarr
            AND p.ANO = @ano
            AND p.PERIODO = CAST(@periodo AS varchar(2))
+        WHERE p.ESTADO IS NULL OR p.ESTADO <> 2
     )
         THROW 50006, 'Ya existe el beneficio en MT_POSBEN para este periodo.', 1;
     IF EXISTS (SELECT 1 FROM @beneficios WHERE concepto NOT IN ('M', 'A') OR corrpag IS NULL)
@@ -354,36 +357,62 @@ BEGIN
         CLOSE cur;
         DEALLOCATE cur;
 
-        INSERT INTO dbo.MT_POSBEN (
-            CODBEN, ORDEN, CODCLI, CODCARR, ANO, PERIODO,
-            PORC_SOL, PORC_APR, MONTO_SOL, MONTO_APR, MONTO,
-            APROBADO, APLICABLE, USUARIO, FECAPROB,
-            ESTADO, FECASIG, num_operacion,
-            MONTOINT, PORCINT, PORC_PAR
-        )
-        SELECT
-            b.codben,
-            1,
-            @codcli,
-            @codcarr,
-            @ano,
-            CAST(@periodo AS varchar(2)),
-            b.porc_sol,
-            b.porc_apr,
-            b.monto_sol,
-            b.monto_apr,
-            b.monto,
-            'S',
-            b.aplicable,
-            @usuario,
-            CAST(@hoy AS datetime),
-            4,
-            CAST(@hoy AS datetime),
-            @num_operacion,
-            0,
-            0,
-            0
-        FROM @beneficios b;
+        MERGE dbo.MT_POSBEN AS p
+        USING @beneficios AS b
+            ON p.CODBEN = b.codben
+           AND p.ORDEN = 1
+           AND p.CODCLI = @codcli
+           AND p.CODCARR = @codcarr
+           AND p.ANO = @ano
+           AND p.PERIODO = CAST(@periodo AS varchar(2))
+        WHEN MATCHED AND p.ESTADO = 2 THEN
+            UPDATE SET
+                PORC_SOL = b.porc_sol,
+                PORC_APR = b.porc_apr,
+                MONTO_SOL = b.monto_sol,
+                MONTO_APR = b.monto_apr,
+                MONTO = b.monto,
+                APROBADO = 'S',
+                APLICABLE = b.aplicable,
+                USUARIO = @usuario,
+                FECAPROB = COALESCE(p.FECAPROB, CAST(@hoy AS datetime)),
+                ESTADO = 4,
+                FECASIG = CAST(@hoy AS datetime),
+                num_operacion = @num_operacion,
+                MONTOINT = 0,
+                PORCINT = 0,
+                PORC_PAR = 0
+        WHEN NOT MATCHED THEN
+            INSERT (
+                CODBEN, ORDEN, CODCLI, CODCARR, ANO, PERIODO,
+                PORC_SOL, PORC_APR, MONTO_SOL, MONTO_APR, MONTO,
+                APROBADO, APLICABLE, USUARIO, FECAPROB,
+                ESTADO, FECASIG, num_operacion,
+                MONTOINT, PORCINT, PORC_PAR
+            )
+            VALUES (
+                b.codben,
+                1,
+                @codcli,
+                @codcarr,
+                @ano,
+                CAST(@periodo AS varchar(2)),
+                b.porc_sol,
+                b.porc_apr,
+                b.monto_sol,
+                b.monto_apr,
+                b.monto,
+                'S',
+                b.aplicable,
+                @usuario,
+                CAST(@hoy AS datetime),
+                4,
+                CAST(@hoy AS datetime),
+                @num_operacion,
+                0,
+                0,
+                0
+            );
 
         INSERT INTO dbo.MT_CTAPAG (
             CTAPAG, CTAPAGNUM, CODCLI, CODCARR, CODAPOD, MONTO, SALDO, SALDO_AD,
