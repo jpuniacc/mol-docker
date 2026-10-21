@@ -25,7 +25,6 @@ import {
   DialogScrollContent,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -103,11 +102,7 @@ import {
   incrementPeek,
   type CuotaPagareDraftRow,
 } from '@/utils/pagareCuotasDraft'
-import {
-  etiquetaMesPrimeraCuota,
-  fechaInicioPagarePeriodo,
-  proximaFechaDiaVencimiento,
-} from '@/utils/pagareFechaInicio'
+import { fechaInicioPagarePeriodo } from '@/utils/pagareFechaInicio'
 import MatriculaMockVerificacionCaeStep from '@/views/matricula-mock/MatriculaMockVerificacionCaeStep.vue'
 import type { MnpCasoRematriculaRow, PlanPagosMvRow } from '@/types/supabase'
 
@@ -203,20 +198,6 @@ watch(pagareTotalCuotas, () => {
   invalidarCuotasGeneradas()
 })
 
-const pagareFechaInicioMin = computed(() => {
-  const porPeriodo = fechaInicioPagarePeriodo({
-    dia: diaVencimientoActual(),
-    anioPeriodo: periodoActivo.anio,
-    semestrePeriodo: periodoActivo.semestre,
-  })
-  const desdeHoy = proximaFechaDiaVencimiento(diaVencimientoActual())
-  // No permitir fechas pasadas; si el periodo fija un mes futuro, ese es el mínimo.
-  return porPeriodo >= desdeHoy || porPeriodo >= hoyIsoLocal() ? porPeriodo : desdeHoy
-})
-
-const etiquetaPrimeraCuota = computed(() =>
-  etiquetaMesPrimeraCuota(periodoActivo.anio, periodoActivo.semestre),
-)
 
 type CuotaPagarePreview = CuotaPagareDraftRow
 
@@ -423,6 +404,10 @@ function fmtFechaCuota(iso: string): string {
   if (!m) return iso
   return `${m[3]}/${m[2]}/${m[1]}`
 }
+
+const textoFechaInicio = computed(() =>
+  pagareFechaInicio.value ? fmtFechaCuota(pagareFechaInicio.value) : '—',
+)
 const plan = computed(() => mockCtx.selectedPlanPagos)
 
 const verificandoCae = ref(false)
@@ -1909,21 +1894,17 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
             </div>
 
             <div class="space-y-2">
-              <Label for="pagare-fecha-inicio">Fecha de inicio</Label>
-              <Input
+              <Label id="pagare-fecha-inicio-label">Fecha de inicio</Label>
+              <p
                 id="pagare-fecha-inicio"
-                v-model="pagareFechaInicio"
-                type="date"
-                :min="pagareFechaInicioMin"
-              />
+                class="flex h-11 items-center rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm tabular-nums text-zinc-900"
+                aria-readonly="true"
+                aria-labelledby="pagare-fecha-inicio-label"
+              >
+                {{ textoFechaInicio }}
+              </p>
               <p class="text-xs text-muted-foreground">
-                <template v-if="etiquetaPrimeraCuota">
-                  Primera cuota del periodo: {{ etiquetaPrimeraCuota }} (día
-                  {{ pagareDiaVencimiento }}).
-                </template>
-                <template v-else>
-                  Día {{ pagareDiaVencimiento }} del mes siguiente a hoy.
-                </template>
+                El primer cobro comienza el {{ textoFechaInicio }}.
               </p>
             </div>
 
