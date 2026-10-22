@@ -40,21 +40,15 @@ export function exigeMedicionPromedio(renovable: string | null | undefined): boo
   return t.includes('PROMEDIO') && t.includes('5.5')
 }
 
+/** Becas internas usan solo el promedio anual. El del último período no entra al cálculo. */
 export function elegirPromedio(input: {
   promAnio: number | null | undefined
-  promUltimoPeriodo: number | null | undefined
-  promediosCerrados: boolean
+  promUltimoPeriodo?: number | null | undefined
+  promediosCerrados?: boolean
 }): { promedio: number; fuente: FuentePromedio } | null {
   const anio = esNumero(input.promAnio) ? input.promAnio : null
-  const periodo = esNumero(input.promUltimoPeriodo) ? input.promUltimoPeriodo : null
-  if (input.promediosCerrados) {
-    if (anio != null) return { promedio: anio, fuente: 'anio' }
-    if (periodo != null) return { promedio: periodo, fuente: 'periodo' }
-    return null
-  }
-  if (periodo != null) return { promedio: periodo, fuente: 'periodo' }
-  if (anio != null) return { promedio: anio, fuente: 'anio' }
-  return null
+  if (anio == null) return null
+  return { promedio: anio, fuente: 'anio' }
 }
 
 const DISMINUCION_POR_NOTA: Record<string, number> = {

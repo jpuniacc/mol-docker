@@ -25,25 +25,25 @@ describe('exigeMedicionPromedio', () => {
 })
 
 describe('elegirPromedio', () => {
-  it('con promedios abiertos usa el del último período, o el anual si no hay', () => {
+  it('usa solo el promedio anual, aunque el del período sea distinto', () => {
     expect(
       elegirPromedio({ promAnio: 5.8, promUltimoPeriodo: 5.1, promediosCerrados: false }),
-    ).toEqual({ promedio: 5.1, fuente: 'periodo' })
-    expect(
-      elegirPromedio({ promAnio: 5.8, promUltimoPeriodo: null, promediosCerrados: false }),
     ).toEqual({ promedio: 5.8, fuente: 'anio' })
-  })
-
-  it('con promedios cerrados usa el anual, o el del período si no hay', () => {
     expect(
       elegirPromedio({ promAnio: 5.8, promUltimoPeriodo: 5.1, promediosCerrados: true }),
     ).toEqual({ promedio: 5.8, fuente: 'anio' })
-    expect(
-      elegirPromedio({ promAnio: null, promUltimoPeriodo: 5.1, promediosCerrados: true }),
-    ).toEqual({ promedio: 5.1, fuente: 'periodo' })
   })
 
-  it('sin ningún promedio usable devuelve null', () => {
+  it('no reemplaza el anual con el del último período', () => {
+    expect(
+      elegirPromedio({ promAnio: null, promUltimoPeriodo: 5.1, promediosCerrados: false }),
+    ).toBeNull()
+    expect(
+      elegirPromedio({ promAnio: null, promUltimoPeriodo: 5.1, promediosCerrados: true }),
+    ).toBeNull()
+  })
+
+  it('sin promedio anual usable devuelve null', () => {
     expect(
       elegirPromedio({ promAnio: null, promUltimoPeriodo: null, promediosCerrados: false }),
     ).toBeNull()
@@ -54,7 +54,7 @@ describe('elegirPromedio', () => {
       elegirPromedio({ promAnio: 5.5, promUltimoPeriodo: 0, promediosCerrados: false }),
     ).toEqual({ promedio: 5.5, fuente: 'anio' })
     expect(
-      elegirPromedio({ promAnio: 0, promUltimoPeriodo: 0, promediosCerrados: false }),
+      elegirPromedio({ promAnio: 0, promUltimoPeriodo: 6.0, promediosCerrados: false }),
     ).toBeNull()
   })
 })
@@ -206,15 +206,17 @@ describe('resolverBeneficiosDelPlan', () => {
     { cod_beneficio: '9', descripcion: 'JGM', monto: 500000, porc_apr: null, aplicable: 'A', estado: null },
   ]
 
-  it('baja la interna con promedio y deja intactas las que no miden notas', () => {
+  it('ajusta la interna con el promedio anual y deja intactas las que no miden notas', () => {
     const out = resolverBeneficiosDelPlan({
       beneficios,
       catalogo,
-      promAnio: 5.8,
-      promUltimoPeriodo: 5.0,
+      promAnio: 5.0,
+      promUltimoPeriodo: 6.2,
       promediosCerrados: false,
     })
     expect(out.map((r) => r.resultado)).toEqual(['BAJA', 'NO_APLICA', 'NO_APLICA'])
+    expect(out[0]?.promedioUsado).toBe(5.0)
+    expect(out[0]?.fuente).toBe('anio')
     expect(out[0]?.porcFinal).toBe(28)
     expect(out[0]?.montoFinal).toBe(700000)
     expect(out[1]?.montoFinal).toBe(200000)
