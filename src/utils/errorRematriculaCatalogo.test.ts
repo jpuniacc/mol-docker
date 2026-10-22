@@ -3,6 +3,7 @@ import {
   CUERPO_CONEXION,
   CUERPO_PAGO_ASIENTO,
   TITULO_CONEXION,
+  TITULO_ENLACE_FIRMA,
   TITULO_FIRMA,
   TITULO_INGRESO_CREDENCIAL,
   TITULO_PAGO_ASIENTO,
@@ -19,6 +20,14 @@ describe('clasificarErrorRematricula', () => {
     expect(r.titulo).toBe(TITULO_PAGO_ASIENTO)
     expect(r.cuerpo).toBe(CUERPO_PAGO_ASIENTO)
     expect(r.cuerpo).not.toContain('ya-autorizada')
+  })
+
+  it('el 409 de enlace pendiente abre el modal de firma sin mostrar el código', () => {
+    const r = clasificarErrorRematricula('Ese firmante no tiene un enlace de firma pendiente')
+    expect(r.escena).toBe('firma')
+    expect(r.titulo).toBe(TITULO_ENLACE_FIRMA)
+    expect(r.cuerpo).toContain('enlace de firma pendiente')
+    expect(r.cuerpo).not.toContain('409')
   })
 
   it('abre firma cuando falla el envío del contrato', () => {

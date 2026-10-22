@@ -174,7 +174,7 @@ export function textoFuentePromedio(
 ): string {
   const anio = anioNotas != null ? ` ${anioNotas}` : ''
   if (fuente === 'anio') return `Promedio del año${anio}`
-  if (fuente === 'periodo') return `Promedio parcial del primer semestre${anio}`
+  if (fuente === 'periodo') return `Promedio del primer semestre${anio}`
   return 'Sin promedio registrado'
 }
 
@@ -184,9 +184,9 @@ export function textoEfectoPromedio(promedio: number | null): string {
   }
   const tramo = disminuirArt13(promedio)
   if (tramo.resultado === 'MANTIENE') return 'Las becas que tienes asignadas, por tu promedio, se mantienen.'
-  if (tramo.resultado === 'PIERDE') return 'Las becas que exigen 5,5 no aplican.'
+  if (tramo.resultado === 'PIERDE') return 'Con un promedio de 3,9 o menos, las becas que exigen 5,5 no aplican.'
   const baja = Math.round(tramo.disminucion * 100)
-  return `Las becas que exigen 5,5 bajan un ${baja} %.`
+  return `Las becas que exigen un promedio mínimo de 5,5 te bajarán un ${baja} %.`
 }
 
 export function textoAvisoPromedio(promedio: number | null): string {

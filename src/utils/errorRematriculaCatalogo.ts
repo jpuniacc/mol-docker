@@ -22,6 +22,10 @@ export const TITULO_FIRMA = 'La firma se quedó en el tintero'
 export const CUERPO_FIRMA =
   'No pudimos enviar el contrato. Sigue guardado aquí. Podemos intentarlo de nuevo.'
 
+export const TITULO_ENLACE_FIRMA = 'El enlace se quedó en el sobre'
+export const CUERPO_ENLACE_FIRMA =
+  'El contrato ya está creado, pero este firmante todavía no tiene un enlace de firma pendiente. El sistema fue por un café. No te preocupes, tus datos siguen a salvo. Puedes intentarlo de nuevo en un momento.'
+
 export const TITULO_DATOS = 'Falta una pieza del formulario'
 
 export const TITULO_INGRESO_CREDENCIAL = 'La puerta no quiso abrir esta vez'
@@ -58,6 +62,15 @@ export function clasificarErrorRematricula(
       escena: 'pago',
       titulo: TITULO_PAGO_ASIENTO,
       cuerpo: CUERPO_PAGO_ASIENTO,
+      enfocarCampo: false,
+    }
+  }
+
+  if (bajo.includes('enlace de firma pendiente')) {
+    return {
+      escena: 'firma',
+      titulo: TITULO_ENLACE_FIRMA,
+      cuerpo: CUERPO_ENLACE_FIRMA,
       enfocarCampo: false,
     }
   }

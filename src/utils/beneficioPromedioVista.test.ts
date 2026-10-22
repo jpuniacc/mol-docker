@@ -115,7 +115,7 @@ describe('filasBeneficioConPromedio', () => {
 describe('textoAvisoPromedio', () => {
   it('describe la baja del tramo 5,1', () => {
     expect(textoAvisoPromedio(5.1)).toBe(
-      'Tu promedio es 5,1. Las becas que exigen 5,5 bajan un 25 %.',
+      'Tu promedio es 5,1. Las becas que exigen un promedio mínimo de 5,5 te bajarán un 25 %.',
     )
   })
 })
@@ -125,7 +125,7 @@ describe('textoFuentePromedio', () => {
     expect(anioNotasRematricula(2027)).toBe(2026)
     expect(textoFuentePromedio('anio', 2026)).toBe('Promedio del año 2026')
     expect(textoFuentePromedio('periodo', 2026)).toBe(
-      'Promedio parcial del primer semestre 2026',
+      'Promedio del primer semestre 2026',
     )
   })
 })
