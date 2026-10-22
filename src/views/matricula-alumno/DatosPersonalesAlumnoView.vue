@@ -1033,6 +1033,15 @@ async function enviarCodigoTelefonoOtp() {
       logMockContactoOtp('ui.telefono.enviar.error', { message: resultado.message })
       return
     }
+    if ('validadoSinSms' in resultado) {
+      alumnoCtx.marcarTelefonoValidado(telefonoDigitosLocal.value)
+      telefonoValidadoOk.value = true
+      void registrarEventoContactoOtp('telefono', 'verificar_ok', tel)
+      logMockContactoOtp('ui.telefono.validado_sin_sms')
+      resetTelefonoOtpUi()
+      otpUi.cerrarModalTelefono()
+      return
+    }
     const ahora = Date.now()
     telefonoOtpPendiente.value = true
     telefonoOtpIntentosFallidos.value = 0

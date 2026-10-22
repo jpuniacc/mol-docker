@@ -72,9 +72,29 @@ export type SolicitarOtpSmsPayload = {
   urlOrigen?: string | null
 }
 
+export type ResultadoSolicitudSms =
+  | { ok: true; expiresAt: string }
+  | { ok: true; validadoSinSms: true }
+  | { ok: false; message: string }
+
+export function interpretarSolicitudSms(httpOk: boolean, data: unknown): ResultadoSolicitudSms {
+  const body = (data ?? {}) as { message?: unknown; expiresAt?: unknown; validadoSinSms?: unknown }
+  if (!httpOk) {
+    return {
+      ok: false,
+      message: typeof body.message === 'string' ? body.message : 'No se pudo enviar el SMS.',
+    }
+  }
+  if (body.validadoSinSms === true) return { ok: true, validadoSinSms: true }
+  if (typeof body.expiresAt !== 'string') {
+    return { ok: false, message: 'Respuesta inválida del servidor.' }
+  }
+  return { ok: true, expiresAt: body.expiresAt }
+}
+
 export async function solicitarOtpSmsTelefono(
   payload: SolicitarOtpSmsPayload,
-): Promise<{ ok: true; expiresAt: string } | { ok: false; message: string }> {
+): Promise<ResultadoSolicitudSms> {
   let res: Response
   try {
     res = await fetchWithTimeout(apiPath('/api/rematricula/contacto-otp/sms/solicitar'), {
@@ -86,17 +106,8 @@ export async function solicitarOtpSmsTelefono(
     const msg = e instanceof Error ? e.message : 'No se pudo conectar con el servidor.'
     return { ok: false, message: msg }
   }
-  const data = (await res.json().catch(() => ({}))) as { message?: string; expiresAt?: string }
-  if (!res.ok) {
-    return {
-      ok: false,
-      message: typeof data.message === 'string' ? data.message : 'No se pudo enviar el SMS.',
-    }
-  }
-  if (typeof data.expiresAt !== 'string') {
-    return { ok: false, message: 'Respuesta inválida del servidor.' }
-  }
-  return { ok: true, expiresAt: data.expiresAt }
+  const data: unknown = await res.json().catch(() => ({}))
+  return interpretarSolicitudSms(res.ok, data)
 }
 
 export async function verificarOtpSmsTelefono(
