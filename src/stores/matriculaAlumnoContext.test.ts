@@ -43,3 +43,49 @@ describe('envioFirmaIniciado', () => {
     expect(memoria.size).toBe(0)
   })
 })
+
+describe('cuenta Webpay', () => {
+  it('recuerda que la cuenta ya se grabó y el plan con el beneficio', () => {
+    const store = useMatriculaAlumnoContextStore()
+    store.guardarPlanCuentaWebpay({
+      contrato: '20271CDAD1DR1',
+      fechaInicio: '2026-10-22',
+      caja: 997,
+      montoMatricula: 250000,
+      montoArancel: 3665600,
+      descuentos: [
+        {
+          codben: '1756',
+          documento: '90121412974',
+          monto: 974400,
+          porc: 21,
+          montoSolicitado: 974400,
+          concepto: 'arancel',
+        },
+      ],
+    })
+    store.marcarCuentaWebpayGrabada()
+
+    setActivePinia(createPinia())
+    const restaurado = useMatriculaAlumnoContextStore()
+    restaurado.hydrateFromSessionStorage()
+    expect(restaurado.cuentaWebpayGrabada).toBe(true)
+    expect(restaurado.planCuentaWebpay?.descuentos[0]?.codben).toBe('1756')
+  })
+
+  it('olvida el plan si una tarjeta deja de estar autorizada', () => {
+    const store = useMatriculaAlumnoContextStore()
+    store.guardarPlanCuentaWebpay({
+      contrato: '20271CDAD1DR1',
+      fechaInicio: '2026-10-22',
+      caja: 997,
+      montoMatricula: 250000,
+      montoArancel: 3665600,
+      descuentos: [],
+    })
+    store.marcarCuentaWebpayGrabada()
+    store.setWebpayArancelEstado('rechazada')
+    expect(store.cuentaWebpayGrabada).toBe(false)
+    expect(store.planCuentaWebpay).toBeNull()
+  })
+})

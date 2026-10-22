@@ -418,6 +418,26 @@ async function grabarCuentaWebpay(cerrarFicha: boolean): Promise<boolean> {
     errorGrabacion.value = armado.error
     return false
   }
+  alumnoCtx.guardarPlanCuentaWebpay({
+    contrato: armado.payload.contrato,
+    fechaInicio: armado.payload.fechaInicio,
+    caja: armado.payload.caja,
+    montoMatricula: armado.payload.montoMatricula,
+    montoArancel: armado.payload.montoArancel,
+    descuentos: armado.payload.beneficios.map((beneficio) => ({
+      codben: String(beneficio.codben),
+      documento: beneficio.corrpag,
+      monto: beneficio.monto,
+      porc: beneficio.porcApr,
+      montoSolicitado: beneficio.montoSol,
+      concepto: beneficio.concepto === 'M' ? 'matricula' : 'arancel',
+    })),
+  })
+  const planGuardado = await alumnoCtx.flushBorrador()
+  if (!planGuardado) {
+    errorGrabacion.value = 'No se pudo guardar el plan de la cuenta.'
+    return false
+  }
   grabandoPlan.value = true
   errorGrabacion.value = null
   const res = await postGrabarPlanPagos(armado.payload)
@@ -428,6 +448,7 @@ async function grabarCuentaWebpay(cerrarFicha: boolean): Promise<boolean> {
     return false
   }
   if (/^\d+$/.test(res.numOperacion)) alumnoCtx.setNumOperacionCuenta(res.numOperacion)
+  alumnoCtx.marcarCuentaWebpayGrabada()
   return true
 }
 
@@ -525,7 +546,7 @@ async function enviarAFirmar(): Promise<void> {
     // Con los dos Webpay se graba antes, para que el PDF salga con el número de operación de U+.
     const orden = ordenGrabadoWebpay({
       ambosWebpay: ambosWebpay.value,
-      numOperacion: numeroOperacionContrato(null, alumnoCtx.numOperacionCuenta),
+      cuentaGrabada: alumnoCtx.cuentaWebpayGrabada,
       firmasListas: false,
     })
     if (orden.tipo === 'grabar') {
@@ -537,6 +558,16 @@ async function enviarAFirmar(): Promise<void> {
       if (!grabado) {
         cerrarProgresoError()
         errorFirma.value = errorGrabacion.value ?? 'No se pudo grabar el plan de pagos.'
+        return
+      }
+    }
+    if (ambosWebpay.value) {
+      const guardado = await alumnoCtx.flushBorrador()
+      if (!guardado) {
+        cerrarProgresoError()
+        errorFirma.value = alumnoCtx.cuentaWebpayGrabada
+          ? 'La cuenta quedó grabada, pero no se pudo guardar el plan. Reintenta enviar a firmar.'
+          : 'No se pudo guardar el plan de la cuenta.'
         return
       }
     }

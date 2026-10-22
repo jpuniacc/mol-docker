@@ -6,12 +6,11 @@ export type OrdenGrabadoWebpay =
 
 export function ordenGrabadoWebpay(input: {
   ambosWebpay: boolean
-  numOperacion: string | null
+  cuentaGrabada: boolean
   firmasListas: boolean
 }): OrdenGrabadoWebpay {
   if (!input.ambosWebpay) return { tipo: 'esperar' }
-  const tieneNumero = /^\d+$/.test((input.numOperacion ?? '').trim())
-  if (!tieneNumero) return { tipo: 'grabar', cerrarFicha: false }
+  if (!input.cuentaGrabada) return { tipo: 'grabar', cerrarFicha: false }
   if (!input.firmasListas) return { tipo: 'firmar' }
   return { tipo: 'cerrar-ficha' }
 }

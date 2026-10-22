@@ -22,6 +22,22 @@ import type { LineaParaDocumentoDescuento } from '@/utils/documentosDescuentoCon
 import type { MedioConcepto } from '@/utils/webpaySiguientePaso'
 import type { WebpayPagoDetalle } from '@/utils/webpayPagoDetalle'
 
+export type PlanCuentaWebpayPersistido = {
+  contrato: string
+  fechaInicio: string
+  caja: number | null
+  montoMatricula: number
+  montoArancel: number
+  descuentos: Array<{
+    codben: string
+    documento: string
+    monto: number
+    porc: number | null
+    montoSolicitado: number | null
+    concepto: 'matricula' | 'arancel'
+  }>
+}
+
 const ALUMNO_CTX_STORAGE_KEY = 'rematricula-alumno-matricula'
 const ESPERA_SUBIDA_MS = 400
 
@@ -68,6 +84,8 @@ type StoredAlumnoMatriculaContext = {
   lineasBeneficioGrabar: LineaParaDocumentoDescuento[]
   pasoAlcanzado: number
   envioFirmaIniciado: boolean
+  cuentaWebpayGrabada: boolean
+  planCuentaWebpay: PlanCuentaWebpayPersistido | null
 }
 
 function sanitizeConveniosDocumentos(v: unknown): Record<string, MockConvenioDocumento> {
@@ -167,6 +185,55 @@ function lineasBeneficioGrabarPersistidas(v: unknown): LineaParaDocumentoDescuen
   return out
 }
 
+function planCuentaWebpayPersistido(v: unknown): PlanCuentaWebpayPersistido | null {
+  if (typeof v !== 'object' || v === null) return null
+  const plan = v as Partial<PlanCuentaWebpayPersistido>
+  const contrato = textoPersistido(plan.contrato)
+  const fechaInicio = textoPersistido(plan.fechaInicio)
+  if (!contrato || !fechaInicio || !/^\d{4}-\d{2}-\d{2}$/.test(fechaInicio)) return null
+  if (
+    typeof plan.montoMatricula !== 'number' ||
+    !Number.isInteger(plan.montoMatricula) ||
+    plan.montoMatricula <= 0 ||
+    typeof plan.montoArancel !== 'number' ||
+    !Number.isInteger(plan.montoArancel) ||
+    plan.montoArancel <= 0
+  ) {
+    return null
+  }
+  if (!Array.isArray(plan.descuentos)) return null
+  const descuentos: PlanCuentaWebpayPersistido['descuentos'] = []
+  for (const item of plan.descuentos) {
+    if (typeof item !== 'object' || item === null) return null
+    if (item.concepto !== 'matricula' && item.concepto !== 'arancel') return null
+    const codben = textoPersistido(item.codben)
+    const documento = textoPersistido(item.documento)
+    if (!codben || !documento || !/^\d+$/.test(codben) || !/^\d+$/.test(documento)) return null
+    if (typeof item.monto !== 'number' || !Number.isFinite(item.monto) || item.monto <= 0) return null
+    descuentos.push({
+      codben,
+      documento,
+      monto: item.monto,
+      porc: typeof item.porc === 'number' && Number.isFinite(item.porc) ? item.porc : null,
+      montoSolicitado:
+        typeof item.montoSolicitado === 'number' && Number.isFinite(item.montoSolicitado)
+          ? item.montoSolicitado
+          : null,
+      concepto: item.concepto,
+    })
+  }
+  const caja =
+    typeof plan.caja === 'number' && Number.isInteger(plan.caja) && plan.caja > 0 ? plan.caja : null
+  return {
+    contrato,
+    fechaInicio,
+    caja,
+    montoMatricula: plan.montoMatricula,
+    montoArancel: plan.montoArancel,
+    descuentos,
+  }
+}
+
 function hasAnyProgressPayload(parsed: Partial<StoredAlumnoMatriculaContext>): boolean {
   return (
     parsed.tycAccepted === true ||
@@ -192,7 +259,9 @@ function hasAnyProgressPayload(parsed: Partial<StoredAlumnoMatriculaContext>): b
     parsed.webpayMatriculaEstado != null ||
     parsed.webpayArancelEstado != null ||
     (typeof parsed.pasoAlcanzado === 'number' && parsed.pasoAlcanzado > 1) ||
-    parsed.envioFirmaIniciado === true
+    parsed.envioFirmaIniciado === true ||
+    parsed.cuentaWebpayGrabada === true ||
+    parsed.planCuentaWebpay != null
   )
 }
 
@@ -256,6 +325,8 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
     lineasBeneficioGrabar: [] as LineaParaDocumentoDescuento[],
     pasoAlcanzado: 1,
     envioFirmaIniciado: false,
+    cuentaWebpayGrabada: false,
+    planCuentaWebpay: null as PlanCuentaWebpayPersistido | null,
     borradorActualizadoEn: null as string | null,
     borradorPendienteDeSubir: false,
     claveBorrador: null as ClaveBorradorRematricula | null,
@@ -292,6 +363,8 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
         lineasBeneficioGrabar: this.lineasBeneficioGrabar,
         pasoAlcanzado: this.pasoAlcanzado,
         envioFirmaIniciado: this.envioFirmaIniciado,
+        cuentaWebpayGrabada: this.cuentaWebpayGrabada,
+        planCuentaWebpay: this.planCuentaWebpay,
       }
     },
 
@@ -327,6 +400,20 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
       this.borradorActualizadoEn = en
       this.borradorPendienteDeSubir = false
       this.escribirSesion()
+    },
+
+    async flushBorrador(): Promise<boolean> {
+      cancelarSubidaProgramada()
+      const clave = this.claveBorrador
+      if (!clave) return false
+      revisionSubida += 1
+      const revision = revisionSubida
+      const en = await guardarMolBorrador(clave, this.payloadActual())
+      if (revision !== revisionSubida || !en) return false
+      this.borradorActualizadoEn = en
+      this.borradorPendienteDeSubir = false
+      this.escribirSesion()
+      return true
     },
 
     async sincronizarBorradorServidor(clave: ClaveBorradorRematricula) {
@@ -419,6 +506,8 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
             ? Math.trunc(parsed.pasoAlcanzado)
             : 1
         this.envioFirmaIniciado = parsed.envioFirmaIniciado === true
+        this.cuentaWebpayGrabada = parsed.cuentaWebpayGrabada === true
+        this.planCuentaWebpay = planCuentaWebpayPersistido(parsed.planCuentaWebpay)
     },
 
     hydrateFromSessionStorage() {
@@ -488,6 +577,8 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
       this.lineasBeneficioGrabar = []
       this.pasoAlcanzado = 1
       this.envioFirmaIniciado = false
+      this.cuentaWebpayGrabada = false
+      this.planCuentaWebpay = null
       this.resetStoresErp()
       this.clearSessionStorage()
     },
@@ -614,23 +705,31 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
 
     setMedioMatricula(medio: MedioConcepto | null) {
       this.medioMatricula = medio
+      if (medio !== 'webpay') this.olvidarCuentaWebpayGrabada()
       this.persistToSessionStorage()
     },
 
     setMedioArancel(medio: MedioConcepto | null) {
       this.medioArancel = medio
+      if (medio !== 'webpay') this.olvidarCuentaWebpayGrabada()
       this.persistToSessionStorage()
     },
 
     setWebpayMatriculaEstado(estado: WebpayConceptoEstado | null) {
       this.webpayMatriculaEstado = estado
-      if (estado !== 'autorizada') this.webpayMatriculaDetalle = null
+      if (estado !== 'autorizada') {
+        this.webpayMatriculaDetalle = null
+        this.olvidarCuentaWebpayGrabada()
+      }
       this.persistToSessionStorage()
     },
 
     setWebpayArancelEstado(estado: WebpayConceptoEstado | null) {
       this.webpayArancelEstado = estado
-      if (estado !== 'autorizada') this.webpayArancelDetalle = null
+      if (estado !== 'autorizada') {
+        this.webpayArancelDetalle = null
+        this.olvidarCuentaWebpayGrabada()
+      }
       this.persistToSessionStorage()
     },
 
@@ -675,6 +774,23 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
     setLineasBeneficioGrabar(lineas: LineaParaDocumentoDescuento[]) {
       this.lineasBeneficioGrabar = lineasBeneficioGrabarPersistidas(lineas)
       this.persistToSessionStorage()
+    },
+
+    guardarPlanCuentaWebpay(plan: PlanCuentaWebpayPersistido) {
+      const persistido = planCuentaWebpayPersistido(plan)
+      if (!persistido) return
+      this.planCuentaWebpay = persistido
+      this.persistToSessionStorage()
+    },
+
+    marcarCuentaWebpayGrabada() {
+      this.cuentaWebpayGrabada = true
+      this.persistToSessionStorage()
+    },
+
+    olvidarCuentaWebpayGrabada() {
+      this.cuentaWebpayGrabada = false
+      this.planCuentaWebpay = null
     },
   },
 })
