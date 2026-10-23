@@ -31,12 +31,12 @@ export const DASHBOARD_MENU_ROUTE_NAMES = [
   'dashboard-rematricula-seguimiento',
   'dashboard-encuesta-discapacidad',
   'dashboard-nps-rematricula',
+  'dashboard-mantenedor-desbloqueo-toma-ramos',
   'dashboard-gestion-firmas',
   'dashboard-mantenedor-descuento-matricula-anticipada',
   'dashboard-mantenedor-terminos-condiciones',
   'dashboard-mantenedor-contacto-otp',
   'dashboard-mantenedor-proximamente',
-  'dashboard-mantenedor-desbloqueo-toma-ramos',
   'dashboard-backoffice-menu',
   'dashboard-backoffice-usuarios',
 ] as const
