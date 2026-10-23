@@ -208,11 +208,11 @@ describe('accionAlElegirPasoHome', () => {
     })
     expect(accionAlElegirPasoHome(input, 'pago')).toEqual({
       tipo: 'aviso',
-      texto: 'Estás en Datos personales y TyC. Forma de pago no está abierto.',
+      texto: 'Estás en Datos personales. Forma de pago no está abierto.',
     })
     expect(accionAlElegirPasoHome(input, 'firma')).toEqual({
       tipo: 'aviso',
-      texto: 'Estás en Datos personales y TyC. Firma de contrato no está abierto.',
+      texto: 'Estás en Datos personales. Firma de contrato no está abierto.',
     })
   })
 

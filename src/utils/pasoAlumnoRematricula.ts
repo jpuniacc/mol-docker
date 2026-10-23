@@ -184,7 +184,7 @@ export function pasosAvanceHome(input: AvanceHomeAlumnoInput): PasoAvanceHome[] 
   return [
     {
       id: 'datos',
-      label: 'Datos personales y TyC',
+      label: 'Datos personales',
       estado: estadoDe(datosListo, datosPersonalesEmpezados(input)),
     },
     {
@@ -265,7 +265,7 @@ export function accionAlElegirPasoHome(
   if (!abierto || destino == null || actual == null) {
     return {
       tipo: 'aviso',
-      texto: textoAvisoPasoCerrado(actual?.label ?? 'Datos personales y TyC', destino?.label ?? ''),
+      texto: textoAvisoPasoCerrado(actual?.label ?? 'Datos personales', destino?.label ?? ''),
     }
   }
   return { tipo: 'navegar', routeName: RUTA_POR_PASO_HOME[id] }

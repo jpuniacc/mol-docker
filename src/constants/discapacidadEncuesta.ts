@@ -39,7 +39,6 @@ export const DISCAPACIDAD_ENCUESTA_UI = {
     'Son dos preguntas independientes. Puedes responder solo el tipo, solo las afirmaciones, o ambas. Lo que indiques en una no condiciona la otra.',
   pregunta1Titulo: '1. Tipo de discapacidad',
   pregunta1Badge: 'Obligatoria',
-  pregunta1Subtitulo: 'Códigos institucionales alineados a ERP (TyC §4.4).',
   pregunta2Titulo: '2. Afirmaciones',
   pregunta2Badge: 'Opcional',
   pregunta2Subtitulo:
