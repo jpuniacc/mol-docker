@@ -225,13 +225,6 @@ const EscenaIlustracion = defineComponent({
           >
             Ir al inicio
           </button>
-          <a
-            v-if="mailtoAyuda"
-            :href="mailtoAyuda"
-            class="cursor-pointer text-[#3B9EC9] underline-offset-2 hover:underline"
-          >
-            Reportar este bache
-          </a>
         </div>
         <a
           v-else-if="mailtoAyuda"

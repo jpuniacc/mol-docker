@@ -13,7 +13,6 @@ import {
 export type SuperficieError = 'alumno' | 'backoffice' | 'ingreso'
 export type EscenaModal = EscenaErrorRematricula | 'ingreso'
 
-export const CORREO_REPORTE = 'mol@uniacc.cl'
 export const CORREO_AYUDA_INGRESO = 'servicio.estudiante@uniacc.cl'
 
 export const useErrorRematriculaStore = defineStore('errorRematricula', () => {
@@ -25,8 +24,8 @@ export const useErrorRematriculaStore = defineStore('errorRematricula', () => {
   const boton = ref<'reintento' | 'entendido'>('reintento')
   const superficie = ref<SuperficieError>('alumno')
   const mostrarEnlaces = ref(true)
-  const correoAyuda = ref<string | null>(CORREO_REPORTE)
-  const etiquetaAyuda = ref('Reportar este bache')
+  const correoAyuda = ref<string | null>(null)
+  const etiquetaAyuda = ref('')
 
   let reintentar: (() => void) | null = null
   let focoId: string | null = null
@@ -152,8 +151,8 @@ export function mostrarErrorRematricula(
     saludo: saludoPersona(nombre),
     boton: 'reintento',
     mostrarEnlaces: true,
-    correoAyuda: CORREO_REPORTE,
-    etiquetaAyuda: 'Reportar este bache',
+    correoAyuda: null,
+    etiquetaAyuda: '',
     reintentar: clasificado.enfocarCampo ? undefined : opts?.reintentar,
     focoId: opts?.focoId,
   })
