@@ -230,6 +230,20 @@ describe('becas asignadas estado 4', () => {
     expect(filtrarBeneficiosAsignados(sinCodigo, new Set(['1756']))).toEqual([])
     expect(filtrarBeneficiosAsignados(items, new Set())).toEqual([])
   })
+
+  it('muestra la beca 2047 aunque U+ todavía no la tenga asignada', () => {
+    const convenio = itemsBeneficioDesdeCartera({
+      ...VANESSA,
+      beca_1: 'Beca Convenio Especial',
+      pct_1: 20,
+      cod_beneficio_1: '2047',
+      beca_2: 'Beneficio Apoyo UNIACC Renovable',
+      pct_2: 10,
+      cod_beneficio_2: '1756',
+    })
+    const visibles = filtrarBeneficiosAsignados(convenio, new Set())
+    expect(visibles.map((item) => item.cod_beneficio)).toEqual(['2047'])
+  })
 })
 
 describe('flagsConsolidado', () => {

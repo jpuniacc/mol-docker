@@ -152,6 +152,33 @@ describe('textoPorcentajeFila', () => {
     )
   })
 
+  it('la beca 2047 sin requisito de notas mantiene el 20 %', () => {
+    const filas = filasBeneficioConPromedio({
+      items: [
+        {
+          slot: 1,
+          descripcion: 'Beca Convenio Especial',
+          cod_beneficio: '2047',
+          pct: 20,
+          sinMapear: false,
+          aplica: true,
+          flujo: 'MOL_DVU',
+        },
+      ],
+      catalogo: [
+        {
+          codigo_beneficio: '2047',
+          flujo: 'MOL_DVU',
+          renovable: 'SIN REQUISITO DE NOTAS',
+        },
+      ],
+      seleccionados: { 1: true },
+      arancelBruto: 1_000_000,
+      promedio: 3.5,
+    })
+    expect(filas[0]).toMatchObject({ resultado: 'NO_APLICA', porcAplica: 20, monto: 200_000 })
+  })
+
   it('la beca que baja conserva el porcentaje que queda', () => {
     expect(
       textoPorcentajeFila(

@@ -107,6 +107,9 @@ export function codigosAsignadosUltimoPeriodo(filas: FilaBeneficioAsignacion[]):
   return codigos
 }
 
+/** La cartera manda: MOL la muestra antes de que U+ la tenga asignada. */
+const CODIGO_BECA_SIN_ASIGNACION_PREVIA = '2047'
+
 /** Deja las becas del Excel cuyo código está asignado en ese periodo. */
 export function filtrarBeneficiosAsignados(
   items: BeneficioExcelUiItem[],
@@ -114,6 +117,7 @@ export function filtrarBeneficiosAsignados(
 ): BeneficioExcelUiItem[] {
   return items.filter((item) => {
     const cod = (item.cod_beneficio ?? '').trim()
+    if (cod === CODIGO_BECA_SIN_ASIGNACION_PREVIA) return true
     return cod.length > 0 && codigosAsignados.has(cod)
   })
 }
