@@ -157,6 +157,6 @@ describe('textoPorcentajeFila', () => {
       textoPorcentajeFila(
         filaTexto({ resultado: 'BAJA', porcCatalogo: 15, porcAplica: 9, disminucion: 0.4 }),
       ),
-    ).toBe('% de beca otorgado: 15 %. Por tu promedio tu beca baja a un 9 %.')
+    ).toBe('Porcentaje de beca otorgado: 15 %. Por tu promedio tu beca baja a un 9 %.')
   })
 })

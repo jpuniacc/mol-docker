@@ -196,7 +196,7 @@ export function textoPorcentajeFila(fila: FilaBeneficioPromedio): string {
   if (fila.porcCatalogo == null) return 'Sin porcentaje'
   const base = fmtPct(fila.porcCatalogo)
   if (fila.resultado === 'BAJA' && fila.porcAplica != null) {
-    return `% de beca otorgado: ${base} %. Por tu promedio tu beca baja a un ${fmtPct(fila.porcAplica)} %.`
+    return `Porcentaje de beca otorgado: ${base} %. Por tu promedio tu beca baja a un ${fmtPct(fila.porcAplica)} %.`
   }
   if (fila.resultado === 'MANTIENE' && porcUnaDecimal(fila.porcCatalogo) >= 100) {
     return 'Renuevas tu beca por tu promedio general'
