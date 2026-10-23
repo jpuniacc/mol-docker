@@ -5,6 +5,9 @@ export const URL_PORTAL_SOLICITUDES = 'https://solicitudes.uniacc.cl/login'
 
 export const TEXTO_ENLACE_PORTAL_SOLICITUDES = 'Portal de Solicitudes UNIACC'
 
+export const MSG_APODERADO_DESACTUALIZADO =
+  'Los datos de su apoderado o sostenedor requieren actualización. Para realizar este trámite, ingrese al Portal de Solicitudes UNIACC y registre su requerimiento en la categoría «Problema con matrícula online».'
+
 export const MSG_FUERA_CARTERA_OFICIAL =
   'El estado de rematrícula requiere revisión antes de continuar con la rematrícula. Para solicitar orientación, ingresa al Portal de Solicitudes UNIACC'
 

@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from 'vue'
 import { AlertTriangle, Info } from 'lucide-vue-next'
 
 import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
+import TextoPortalSolicitudes from '@/components/rematricula/TextoPortalSolicitudes.vue'
+import { MSG_APODERADO_DESACTUALIZADO } from '@/constants/carteraOficial'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -205,8 +207,7 @@ async function marcarDesactualizado(): Promise<void> {
       <AlertTriangle class="h-5 w-5 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden="true" />
       <AlertTitle class="text-base font-semibold">Datos del apoderado desactualizados</AlertTitle>
       <AlertDescription class="mt-2 text-sm leading-relaxed">
-        Debes comunicarte con tu consejero para actualizar los datos de tu apoderado. También
-        informamos al área para gestionar la actualización.
+        <TextoPortalSolicitudes :texto="MSG_APODERADO_DESACTUALIZADO" />
         <span v-if="rehidratando" class="mt-2 block text-amber-800">Comprobando estado…</span>
       </AlertDescription>
     </Alert>
