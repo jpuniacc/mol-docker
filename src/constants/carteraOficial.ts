@@ -5,6 +5,9 @@ export const URL_PORTAL_SOLICITUDES = 'https://solicitudes.uniacc.cl/login'
 
 export const TEXTO_ENLACE_PORTAL_SOLICITUDES = 'Portal de Solicitudes UNIACC'
 
+export const MSG_DEUDA_PENDIENTE =
+  'No es posible continuar con tu rematrícula. Según nuestros registros, hay situación financiera pendiente por regularizar. Ingresa al Portal de Solicitudes y genera un caso para revisar tu situación.'
+
 export const MSG_APODERADO_DESACTUALIZADO =
   'Los datos de su apoderado o sostenedor requieren actualización. Para realizar este trámite, ingrese al Portal de Solicitudes UNIACC y registre su requerimiento en la categoría «Problema con matrícula online».'
 

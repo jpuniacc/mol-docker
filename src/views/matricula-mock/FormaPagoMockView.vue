@@ -42,6 +42,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import ConvenioVigenteUpload from '@/components/rematricula/ConvenioVigenteUpload.vue'
+import TextoPortalSolicitudes from '@/components/rematricula/TextoPortalSolicitudes.vue'
+import { MSG_DEUDA_PENDIENTE } from '@/constants/carteraOficial'
 import { useMockAlumnoFuente } from '@/composables/useMockAlumnoFuente'
 import { Check, CreditCard, FileText } from 'lucide-vue-next'
 import { rutSinDv } from '@/services/alumnoDeudaNetApi'
@@ -1539,7 +1541,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
                 <span>{{ fmt(montoNetoMatricula()) }}</span>
               </div>
               <p v-if="tieneDeuda" class="text-xs text-red-700">
-                No puedes pagar matrícula: hay deuda pendiente por regularizar.
+                <TextoPortalSolicitudes :texto="MSG_DEUDA_PENDIENTE" />
               </p>
               <p
                 v-else-if="!gateConvenioMatricula.puedePagarPorConvenio && gateConvenioMatricula.mensaje"

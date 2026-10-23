@@ -28,6 +28,8 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
+import TextoPortalSolicitudes from '@/components/rematricula/TextoPortalSolicitudes.vue'
+import { MSG_DEUDA_PENDIENTE } from '@/constants/carteraOficial'
 import ConvenioVigenteUpload from '@/components/rematricula/ConvenioVigenteUpload.vue'
 import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
 import { tieneCae } from '@/constants/verificacionCae'
@@ -2118,7 +2120,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
                 <span>{{ fmt(montoNetoMatricula()) }}</span>
               </div>
               <p v-if="tieneDeuda" class="text-xs text-red-700">
-                No puedes pagar matrícula: hay deuda pendiente por regularizar.
+                <TextoPortalSolicitudes :texto="MSG_DEUDA_PENDIENTE" />
               </p>
               <p
                 v-else-if="!gateConvenioMatricula.puedePagarPorConvenio && gateConvenioMatricula.mensaje"

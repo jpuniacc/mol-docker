@@ -9,14 +9,17 @@ import {
 const props = defineProps<{ texto: string }>()
 
 const partes = computed(() => {
-  const marca = TEXTO_ENLACE_PORTAL_SOLICITUDES
-  const indice = props.texto.indexOf(marca)
-  if (indice < 0) return { antes: props.texto, enlace: '', despues: '' }
-  return {
-    antes: props.texto.slice(0, indice),
-    enlace: marca,
-    despues: props.texto.slice(indice + marca.length),
+  const marcas = [TEXTO_ENLACE_PORTAL_SOLICITUDES, 'Portal de Solicitudes']
+  for (const marca of marcas) {
+    const indice = props.texto.indexOf(marca)
+    if (indice < 0) continue
+    return {
+      antes: props.texto.slice(0, indice),
+      enlace: marca,
+      despues: props.texto.slice(indice + marca.length),
+    }
   }
+  return { antes: props.texto, enlace: '', despues: '' }
 })
 </script>
 
