@@ -101,7 +101,7 @@ const ORDEN_EMBUDO: EtapaProgresoRematricula[] = [
 
 const rows = ref<MnpCasoRematriculaRow[]>([])
 const loading = ref(false)
-/** Cubre todo `cargar()` (refresh de progreso + casos + firmas + KPI). */
+/** Cubre el refresco del embudo. Los casos no esperan ese refresco. */
 const actualizando = ref(false)
 const panelPrincipal = ref<PanelPrincipal>('casos')
 const filtroTipo = ref<string>('todos')
@@ -440,11 +440,13 @@ async function cargar() {
     await periodoActivo.ensureLoaded()
     const anio = periodoActivo.anio
     const sem = periodoActivo.semestre
+    const casosYFirmas = Promise.all([cargarCasos(), cargarFirmas()])
     if (anio != null && sem != null) {
       const { error } = await refreshProgresoRematricula(anio, sem)
       if (error) console.warn('[Casos] refresh progreso:', error)
     }
-    await Promise.all([cargarCasos(), cargarFirmas(), cargarKpi()])
+    await casosYFirmas
+    await cargarKpi()
   } finally {
     actualizando.value = false
   }
@@ -731,9 +733,9 @@ onMounted(() => {
       <Card class="border-border/80 shadow-sm">
         <CardContent class="p-0">
           <Table
-            :aria-busy="estaActualizando"
+            :aria-busy="loading"
             :class="
-              estaActualizando && filasVisibles.length > 0
+              loading && filasVisibles.length > 0
                 ? 'opacity-60 transition-opacity duration-200'
                 : 'transition-opacity duration-200'
             "
