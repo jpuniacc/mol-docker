@@ -30,6 +30,7 @@ import {
   MSG_FUERA_CARTERA_OFICIAL,
   TITULO_FUERA_CARTERA_OFICIAL,
 } from '@/constants/carteraOficial'
+import TextoPortalSolicitudes from '@/components/rematricula/TextoPortalSolicitudes.vue'
 import { PERIODO_CARTERA_BENEFICIOS } from '@/services/carteraBeneficiosApi'
 import { detectarConveniosAlumno } from '@/services/convenioAlumno'
 import { fetchBeneficioPeriodo } from '@/services/fetchBeneficioPeriodo'
@@ -379,7 +380,9 @@ onMounted(() => {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{{ TITULO_FUERA_CARTERA_OFICIAL }}</DialogTitle>
-          <DialogDescription>{{ MSG_FUERA_CARTERA_OFICIAL }}</DialogDescription>
+          <DialogDescription>
+            <TextoPortalSolicitudes :texto="MSG_FUERA_CARTERA_OFICIAL" />
+          </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button

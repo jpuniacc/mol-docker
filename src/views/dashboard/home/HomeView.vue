@@ -6,6 +6,7 @@ import {
   MSG_FUERA_CARTERA_OFICIAL,
   TITULO_FUERA_CARTERA_OFICIAL,
 } from '@/constants/carteraOficial'
+import TextoPortalSolicitudes from '@/components/rematricula/TextoPortalSolicitudes.vue'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
@@ -136,7 +137,9 @@ watch(
 
       <Alert v-if="bloqueoFueraCartera" class="border-red-300 bg-red-50 text-red-950">
         <AlertTitle>{{ TITULO_FUERA_CARTERA_OFICIAL }}</AlertTitle>
-        <AlertDescription>{{ MSG_FUERA_CARTERA_OFICIAL }}</AlertDescription>
+        <AlertDescription>
+          <TextoPortalSolicitudes :texto="MSG_FUERA_CARTERA_OFICIAL" />
+        </AlertDescription>
       </Alert>
 
       <section

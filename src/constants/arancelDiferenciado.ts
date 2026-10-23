@@ -78,7 +78,7 @@ const CODCLI_ARANCEL_DIFERENCIADO_SET = new Set<string>(CODCLI_ARANCEL_DIFERENCI
 export const TITULO_ARANCEL_DIFERENCIADO = 'No es posible continuar con tu proceso de rematrícula'
 
 export const MSG_ARANCEL_DIFERENCIADO =
-  'Tu situación académica requiere revisión. Comunícate con servicio.estudiante@uniacc.cl, indicando tu RUT y teléfono de contacto.'
+  'Tu situación académica requiere revisión antes de continuar con la rematrícula. Para solicitar orientación, ingresa al Portal de Solicitudes UNIACC y selecciona la categoría correspondiente.'
 
 const AVISO_SESION_ARANCEL_DIFERENCIADO = 'rematricula-bloqueo-arancel-diferenciado'
 

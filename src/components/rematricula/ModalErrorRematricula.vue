@@ -10,6 +10,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import TextoPortalSolicitudes from '@/components/rematricula/TextoPortalSolicitudes.vue'
 import { useErrorRematriculaStore, type EscenaModal } from '@/stores/errorRematricula'
 
 const store = useErrorRematriculaStore()
@@ -204,7 +205,7 @@ const EscenaIlustracion = defineComponent({
           {{ store.titulo }}
         </AlertDialogTitle>
         <AlertDialogDescription class="text-left text-sm leading-relaxed text-zinc-700">
-          {{ store.cuerpo }}
+          <TextoPortalSolicitudes :texto="store.cuerpo" />
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter class="flex-col gap-2 px-6 pb-6 sm:flex-col sm:space-x-0">

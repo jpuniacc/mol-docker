@@ -1,15 +1,17 @@
 /** Alumno en consolidado MOL pero ausente de la cartera oficial (Excel BASE PARA PRUEBA). */
 export const TITULO_FUERA_CARTERA_OFICIAL = 'No es posible generar tu rematrícula'
 
+export const URL_PORTAL_SOLICITUDES = 'https://solicitudes.uniacc.cl/login'
+
+export const TEXTO_ENLACE_PORTAL_SOLICITUDES = 'Portal de Solicitudes UNIACC'
+
 export const MSG_FUERA_CARTERA_OFICIAL =
-  'No es posible generar tu proceso de rematrícula en este momento. Comunícate con tu consejero o con Dirección de Vida Universitaria (DVU) para revisar tu situación.'
+  'El estado de rematrícula requiere revisión antes de continuar con la rematrícula. Para solicitar orientación, ingresa al Portal de Solicitudes UNIACC'
 
 export const TITULO_BECA_SUBDERE = 'No es posible continuar con tu proceso de rematrícula'
 
-export const CORREO_BECA_SUBDERE = 'servicio.estudiante@uniacc.cl'
-
 export const MSG_BECA_SUBDERE =
-  'El estado de tu Beca SUBDERE requiere revisión. Comunícate con servicio.estudiante@uniacc.cl, indicando tu RUT y teléfono de contacto.'
+  'El estado de tu beneficio SUBDERE requiere revisión antes de continuar con la rematrícula. Para solicitar orientación, ingresa al Portal de Solicitudes UNIACC'
 
 const AVISO_SESION_SUBDERE = 'rematricula-bloqueo-subdere'
 

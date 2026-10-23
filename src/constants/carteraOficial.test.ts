@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  CORREO_BECA_SUBDERE,
   MSG_BECA_SUBDERE,
+  MSG_FUERA_CARTERA_OFICIAL,
+  TEXTO_ENLACE_PORTAL_SOLICITUDES,
   TITULO_BECA_SUBDERE,
   fueraCarteraDesdeEstado,
 } from './carteraOficial'
@@ -26,10 +27,13 @@ describe('fueraCarteraDesdeEstado', () => {
     ).toBe(true)
   })
 
-  it('el aviso SUBDERE usa el correo de servicio al estudiante', () => {
+  it('los avisos de bloqueo apuntan al portal de solicitudes', () => {
     expect(TITULO_BECA_SUBDERE).toBe('No es posible continuar con tu proceso de rematrícula')
-    expect(MSG_BECA_SUBDERE).toContain('Beca SUBDERE')
-    expect(MSG_BECA_SUBDERE).toContain(CORREO_BECA_SUBDERE)
+    expect(MSG_BECA_SUBDERE).toContain('beneficio SUBDERE')
+    expect(MSG_BECA_SUBDERE).toContain(TEXTO_ENLACE_PORTAL_SOLICITUDES)
+    expect(MSG_BECA_SUBDERE).not.toContain('servicio.estudiante')
+    expect(MSG_FUERA_CARTERA_OFICIAL).toContain(TEXTO_ENLACE_PORTAL_SOLICITUDES)
+    expect(MSG_FUERA_CARTERA_OFICIAL).not.toContain('servicio.estudiante')
   })
 
   it('deja pasar un RUT en cartera y no excluido', () => {

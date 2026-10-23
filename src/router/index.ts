@@ -5,7 +5,6 @@ import {
   MSG_ACCESO_MNP_VERIFICACION_FALLIDA,
   TITULO_ACCESO_NO_VIGENTE,
 } from '@/constants/accesoMnp'
-import { CORREO_BECA_SUBDERE } from '@/constants/carteraOficial'
 import { mostrarBloqueoIngreso, mostrarFalloIngreso } from '@/stores/errorRematricula'
 import {
   allowedRouteNamesFromMenu,
@@ -558,7 +557,6 @@ router.beforeEach(async (to) => {
       mostrarBloqueoIngreso({
         titulo: TITULO_ACCESO_NO_VIGENTE,
         cuerpo: MSG_ACCESO_MNP_NO_VIGENTE,
-        correo: CORREO_BECA_SUBDERE,
       })
     }
     auth.logout()

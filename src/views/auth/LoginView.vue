@@ -20,7 +20,6 @@ import {
   tomarAvisoArancelDiferenciado,
 } from '@/constants/arancelDiferenciado'
 import {
-  CORREO_BECA_SUBDERE,
   MSG_BECA_SUBDERE,
   TITULO_BECA_SUBDERE,
   tomarAvisoSubdere,
@@ -75,7 +74,6 @@ function abrirAvisosDeBloqueo() {
     mostrarBloqueoIngreso({
       titulo: TITULO_ACCESO_NO_VIGENTE,
       cuerpo: MSG_SITUACION_ACADEMICA,
-      correo: CORREO_BECA_SUBDERE,
     })
     return
   }
@@ -83,7 +81,6 @@ function abrirAvisosDeBloqueo() {
     mostrarBloqueoIngreso({
       titulo: TITULO_BECA_SUBDERE,
       cuerpo: MSG_BECA_SUBDERE,
-      correo: CORREO_BECA_SUBDERE,
     })
     return
   }
@@ -91,7 +88,6 @@ function abrirAvisosDeBloqueo() {
     mostrarBloqueoIngreso({
       titulo: TITULO_ARANCEL_DIFERENCIADO,
       cuerpo: MSG_SITUACION_ACADEMICA,
-      correo: CORREO_BECA_SUBDERE,
     })
   }
 }
@@ -149,7 +145,6 @@ async function onSubmit() {
         mostrarBloqueoIngreso({
           titulo: TITULO_BECA_SUBDERE,
           cuerpo: MSG_BECA_SUBDERE,
-          correo: CORREO_BECA_SUBDERE,
         })
         return
       }
@@ -161,7 +156,6 @@ async function onSubmit() {
         mostrarBloqueoIngreso({
           titulo: TITULO_ACCESO_NO_VIGENTE,
           cuerpo: MSG_SITUACION_ACADEMICA,
-          correo: CORREO_BECA_SUBDERE,
         })
         return
       }
@@ -171,7 +165,6 @@ async function onSubmit() {
         mostrarBloqueoIngreso({
           titulo: TITULO_ARANCEL_DIFERENCIADO,
           cuerpo: MSG_SITUACION_ACADEMICA,
-          correo: CORREO_BECA_SUBDERE,
         })
         return
       }
@@ -179,7 +172,6 @@ async function onSubmit() {
         mostrarBloqueoIngreso({
           titulo: TITULO_ACCESO_NO_VIGENTE,
           cuerpo: MSG_ACCESO_MNP_NO_VIGENTE,
-          correo: CORREO_BECA_SUBDERE,
         })
         auth.logout()
         return

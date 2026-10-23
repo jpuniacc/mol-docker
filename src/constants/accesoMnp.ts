@@ -5,7 +5,7 @@ export const MSG_ACCESO_MNP_NO_VIGENTE =
 export const TITULO_ACCESO_NO_VIGENTE = 'No es posible continuar con tu proceso de rematrícula'
 
 export const MSG_SITUACION_ACADEMICA =
-  'Tu situación académica requiere revisión. Comunícate con servicio.estudiante@uniacc.cl, indicando tu RUT y teléfono de contacto.'
+  'Tu situación académica requiere revisión antes de continuar con la rematrícula. Para solicitar orientación, ingresa al Portal de Solicitudes UNIACC y selecciona la categoría correspondiente.'
 
 /** Alumno con filas en MNP, ninguna con estado académico VIGENTE y que no es SUBDERE. */
 export function mensajeAccesoNoVigente(_estados: Array<string | null | undefined>): string {
