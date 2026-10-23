@@ -7,37 +7,46 @@ export type ErrorRematriculaClasificado = {
   enfocarCampo: boolean
 }
 
+const AVISO_PORTAL = 'Si continúan los problemas, ingresa al Portal de Solicitudes.'
+
+function conPortal(texto: string): string {
+  const base = texto.trim()
+  if (base.includes('Portal de Solicitudes')) return base
+  return `${base} ${AVISO_PORTAL}`
+}
+
 export const TITULO_CONEXION = 'Houston, tenemos un pequeño problema'
 export const CUERPO_CONEXION =
-  'No pudimos guardar tus cambios. Al parecer, el internet decidió irse a por café o nuestro servidor está estornudando. No te preocupes, tus datos siguen a salvo.'
+  'No pudimos continuar el proceso. Al parecer, el internet decidió irse a por café o nuestro servidor está estornudando. No te preocupes, tus datos siguen a salvo. Si continúan los problemas, ingresa al Portal de Solicitudes.'
 
 export const TITULO_PAGO_ASIENTO = 'Este pago ya tiene asiento'
 export const CUERPO_PAGO_ASIENTO =
-  'La matrícula o el arancel ya quedaron autorizados. No hace falta pasar la tarjeta otra vez.'
+  'La matrícula o el arancel ya quedaron autorizados. No hace falta pasar la tarjeta otra vez. Si continúan los problemas, ingresa al Portal de Solicitudes.'
 
 export const TITULO_PAGO_FALLO = 'El cobro no pudo salir'
-export const CUERPO_PAGO_FALLO = 'No pudimos completar el pago. Puedes intentarlo de nuevo.'
+export const CUERPO_PAGO_FALLO =
+  'No pudimos completar el pago. Puedes intentarlo de nuevo. Si continúan los problemas, ingresa al Portal de Solicitudes.'
 
 export const TITULO_FIRMA = 'La firma se quedó en el tintero'
 export const CUERPO_FIRMA =
-  'No pudimos enviar el contrato. Sigue guardado aquí. Podemos intentarlo de nuevo.'
+  'No pudimos enviar el contrato. Sigue guardado aquí. Podemos intentarlo de nuevo. Si continúan los problemas, ingresa al Portal de Solicitudes.'
 
 export const TITULO_ENLACE_FIRMA = 'El enlace se quedó en el sobre'
 export const CUERPO_ENLACE_FIRMA =
-  'El contrato ya está creado, pero este firmante todavía no tiene un enlace de firma pendiente. El sistema fue por un café. No te preocupes, tus datos siguen a salvo. Puedes intentarlo de nuevo en un momento.'
+  'El contrato ya está creado, pero este firmante todavía no tiene un enlace de firma pendiente. El sistema fue por un café. No te preocupes, tus datos siguen a salvo. Puedes intentarlo de nuevo en un momento. Si continúan los problemas, ingresa al Portal de Solicitudes.'
 
 export const TITULO_DATOS = 'Falta una pieza del formulario'
 
 export const TITULO_INGRESO_CREDENCIAL = 'La puerta no quiso abrir esta vez'
 export const CUERPO_INGRESO_CREDENCIAL =
-  'No pudimos comprobar tus datos de acceso. Revisa tu usuario y contraseña e inténtalo nuevamente.'
+  'No pudimos comprobar tus datos de acceso. Revisa tu usuario y contraseña e inténtalo nuevamente. Si continúan los problemas, ingresa al Portal de Solicitudes.'
 
 export const TITULO_INGRESO_SERVIDOR = 'La puerta está un poquito atascada'
 export const CUERPO_INGRESO_SERVIDOR =
-  'No pudimos abrir la puerta en este momento. Inténtalo de nuevo en unos minutos.'
+  'No pudimos abrir la puerta en este momento. Inténtalo de nuevo en unos minutos. Si continúan los problemas, ingresa al Portal de Solicitudes.'
 
 export function cuerpoDescargaFirma(numOperacion: string): string {
-  return `No pudimos traer el contrato de la operación ${numOperacion}. El registro sigue aquí.`
+  return conPortal(`No pudimos traer el contrato de la operación ${numOperacion}. El registro sigue aquí.`)
 }
 
 export function clasificarErrorRematricula(
@@ -79,7 +88,7 @@ export function clasificarErrorRematricula(
     return {
       escena: 'datos',
       titulo: TITULO_DATOS,
-      cuerpo: texto,
+      cuerpo: conPortal(texto),
       enfocarCampo: true,
     }
   }

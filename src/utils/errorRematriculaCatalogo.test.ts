@@ -49,12 +49,21 @@ describe('clasificarErrorRematricula', () => {
     expect(r.escena).toBe('conexion')
     expect(r.titulo).toBe(TITULO_CONEXION)
     expect(r.cuerpo).toBe(CUERPO_CONEXION)
+    expect(r.cuerpo).toContain('Portal de Solicitudes')
     expect(r.cuerpo).not.toContain('XYZ-9')
   })
 
   it('una credencial rechazada usa la puerta', () => {
     const r = clasificarFalloIngreso('Usuario o contraseña incorrectos')
     expect(r.titulo).toBe(TITULO_INGRESO_CREDENCIAL)
+    expect(r.cuerpo).toContain('Portal de Solicitudes')
+  })
+
+  it('un dato faltante también ofrece el Portal de Solicitudes', () => {
+    const r = clasificarErrorRematricula('Selecciona un medio de pago')
+    expect(r.escena).toBe('datos')
+    expect(r.cuerpo).toContain('Selecciona un medio de pago')
+    expect(r.cuerpo).toContain('Portal de Solicitudes')
   })
 
   it('usuario vacío no abre modal', () => {
