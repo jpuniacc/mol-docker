@@ -70,7 +70,6 @@ import { esperaDesdeConsolidado, requiereVerificacionCae } from '@/utils/esperaC
 import {
   anioNotasRematricula,
   filasBeneficioConPromedio,
-  textoEfectoPromedio,
   textoFuentePromedio,
   textoNotaPromedio,
   textoPorcentajeFila,
@@ -1185,8 +1184,6 @@ const etiquetaFuentePromedio = computed(() =>
   textoFuentePromedio(promedioElegido.value?.fuente ?? null, anioNotas.value),
 )
 
-const efectoPromedio = computed(() => textoEfectoPromedio(promedioElegido.value?.promedio ?? null))
-
 const filasPromedio = computed(() =>
   filasBeneficioConPromedio({
     items: beneficios.value,
@@ -1949,7 +1946,6 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
               Tu promedio
             </p>
             <p class="mt-1 text-base font-semibold text-zinc-900">{{ etiquetaFuentePromedio }}</p>
-            <p class="mt-1 text-sm text-zinc-600">{{ efectoPromedio }}</p>
           </div>
         </div>
         </div>
@@ -2029,7 +2025,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
                     <span class="block text-sm font-medium text-zinc-900">
                       {{ b.descripcion || 'Beneficio' }}
                     </span>
-                    <span class="mt-0.5 block text-xs text-zinc-500">
+                    <span class="mt-0.5 block text-xs leading-5 text-zinc-600">
                       {{ filaDe(b.slot) ? textoPorcentajeFila(filaDe(b.slot)!) : 'Sin porcentaje' }}
                     </span>
                   </span>
@@ -2048,7 +2044,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
                     <span class="block text-sm font-medium text-zinc-700">
                       {{ b.descripcion || 'Beneficio' }}
                     </span>
-                    <span class="mt-0.5 block text-xs text-zinc-500">
+                    <span class="mt-0.5 block text-xs leading-5 text-zinc-600">
                       {{ textoPorcentajeFila(filaDe(b.slot)!) }}
                     </span>
                   </span>

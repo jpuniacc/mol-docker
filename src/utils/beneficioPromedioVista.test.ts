@@ -4,8 +4,9 @@ import type { BeneficioExcelUiItem } from './carteraBeneficiosUi'
 import {
   anioNotasRematricula,
   filasBeneficioConPromedio,
-  textoAvisoPromedio,
   textoFuentePromedio,
+  textoPorcentajeFila,
+  type FilaBeneficioPromedio,
 } from './beneficioPromedioVista'
 
 const CATALOGO = [
@@ -112,20 +113,50 @@ describe('filasBeneficioConPromedio', () => {
   })
 })
 
-describe('textoAvisoPromedio', () => {
-  it('describe la baja del tramo 5,1', () => {
-    expect(textoAvisoPromedio(5.1)).toBe(
-      'Tu promedio es 5,1. Las becas que exigen un promedio mínimo de 5,5 te bajarán un 25 %.',
-    )
+function filaTexto(parcial: Partial<FilaBeneficioPromedio>): FilaBeneficioPromedio {
+  return {
+    slot: 1,
+    codigo: '1795',
+    flujo: 'MOL_DVU',
+    descripcion: 'Beca',
+    porcCatalogo: 100,
+    porcAplica: 100,
+    disminucion: 0,
+    resultado: 'MANTIENE',
+    monto: 0,
+    marcado: true,
+    recortadoTope: false,
+    ...parcial,
+  }
+}
+
+describe('textoFuentePromedio', () => {
+  it('nombra el promedio general de la carrera, sin el año ni el semestre', () => {
+    expect(anioNotasRematricula(2027)).toBe(2026)
+    expect(textoFuentePromedio('anio', 2026)).toBe('Promedio general de tu carrera')
+    expect(textoFuentePromedio('periodo', 2026)).toBe('Promedio general de tu carrera')
+    expect(textoFuentePromedio(null, 2026)).toBe('Sin promedio registrado')
   })
 })
 
-describe('textoFuentePromedio', () => {
-  it('nombra el año anterior al periodo de rematrícula', () => {
-    expect(anioNotasRematricula(2027)).toBe(2026)
-    expect(textoFuentePromedio('anio', 2026)).toBe('Promedio del año 2026')
-    expect(textoFuentePromedio('periodo', 2026)).toBe(
-      'Promedio del primer semestre 2026',
+describe('textoPorcentajeFila', () => {
+  it('la beca al 100 % que se mantiene no muestra el porcentaje', () => {
+    expect(textoPorcentajeFila(filaTexto({ resultado: 'MANTIENE', porcCatalogo: 100 }))).toBe(
+      'Renuevas tu beca por tu promedio general',
     )
+  })
+
+  it('una beca menor que se mantiene sigue mostrando su porcentaje', () => {
+    expect(textoPorcentajeFila(filaTexto({ resultado: 'MANTIENE', porcCatalogo: 40 }))).toBe(
+      '40 % · se mantiene',
+    )
+  })
+
+  it('la beca que baja conserva el porcentaje que queda', () => {
+    expect(
+      textoPorcentajeFila(
+        filaTexto({ resultado: 'BAJA', porcCatalogo: 15, porcAplica: 9, disminucion: 0.4 }),
+      ),
+    ).toBe('% de beca otorgado: 15 %. Por tu promedio tu beca baja a un 9 %.')
   })
 })

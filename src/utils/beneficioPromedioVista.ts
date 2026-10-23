@@ -170,11 +170,9 @@ export function anioNotasRematricula(anioPeriodo: number | null | undefined): nu
 
 export function textoFuentePromedio(
   fuente: FuentePromedio | null,
-  anioNotas: number | null,
+  _anioNotas?: number | null,
 ): string {
-  const anio = anioNotas != null ? ` ${anioNotas}` : ''
-  if (fuente === 'anio') return `Promedio del año${anio}`
-  if (fuente === 'periodo') return `Promedio del primer semestre${anio}`
+  if (fuente === 'anio' || fuente === 'periodo') return 'Promedio general de tu carrera'
   return 'Sin promedio registrado'
 }
 
@@ -184,9 +182,9 @@ export function textoEfectoPromedio(promedio: number | null): string {
   }
   const tramo = disminuirArt13(promedio)
   if (tramo.resultado === 'MANTIENE') return 'Las becas que tienes asignadas, por tu promedio, se mantienen.'
-  if (tramo.resultado === 'PIERDE') return 'Con un promedio de 3,9 o menos, las becas que exigen 5,5 no aplican.'
+  if (tramo.resultado === 'PIERDE') return 'Con un promedio de 3,9 o menos, no es posible asignarte las becas.'
   const baja = Math.round(tramo.disminucion * 100)
-  return `Las becas que exigen un promedio mínimo de 5,5 te bajarán un ${baja} %.`
+  return `Para tus becas que exigen un promedio minimo de 5,5 para mantenerlas, por tu promedio te bajarán un ${baja} %.`
 }
 
 export function textoAvisoPromedio(promedio: number | null): string {
@@ -198,7 +196,10 @@ export function textoPorcentajeFila(fila: FilaBeneficioPromedio): string {
   if (fila.porcCatalogo == null) return 'Sin porcentaje'
   const base = fmtPct(fila.porcCatalogo)
   if (fila.resultado === 'BAJA' && fila.porcAplica != null) {
-    return `${base} % · queda en ${fmtPct(fila.porcAplica)} % por tu promedio`
+    return `% de beca otorgado: ${base} %. Por tu promedio tu beca baja a un ${fmtPct(fila.porcAplica)} %.`
+  }
+  if (fila.resultado === 'MANTIENE' && porcUnaDecimal(fila.porcCatalogo) >= 100) {
+    return 'Renuevas tu beca por tu promedio general'
   }
   if (fila.resultado === 'MANTIENE') return `${base} % · se mantiene`
   if (fila.resultado === 'PIERDE') return `${base} % · no aplica por promedio`
