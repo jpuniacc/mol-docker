@@ -203,7 +203,11 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
         profesion: '—',
         domiciliadoLabel: 'domiciliado',
       },
-      emailAlumno: dash(fuente.correoPersonalMostrado.value),
+      emailAlumno: dash(
+        (flow === 'alumno'
+          ? (mockCtx as ReturnType<typeof useMatriculaAlumnoContextStore>).contactoCorreoValidado
+          : null) || fuente.correoPersonalMostrado.value,
+      ),
       emailApoderado:
         fuente.mailApoderadoMostrado.value === '—'
           ? null
