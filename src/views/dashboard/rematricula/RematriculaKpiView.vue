@@ -224,9 +224,14 @@ async function cargarEtapa(etapa: EtapaProgresoRematricula) {
     mostrarErrorRematricula(`Error al cargar alumnos: ${error}`)
     return
   }
+  // Sin ingreso incluye excluido_mol (SUBDERE / fuera MOL) para cuadrar con la cartera.
+  // En el resto de etapas se ocultan excluidos y sin match.
   alumnosPorEtapa.value = {
     ...alumnosPorEtapa.value,
-    [etapa]: data.filter(fila => !fila.excluido_mol && !fila.sin_match_mol),
+    [etapa]:
+      etapa === 'sin_ingreso'
+        ? data.filter(fila => !fila.sin_match_mol)
+        : data.filter(fila => !fila.excluido_mol && !fila.sin_match_mol),
   }
 }
 
@@ -495,6 +500,7 @@ onMounted(async () => {
                             >
                               {{ etiquetaPermanenciaEtapa(marcaPermanencia(fila).horas ?? 0) }}
                             </Badge>
+                            <Badge v-if="fila.excluido_mol" variant="secondary">Fuera MOL</Badge>
                             <Badge v-if="fila.espera_cae" variant="outline">CAE</Badge>
                             <Badge v-if="fila.espera_ministerial" variant="outline">Ministerial</Badge>
                           </div>
