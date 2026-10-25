@@ -1,35 +1,99 @@
-# Task 3 — Badges en ConvenioVigenteUpload
+# Task 3 Report: Conectar router, barra y botón Enviar a firmar
 
-## Estado
+## Status
 
-Completada en `/opt/mol-docker`, rama `dev`.
+DONE
 
-## Implementación
+## Base commit
 
-- `ConvenioVigenteUpload`: reemplazado el bloque verde “Documento cargado” por badges **Aprobado** / **Rechazado** / **En revisión** según `estadoCaso`.
-- Mensaje de rechazo con `motivoRechazo` y CTA implícito de re-subida; mensaje amber para `EN_REVISION` o sin caso.
-- Botón **Eliminar** oculto cuando `estadoCaso === 'APROBADO'`.
-- Si `RECHAZADO`, se muestra de nuevo el bloque de file input + subir (re-upload sin borrar obligatorio).
-- `FormaPagoMockView`: CardDescription ajustada a “para poder pagar la matrícula”.
+`9098fb9` — feat(rematricula): recordar en la sesión que el contrato ya se envió a firmar
 
 ## Commit
 
-- `feat(rematricula): badges de estado en certificado convenio`
-- Archivos: `ConvenioVigenteUpload.vue`, `FormaPagoMockView.vue`
+`0adfed1` — fix(rematricula): no dejar volver atrás después de enviar el contrato a firmar
 
-## Verificación
+## Test command and output
 
-- Linter: sin errores en archivos tocados.
-- Smoke lógico: con doc + APROBADO → badge verde, sin eliminar ni re-upload; RECHAZADO → badge rojo + motivo + input; EN_REVISION/null → amber + sin implicar listo para pagar.
+```bash
+npx vitest run --config vitest.unit.config.ts src/utils/pasoAlumnoRematricula.test.ts src/stores/matriculaAlumnoContext.test.ts
+```
 
-## Observaciones
+```
+ RUN  v2.1.9 /opt/mol-docker
 
-- Re-upload en RECHAZADO delega al padre abrir nuevo caso `EN_REVISION` vía `@subido` (ya implementado en Task 2).
-- Badge “En revisión” también aplica cuando hay documento pero aún no hay fila de caso (estado null).
+ ✓ src/utils/pasoAlumnoRematricula.test.ts (6 tests) 9ms
+ ✓ src/stores/matriculaAlumnoContext.test.ts (2 tests) 18ms
 
-## Corrección post-revisión (Important)
+ Test Files  2 passed (2)
+      Tests  8 passed (8)
+   Start at  14:50:22
+   Duration  1.25s (transform 271ms, setup 0ms, collect 455ms, tests 26ms, environment 1ms, prepare 293ms)
+```
 
-- **Problema:** al fallar `eliminar()` con documento visible y `estadoCaso` distinto de `RECHAZADO`, el `<p v-if="error">` solo vivía en el bloque de upload (oculto), así que el error no se veía inline.
-- **Fix:** mensaje rojo junto al bloque de estado del documento cuando `documento && error && estadoCaso !== 'RECHAZADO'`. El bloque RECHAZADO conserva su `<p v-if="error">` existente.
-- **Commit:** `fix(rematricula): mostrar error al eliminar certificado convenio`
-- **Archivo:** `ConvenioVigenteUpload.vue`
+**Result:** PASS — 8 tests.
+
+## Files changed
+
+| File | Change |
+|------|--------|
+| `src/views/matricula-alumno/FirmaAlumnoView.vue` | Eliminado `envioIniciado` local; `anteriorDeshabilitado` usa `alumnoCtx.envioFirmaIniciado`; `enviarAFirmar` llama `marcarEnvioFirmaIniciado()` antes de `enviando.value = true`. |
+| `src/router/index.ts` | Import `rutaSiEnvioFirmaBloquea`; guard tras `firmaCompletada` redirige datos/forma-pago → firma con `replace: true`. |
+| `src/views/matricula-alumno/MatriculaAlumnoLayout.vue` | Import `pasoBloqueadoTrasEnvio`; `pasoBloqueado` y setter de `stepModel` delegan en esa utilidad; removido `matriculaCerrada` (lógica absorbida por la util). |
+
+## Self-review
+
+- **Orden en router:** El bloque `firmaCompletada → resumen` sigue antes que `rutaSiEnvioFirmaBloquea`, como pide el brief.
+- **Sin side effects en navegación:** Router y layout no importan ni invocan `ensureContratoFirma` ni `postGrabarPlanPagos` (verificado con grep).
+- **FirmaAlumnoView:** El `ensure` existente dentro de `enviarAFirmar` no se tocó; solo se cambió el origen de la bandera de envío al store Pinia.
+- **Stepper:** Clic en pasos bloqueados no navega porque el setter usa `pasoBloqueado(v)`; pasos 1 y 2 quedan bloqueados tras envío; paso 4 sigue accesible cuando `firmaCompletada`.
+- **Lint:** Sin errores en los tres archivos editados.
+
+## Concerns
+
+- Ninguna técnica bloqueante. La verificación manual del brief (navegador atrás, URL directa, red sin ensure/grabar en redirect) no se ejecutó en esta sesión; depende de QA manual.
+
+## Manual verification checklist (from brief)
+
+- [ ] Antes de Enviar a firmar: Anterior y paso Forma de pago funcionan.
+- [ ] Después de Enviar a firmar: Anterior deshabilitado; pasos 1–2 no navegan; atrás/URL forma-pago → firma sin POST ensure/grabar en esa navegación.
+- [ ] Reenvío con documento existente: mismo número de operación.
+- [ ] Tras firmas completas: pantalla resumen.
+
+---
+
+## Review fix (post-0adfed1)
+
+### Status
+
+DONE
+
+### Commit
+
+`db83e12` — fix(rematricula): no abrir el retorno de Webpay a sesiones que no son de alumno — restaurado el guard `!alumnoOk && isAlumnoFlowRoute(to.name)` sin excepción adicional para Webpay; añadido test de ruta no textual en `rutaSiEnvioFirmaBloquea`.
+
+### Test command and output
+
+```bash
+npx vitest run --config vitest.unit.config.ts src/utils/pasoAlumnoRematricula.test.ts src/stores/matriculaAlumnoContext.test.ts
+```
+
+```
+ RUN  v2.1.9 /opt/mol-docker
+
+ ✓ src/utils/pasoAlumnoRematricula.test.ts (7 tests) 9ms
+ ✓ src/stores/matriculaAlumnoContext.test.ts (2 tests) 18ms
+
+ Test Files  2 passed (2)
+      Tests  9 passed (9)
+   Start at  14:54:08
+   Duration  1.27s (transform 305ms, setup 0ms, collect 468ms, tests 27ms, environment 1ms, prepare 301ms)
+```
+
+**Result:** PASS — 9 tests.
+
+### Files changed (review fix)
+
+| File | Change |
+|------|--------|
+| `src/router/index.ts` | Quitada excepción `matricula-alumno-webpay-retorno` del bloque `!alumnoOk`. |
+| `src/utils/pasoAlumnoRematricula.test.ts` | Caso `undefined` como nombre de ruta en `rutaSiEnvioFirmaBloquea`. |

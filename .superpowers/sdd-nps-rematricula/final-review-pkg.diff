@@ -1,0 +1,1228 @@
+# Review package: 3dab6e2..HEAD
+
+## Commits
+6d0e255 feat(nps): vista admin MOL y menú NPS rematrícula
+f95643c feat(nps): tarjeta de evaluación en resumen del alumno
+dee9238 feat(nps): cliente API estado y guardar NPS rematrícula
+dde679a feat(nps): migración Postgres y tipos para NPS rematrícula
+9d7e599 feat(nps): utilidades de facilidad 1-5 para rematrícula
+
+## Files changed
+ src/components/rematricula/NpsRematriculaCard.vue  | 243 +++++++++++++++++++
+ src/constants/dashboardRouteNames.ts               |   1 +
+ src/router/index.ts                                |  11 +
+ src/services/npsRematriculaAdminApi.ts             |  72 ++++++
+ src/services/npsRematriculaApi.ts                  |  64 +++++
+ src/types/supabase.ts                              |  41 ++++
+ src/utils/npsRematricula.test.ts                   |  44 ++++
+ src/utils/npsRematricula.ts                        |  34 +++
+ src/views/dashboard/layout/menuIcons.ts            |   2 +
+ .../dashboard/rematricula/NpsRematriculaView.vue   | 258 +++++++++++++++++++++
+ src/views/matricula-alumno/ResumenAlumnoView.vue   |   3 +
+ .../20261018180000_mnp_nps_rematricula.sql         | 205 ++++++++++++++++
+ 12 files changed, 978 insertions(+)
+
+## Diff
+diff --git a/src/components/rematricula/NpsRematriculaCard.vue b/src/components/rematricula/NpsRematriculaCard.vue
+new file mode 100644
+index 0000000..23f5444
+--- /dev/null
++++ b/src/components/rematricula/NpsRematriculaCard.vue
+@@ -0,0 +1,243 @@
++<script setup lang="ts">
++import { computed, onMounted, ref } from 'vue'
++import { Loader2 } from 'lucide-vue-next'
++import { toast } from 'vue-sonner'
++
++import { Button } from '@/components/ui/button'
++import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
++import { Textarea } from '@/components/ui/textarea'
++import { obtenerSesionLogId } from '@/services/molAuditContext'
++import { estadoNpsRematricula, guardarNpsRematricula } from '@/services/npsRematriculaApi'
++import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
++import { usePeriodoActivoStore } from '@/stores/periodoActivo'
++import { esCalificacionNps, type CalificacionNps } from '@/utils/npsRematricula'
++
++const PREGUNTA = '¿Qué tan fácil fue completar tu proceso de rematrícula?'
++const MSG_PREPARACION = 'No pudimos preparar la evaluación. Reintenta más tarde.'
++const CALIFICACIONES: readonly CalificacionNps[] = [1, 2, 3, 4, 5]
++
++const alumnoMnp = useDatosAlumnoMnpStore()
++const periodoActivo = usePeriodoActivoStore()
++
++const omitidoLocal = ref(false)
++const cargandoEstado = ref(true)
++const respondio = ref(false)
++const calificacion = ref<CalificacionNps | null>(null)
++const comentario = ref('')
++const enviando = ref(false)
++const errorPreparacion = ref<string | null>(null)
++const errorGuardado = ref<string | null>(null)
++
++const muestraComentario = computed(() => {
++  const c = calificacion.value
++  return c != null && c <= 3
++})
++
++function pickStr(v: string | null | undefined): string | null {
++  const t = (v ?? '').trim()
++  return t.length > 0 ? t : null
++}
++
++function identidadObligatoria(): {
++  rutAlumno: string
++  codcli: string
++  codigoCarrera: string
++  jornada: string
++  anioPeriodo: number
++  semestrePeriodo: number
++} | null {
++  const fila = alumnoMnp.primeraFila
++  const rutAlumno = pickStr(fila?.rut_alumno)
++  const codcli = pickStr(fila?.codcli)
++  const codigoCarrera = pickStr(fila?.codigo_carrera)
++  const jornada = pickStr(fila?.jornada_carrera)
++  const anioPeriodo = periodoActivo.anio
++  const semestrePeriodo = periodoActivo.semestre
++  if (
++    !rutAlumno ||
++    !codcli ||
++    !codigoCarrera ||
++    !jornada ||
++    anioPeriodo == null ||
++    semestrePeriodo == null
++  ) {
++    return null
++  }
++  return { rutAlumno, codcli, codigoCarrera, jornada, anioPeriodo, semestrePeriodo }
++}
++
++async function cargarEstado(): Promise<void> {
++  cargandoEstado.value = true
++  errorPreparacion.value = null
++  try {
++    await periodoActivo.ensureLoaded()
++    const codcli = pickStr(alumnoMnp.primeraFila?.codcli)
++    const anio = periodoActivo.anio
++    const semestre = periodoActivo.semestre
++    if (!codcli || anio == null || semestre == null) {
++      errorPreparacion.value = MSG_PREPARACION
++      return
++    }
++    const res = await estadoNpsRematricula(codcli, anio, semestre)
++    if ('error' in res) {
++      errorPreparacion.value = MSG_PREPARACION
++      return
++    }
++    respondio.value = res.respondio
++    if (!res.respondio && !identidadObligatoria()) {
++      errorPreparacion.value = MSG_PREPARACION
++    }
++  } finally {
++    cargandoEstado.value = false
++  }
++}
++
++onMounted(() => {
++  void cargarEstado()
++})
++
++function omitirLocal(): void {
++  omitidoLocal.value = true
++}
++
++function seleccionar(n: CalificacionNps): void {
++  if (enviando.value) return
++  calificacion.value = n
++  errorGuardado.value = null
++  if (n >= 4) comentario.value = ''
++}
++
++async function enviar(): Promise<void> {
++  if (enviando.value || calificacion.value == null) return
++  if (!esCalificacionNps(calificacion.value)) return
++
++  const id = identidadObligatoria()
++  if (!id) {
++    errorPreparacion.value = MSG_PREPARACION
++    return
++  }
++
++  enviando.value = true
++  errorGuardado.value = null
++  try {
++    const err = await guardarNpsRematricula({
++      ...id,
++      calificacion: calificacion.value,
++      comentario: muestraComentario.value ? comentario.value : null,
++      periodoLabel: periodoActivo.label,
++      sesionId: obtenerSesionLogId(),
++    })
++    if (err) {
++      errorGuardado.value = err
++      toast.error('No se pudo guardar tu evaluación. Intenta de nuevo.')
++      return
++    }
++    respondio.value = true
++    toast.success('Evaluación registrada.')
++  } finally {
++    enviando.value = false
++  }
++}
++</script>
++
++<template>
++  <Card
++    v-if="!omitidoLocal"
++    class="mx-auto max-w-lg border-zinc-200 shadow-sm"
++    aria-labelledby="nps-rematricula-titulo"
++  >
++    <CardHeader class="pb-3">
++      <CardTitle id="nps-rematricula-titulo" class="text-base font-semibold text-zinc-900">
++        Evalúa tu experiencia
++      </CardTitle>
++    </CardHeader>
++    <CardContent class="space-y-4">
++      <div
++        v-if="cargandoEstado"
++        class="flex items-center gap-2 text-sm text-muted-foreground"
++        role="status"
++      >
++        <Loader2 class="h-4 w-4 animate-spin" aria-hidden="true" />
++        Cargando evaluación…
++      </div>
++
++      <p v-else-if="errorPreparacion" class="text-sm text-muted-foreground">
++        {{ errorPreparacion }}
++      </p>
++
++      <p v-else-if="respondio" class="text-sm font-medium text-zinc-900">
++        Gracias, ya registramos tu evaluación.
++      </p>
++
++      <template v-else>
++        <p class="text-sm leading-relaxed text-zinc-800">{{ PREGUNTA }}</p>
++
++        <div
++          class="flex flex-wrap justify-center gap-2"
++          role="group"
++          :aria-label="PREGUNTA"
++        >
++          <button
++            v-for="n in CALIFICACIONES"
++            :key="n"
++            type="button"
++            class="flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg border text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
++            :class="
++              calificacion === n
++                ? 'border-uniacc-orange bg-uniacc-orange/10 text-zinc-900 ring-1 ring-uniacc-orange/40'
++                : 'border-zinc-200 bg-white text-zinc-900 hover:border-zinc-300 hover:bg-zinc-50'
++            "
++            :aria-pressed="calificacion === n"
++            :disabled="enviando"
++            @click="seleccionar(n)"
++          >
++            {{ n }}
++          </button>
++        </div>
++
++        <p class="text-center text-xs text-muted-foreground">1 = muy difícil · 5 = muy fácil</p>
++
++        <div v-if="muestraComentario" class="space-y-2">
++          <label for="nps-comentario" class="text-sm font-medium text-zinc-900">
++            ¿Qué salió mal? <span class="font-normal text-muted-foreground">(opcional)</span>
++          </label>
++          <Textarea
++            id="nps-comentario"
++            v-model="comentario"
++            :maxlength="500"
++            :disabled="enviando"
++            rows="3"
++            class="resize-y"
++            placeholder="Cuéntanos brevemente qué dificultó el proceso"
++          />
++          <p class="text-right text-xs text-muted-foreground">{{ comentario.length }}/500</p>
++        </div>
++
++        <p v-if="errorGuardado" class="text-sm text-destructive" role="alert">
++          No se pudo guardar tu evaluación. Intenta de nuevo.
++        </p>
++
++        <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
++          <Button
++            type="button"
++            variant="secondary"
++            class="cursor-pointer"
++            :disabled="enviando"
++            @click="omitirLocal"
++          >
++            Ahora no
++          </Button>
++          <Button
++            type="button"
++            class="cursor-pointer bg-uniacc-orange hover:bg-uniacc-orange/90"
++            :disabled="calificacion == null || enviando"
++            @click="enviar"
++          >
++            <Loader2 v-if="enviando" class="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
++            Enviar evaluación
++          </Button>
++        </div>
++      </template>
++    </CardContent>
++  </Card>
++</template>
+diff --git a/src/constants/dashboardRouteNames.ts b/src/constants/dashboardRouteNames.ts
+index f11671f..b955df4 100644
+--- a/src/constants/dashboardRouteNames.ts
++++ b/src/constants/dashboardRouteNames.ts
+@@ -23,20 +23,21 @@ export const DASHBOARD_MENU_ROUTE_NAMES = [
+   'dashboard-vista-aranceles-erp',
+   'dashboard-vista-beneficios-erp',
+   'dashboard-vista-estado-cae-alumnos',
+   'dashboard-vista-cae-arancel-referencia',
+   'dashboard-mantenedor-convenios',
+   'dashboard-mantenedor-convenios-excel',
+   'dashboard-casos-rematricula',
+   'dashboard-rematricula-kpi',
+   'dashboard-rematricula-seguimiento',
+   'dashboard-encuesta-discapacidad',
++  'dashboard-nps-rematricula',
+   'dashboard-gestion-firmas',
+   'dashboard-mantenedor-descuento-matricula-anticipada',
+   'dashboard-mantenedor-terminos-condiciones',
+   'dashboard-mantenedor-contacto-otp',
+   'dashboard-mantenedor-proximamente',
+   'dashboard-mantenedor-desbloqueo-toma-ramos',
+   'dashboard-backoffice-menu',
+   'dashboard-backoffice-usuarios',
+ ] as const
+ 
+diff --git a/src/router/index.ts b/src/router/index.ts
+index 01cdff6..1e79794 100644
+--- a/src/router/index.ts
++++ b/src/router/index.ts
+@@ -369,20 +369,31 @@ const routes = [
+         path: '/dashboard/encuesta-discapacidad',
+         name: 'dashboard-encuesta-discapacidad',
+         meta: {
+           requiresAdminAdmision: true,
+           requiresSoloGrupoDvU: true,
+           requiresPerfilUsuarioIn: [1, 2, 3],
+         },
+         component: () =>
+           import('../views/dashboard/rematricula/EncuestaDiscapacidadView.vue'),
+       },
++      {
++        path: '/dashboard/nps-rematricula',
++        name: 'dashboard-nps-rematricula',
++        meta: {
++          requiresAdminAdmision: true,
++          requiresSoloGrupoDvU: true,
++          requiresPerfilUsuarioIn: [1, 2, 3],
++        },
++        component: () =>
++          import('../views/dashboard/rematricula/NpsRematriculaView.vue'),
++      },
+       {
+         path: '/dashboard/gestion-firmas',
+         name: 'dashboard-gestion-firmas',
+         meta: {
+           requiresAdminAdmision: true,
+           requiresSoloGrupoDvU: true,
+           requiresPerfilUsuarioIn: [1, 2, 3],
+         },
+         component: () =>
+           import('../views/dashboard/rematricula/GestionFirmasView.vue'),
+diff --git a/src/services/npsRematriculaAdminApi.ts b/src/services/npsRematriculaAdminApi.ts
+new file mode 100644
+index 0000000..ed1e1ba
+--- /dev/null
++++ b/src/services/npsRematriculaAdminApi.ts
+@@ -0,0 +1,72 @@
++import { admisionApiBaseUrl } from '@/constants/admisionApi'
++import { urlConCarteraEjecutivo } from '@/stores/carteraEjecutivo'
++
++export type NpsRematriculaAdminFila = {
++  id: string
++  creadoEn: string
++  rut: string | null
++  codcli: string
++  codigoCarrera: string
++  jornada: string
++  calificacion: number
++  comentario: string | null
++}
++
++export type NpsRematriculaAdminListado = {
++  ok: true
++  anio: number
++  semestre: number
++  totalRespuestas: number
++  totalFinalizados: number
++  filas: NpsRematriculaAdminFila[]
++}
++
++export async function listarNpsRematriculaAdmin(
++  anio: number,
++  semestre: number,
++): Promise<NpsRematriculaAdminListado | { ok: false; error: string }> {
++  const controller = new AbortController()
++  const timer = setTimeout(() => controller.abort(), 60_000)
++  try {
++    const params = new URLSearchParams({
++      anio: String(anio),
++      semestre: String(semestre),
++    })
++    const destino = urlConCarteraEjecutivo(
++      `${admisionApiBaseUrl()}/api/rematricula/nps?${params.toString()}`,
++    )
++    if (typeof destino !== 'string') return { ok: false, error: destino.error }
++    const res = await fetch(destino, {
++      signal: controller.signal,
++    })
++    let body: unknown
++    try {
++      body = await res.json()
++    } catch {
++      return { ok: false, error: `Error HTTP ${res.status} al leer el NPS` }
++    }
++    if (!res.ok) {
++      const rec = body as { error?: string; message?: string }
++      return { ok: false, error: rec.error || rec.message || `Error HTTP ${res.status}` }
++    }
++    const rec = body as Partial<NpsRematriculaAdminListado>
++    if (!rec.ok || !Array.isArray(rec.filas)) {
++      return { ok: false, error: 'La respuesta del NPS no tiene el formato esperado' }
++    }
++    return {
++      ok: true,
++      anio: Number(rec.anio),
++      semestre: Number(rec.semestre),
++      totalRespuestas: Number(rec.totalRespuestas ?? rec.filas.length),
++      totalFinalizados: Number(rec.totalFinalizados ?? 0),
++      filas: rec.filas,
++    }
++  } catch (e) {
++    if (e instanceof Error && e.name === 'AbortError') {
++      return { ok: false, error: 'Tiempo de espera agotado al leer el NPS' }
++    }
++    return { ok: false, error: e instanceof Error ? e.message : 'No se pudo leer el NPS' }
++  } finally {
++    clearTimeout(timer)
++  }
++}
+diff --git a/src/services/npsRematriculaApi.ts b/src/services/npsRematriculaApi.ts
+new file mode 100644
+index 0000000..829610e
+--- /dev/null
++++ b/src/services/npsRematriculaApi.ts
+@@ -0,0 +1,64 @@
++import { supabase } from '@/services/supabaseClient'
++import {
++  esCalificacionNps,
++  normalizarComentarioNps,
++  type CalificacionNps,
++} from '@/utils/npsRematricula'
++
++export type EstadoNpsRematricula = {
++  respondio: boolean
++  calificacion: CalificacionNps | null
++}
++
++export type GuardarNpsRematriculaPayload = {
++  rutAlumno: string
++  codcli: string
++  codigoCarrera: string
++  jornada: string
++  anioPeriodo: number
++  semestrePeriodo: number
++  calificacion: CalificacionNps
++  comentario?: string | null
++  periodoLabel?: string | null
++  sesionId?: string | null
++}
++
++export async function estadoNpsRematricula(
++  codcli: string,
++  anioPeriodo: number,
++  semestrePeriodo: number,
++): Promise<EstadoNpsRematricula | { error: string }> {
++  const { data, error } = await supabase.rpc('estado_mnp_nps_rematricula', {
++    p_codcli: codcli,
++    p_anio_periodo: anioPeriodo,
++    p_semestre_periodo: semestrePeriodo,
++  })
++  if (error) return { error: error.message }
++  const rec = (data ?? {}) as { respondio?: unknown; calificacion?: unknown }
++  const cal =
++    typeof rec.calificacion === 'number' && esCalificacionNps(rec.calificacion)
++      ? rec.calificacion
++      : null
++  return { respondio: rec.respondio === true, calificacion: cal }
++}
++
++export async function guardarNpsRematricula(
++  payload: GuardarNpsRematriculaPayload,
++): Promise<string | null> {
++  const comentario = normalizarComentarioNps(payload.calificacion, payload.comentario)
++  const { error } = await supabase.rpc('guardar_mnp_nps_rematricula', {
++    p_rut_alumno: payload.rutAlumno,
++    p_codcli: payload.codcli,
++    p_codigo_carrera: payload.codigoCarrera,
++    p_jornada: payload.jornada,
++    p_anio_periodo: payload.anioPeriodo,
++    p_semestre_periodo: payload.semestrePeriodo,
++    p_calificacion: payload.calificacion,
++    p_comentario: comentario,
++    p_periodo_label: payload.periodoLabel ?? null,
++    p_sesion_id: payload.sesionId ?? null,
++    p_url_origen: typeof window !== 'undefined' ? window.location.href : null,
++  })
++  if (error) return error.message
++  return null
++}
+diff --git a/src/types/supabase.ts b/src/types/supabase.ts
+index 4418d18..e8e5279 100644
+--- a/src/types/supabase.ts
++++ b/src/types/supabase.ts
+@@ -487,20 +487,37 @@ export type MnpDiscapacidadEncuestaRow = {
+   rut_alumno: string | null;
+   codcli: string | null;
+   nombre_alumno: string | null;
+   anio_periodo: number | null;
+   semestre_periodo: number | null;
+   periodo_label: string | null;
+   url_origen: string | null;
+   es_mock: boolean;
+ };
+ 
++/** Fila de `mnp_nps_rematricula` (NPS transaccional de facilidad rematrícula). */
++export type MnpNpsRematricula = {
++  id: string
++  creado_en: string
++  rut_alumno: string
++  codcli: string
++  codigo_carrera: string
++  jornada: string
++  anio_periodo: number
++  semestre_periodo: number
++  periodo_label: string | null
++  calificacion: number
++  comentario: string | null
++  sesion_id: string | null
++  url_origen: string | null
++}
++
+ /** Fila de `mnp_resolucion_cae` (resolución CAE por periodo). */
+ export type MnpResolucionCaeRow = {
+   id: string;
+   codcli: string;
+   anio_periodo: number;
+   semestre_periodo: number;
+   resolucion_disponible: boolean;
+   estado_cae: string | null;
+   creado_en: string;
+   actualizado_en: string;
+@@ -1341,20 +1358,44 @@ export type Database = {
+           p_codcli?: string | null;
+           p_nombre_alumno?: string | null;
+           p_anio_periodo?: number | null;
+           p_semestre_periodo?: number | null;
+           p_periodo_label?: string | null;
+           p_url_origen?: string | null;
+           p_es_mock?: boolean | null;
+         };
+         Returns: string;
+       };
++      guardar_mnp_nps_rematricula: {
++        Args: {
++          p_rut_alumno: string
++          p_codcli: string
++          p_codigo_carrera: string
++          p_jornada: string
++          p_anio_periodo: number
++          p_semestre_periodo: number
++          p_calificacion: number
++          p_comentario?: string | null
++          p_periodo_label?: string | null
++          p_sesion_id?: string | null
++          p_url_origen?: string | null
++        }
++        Returns: string
++      }
++      estado_mnp_nps_rematricula: {
++        Args: {
++          p_codcli: string
++          p_anio_periodo: number
++          p_semestre_periodo: number
++        }
++        Returns: Json
++      }
+       abrir_mnp_caso_rematricula: {
+         Args: {
+           p_periodo: string;
+           p_tipo: string;
+           p_estado: string;
+           p_codcli: string;
+           p_titulo: string;
+           p_rut_alumno?: string | null;
+           p_nombre_alumno?: string | null;
+           p_carrera?: string | null;
+diff --git a/src/utils/npsRematricula.test.ts b/src/utils/npsRematricula.test.ts
+new file mode 100644
+index 0000000..0d23506
+--- /dev/null
++++ b/src/utils/npsRematricula.test.ts
+@@ -0,0 +1,44 @@
++import { describe, expect, it } from 'vitest'
++import {
++  distribucionNps,
++  esCalificacionNps,
++  normalizarComentarioNps,
++  promedioNps,
++  tasaRespuestaNps,
++} from './npsRematricula'
++
++describe('esCalificacionNps', () => {
++  it('acepta 1..5 enteros', () => {
++    expect(esCalificacionNps(1)).toBe(true)
++    expect(esCalificacionNps(5)).toBe(true)
++    expect(esCalificacionNps(0)).toBe(false)
++    expect(esCalificacionNps(6)).toBe(false)
++    expect(esCalificacionNps(3.5)).toBe(false)
++  })
++})
++
++describe('normalizarComentarioNps', () => {
++  it('4 y 5 siempre null', () => {
++    expect(normalizarComentarioNps(4, 'hola')).toBeNull()
++    expect(normalizarComentarioNps(5, '  x  ')).toBeNull()
++  })
++
++  it('1-3 recorta y limita a 500', () => {
++    expect(normalizarComentarioNps(2, '  mal  ')).toBe('mal')
++    expect(normalizarComentarioNps(1, '   ')).toBeNull()
++    expect(normalizarComentarioNps(3, 'a'.repeat(600))?.length).toBe(500)
++  })
++})
++
++describe('agregados', () => {
++  it('promedio y distribución', () => {
++    expect(promedioNps([])).toBeNull()
++    expect(promedioNps([5, 3])).toBe(4)
++    expect(distribucionNps([1, 5, 5])).toEqual({ 1: 1, 2: 0, 3: 0, 4: 0, 5: 2 })
++  })
++
++  it('tasa null si no hay finalizados', () => {
++    expect(tasaRespuestaNps(0, 0)).toBeNull()
++    expect(tasaRespuestaNps(2, 10)).toBe(0.2)
++  })
++})
+diff --git a/src/utils/npsRematricula.ts b/src/utils/npsRematricula.ts
+new file mode 100644
+index 0000000..0a8b3aa
+--- /dev/null
++++ b/src/utils/npsRematricula.ts
+@@ -0,0 +1,34 @@
++export type CalificacionNps = 1 | 2 | 3 | 4 | 5
++
++export function esCalificacionNps(n: number): n is CalificacionNps {
++  return Number.isInteger(n) && n >= 1 && n <= 5
++}
++
++export function normalizarComentarioNps(
++  calificacion: CalificacionNps,
++  comentario: string | null | undefined,
++): string | null {
++  if (calificacion >= 4) return null
++  const t = (comentario ?? '').trim()
++  if (!t) return null
++  return t.length > 500 ? t.slice(0, 500) : t
++}
++
++export function promedioNps(calificaciones: CalificacionNps[]): number | null {
++  if (calificaciones.length === 0) return null
++  const sum = calificaciones.reduce((a, b) => a + b, 0)
++  return sum / calificaciones.length
++}
++
++export function distribucionNps(
++  calificaciones: CalificacionNps[],
++): Record<CalificacionNps, number> {
++  const out: Record<CalificacionNps, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
++  for (const c of calificaciones) out[c] += 1
++  return out
++}
++
++export function tasaRespuestaNps(respuestas: number, finalizados: number): number | null {
++  if (finalizados <= 0) return null
++  return respuestas / finalizados
++}
+diff --git a/src/views/dashboard/layout/menuIcons.ts b/src/views/dashboard/layout/menuIcons.ts
+index 174fec6..fb344ef 100644
+--- a/src/views/dashboard/layout/menuIcons.ts
++++ b/src/views/dashboard/layout/menuIcons.ts
+@@ -13,20 +13,21 @@ import {
+   Hand,
+   Handshake,
+   Home,
+   LayoutDashboard,
+   ListOrdered,
+   Menu,
+   PenLine,
+   Percent,
+   School,
+   Settings,
++  Star,
+   Unlock,
+   Users,
+   Wallet,
+ } from 'lucide-vue-next'
+ 
+ const ICON_MAP: Record<string, Component> = {
+   Home,
+   GraduationCap,
+   Users,
+   FlaskConical,
+@@ -41,16 +42,17 @@ const ICON_MAP: Record<string, Component> = {
+   DollarSign,
+   Handshake,
+   Gift,
+   Hand,
+   Accessibility,
+   FileCheck,
+   Percent,
+   PenLine,
+   LayoutDashboard,
+   ListOrdered,
++  Star,
+ }
+ 
+ export function menuIconFromKey(iconKey: string | null | undefined): Component {
+   if (iconKey && ICON_MAP[iconKey]) return ICON_MAP[iconKey]
+   return CircleDot
+ }
+diff --git a/src/views/dashboard/rematricula/NpsRematriculaView.vue b/src/views/dashboard/rematricula/NpsRematriculaView.vue
+new file mode 100644
+index 0000000..6de9ac9
+--- /dev/null
++++ b/src/views/dashboard/rematricula/NpsRematriculaView.vue
+@@ -0,0 +1,258 @@
++<script setup lang="ts">
++import { computed, onMounted, ref } from 'vue'
++import { RefreshCw } from 'lucide-vue-next'
++
++import { Button } from '@/components/ui/button'
++import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
++import {
++  Table,
++  TableBody,
++  TableCell,
++  TableHead,
++  TableHeader,
++  TableRow,
++} from '@/components/ui/table'
++import {
++  listarNpsRematriculaAdmin,
++  type NpsRematriculaAdminFila,
++} from '@/services/npsRematriculaAdminApi'
++import { usePeriodoActivoStore } from '@/stores/periodoActivo'
++import {
++  distribucionNps,
++  esCalificacionNps,
++  promedioNps,
++  tasaRespuestaNps,
++  type CalificacionNps,
++} from '@/utils/npsRematricula'
++
++const periodoActivo = usePeriodoActivoStore()
++
++const filas = ref<NpsRematriculaAdminFila[]>([])
++const totalRespuestas = ref(0)
++const totalFinalizados = ref(0)
++const loading = ref(false)
++const error = ref<string | null>(null)
++
++const tienePeriodo = computed(() => {
++  return periodoActivo.anio != null && periodoActivo.semestre != null
++})
++
++const periodoLabel = computed(() => periodoActivo.label ?? '—')
++
++const calificaciones = computed((): CalificacionNps[] => {
++  return filas.value
++    .map((fila) => fila.calificacion)
++    .filter(esCalificacionNps)
++})
++
++const promedio = computed(() => promedioNps(calificaciones.value))
++
++const promedioTexto = computed(() => {
++  if (promedio.value == null) return '—'
++  return promedio.value.toFixed(1)
++})
++
++const distribucion = computed(() => distribucionNps(calificaciones.value))
++
++const tasa = computed(() => tasaRespuestaNps(totalRespuestas.value, totalFinalizados.value))
++
++const tasaTexto = computed(() => {
++  if (tasa.value == null) return '—'
++  return `${(tasa.value * 100).toFixed(1)}%`
++})
++
++const maxDistribucion = computed(() => {
++  const vals = Object.values(distribucion.value)
++  return Math.max(1, ...vals)
++})
++
++const comentariosBajos = computed(() => {
++  return filas.value.filter((fila) => {
++    if (!esCalificacionNps(fila.calificacion) || fila.calificacion > 3) return false
++    const texto = fila.comentario?.trim() ?? ''
++    return texto.length > 0
++  })
++})
++
++const notasDistribucion: CalificacionNps[] = [1, 2, 3, 4, 5]
++
++function formatearFecha(fecha: string): string {
++  const date = new Date(fecha)
++  if (Number.isNaN(date.getTime())) return fecha
++  return date.toLocaleString('es-CL', {
++    timeZone: 'America/Santiago',
++    year: 'numeric',
++    month: '2-digit',
++    day: '2-digit',
++    hour: '2-digit',
++    minute: '2-digit',
++  })
++}
++
++async function cargar() {
++  if (!tienePeriodo.value) {
++    error.value = 'No hay periodo activo configurado'
++    filas.value = []
++    totalRespuestas.value = 0
++    totalFinalizados.value = 0
++    return
++  }
++  loading.value = true
++  error.value = null
++  const res = await listarNpsRematriculaAdmin(periodoActivo.anio!, periodoActivo.semestre!)
++  loading.value = false
++  if (!res.ok) {
++    error.value = res.error
++    return
++  }
++  filas.value = res.filas
++  totalRespuestas.value = res.totalRespuestas
++  totalFinalizados.value = res.totalFinalizados
++}
++
++onMounted(async () => {
++  await periodoActivo.ensureLoaded()
++  await cargar()
++})
++</script>
++
++<template>
++  <div class="mx-auto max-w-[1400px] space-y-6">
++    <Card class="border-zinc-200 shadow-sm">
++      <CardHeader class="flex flex-row flex-wrap items-start justify-between gap-4 space-y-0">
++        <div class="space-y-1">
++          <CardTitle class="text-xl text-zinc-900">NPS rematrícula</CardTitle>
++          <CardDescription class="max-w-3xl text-zinc-600">
++            Facilidad del proceso (1–5) en el periodo {{ periodoLabel }}. Promedio, distribución,
++            tasa de respuesta sobre finalizados (firma/matriculado) y comentarios de notas bajas.
++          </CardDescription>
++        </div>
++        <Button
++          type="button"
++          variant="outline"
++          class="cursor-pointer gap-1.5"
++          :disabled="loading || !tienePeriodo"
++          @click="cargar"
++        >
++          <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loading }" />
++          Recargar
++        </Button>
++      </CardHeader>
++      <CardContent class="space-y-4">
++        <div v-if="!tienePeriodo" class="text-sm text-zinc-500">
++          No hay periodo activo configurado.
++          <router-link
++            to="/dashboard/mantenedor-periodo-activo"
++            class="text-uniacc-celeste underline"
++          >
++            Ir al mantenedor de periodo
++          </router-link>
++        </div>
++
++        <p v-if="error" class="text-sm text-red-700">{{ error }}</p>
++
++        <div v-if="tienePeriodo" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
++          <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
++            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500">Promedio</p>
++            <p class="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">{{ promedioTexto }}</p>
++          </div>
++          <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
++            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500">Respuestas</p>
++            <p class="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">{{ totalRespuestas }}</p>
++          </div>
++          <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
++            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500">Finalizados</p>
++            <p class="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">{{ totalFinalizados }}</p>
++          </div>
++          <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
++            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500">Tasa respuesta</p>
++            <p class="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">{{ tasaTexto }}</p>
++          </div>
++        </div>
++      </CardContent>
++    </Card>
++
++    <Card v-if="tienePeriodo" class="border-zinc-200 shadow-sm">
++      <CardHeader>
++        <CardTitle class="text-lg text-zinc-900">Distribución 1–5</CardTitle>
++        <CardDescription>Cantidad de respuestas por calificación.</CardDescription>
++      </CardHeader>
++      <CardContent>
++        <p v-if="loading" class="py-4 text-center text-sm text-zinc-500">Cargando NPS…</p>
++        <div v-else class="space-y-3">
++          <div
++            v-for="nota in notasDistribucion"
++            :key="nota"
++            class="grid grid-cols-[2.5rem_1fr_3rem] items-center gap-3"
++          >
++            <span class="text-sm font-medium tabular-nums text-zinc-700">{{ nota }}</span>
++            <div class="h-3 overflow-hidden rounded-full bg-zinc-100" aria-hidden="true">
++              <div
++                class="h-full rounded-full bg-uniacc-celeste transition-[width] duration-200"
++                :style="{ width: `${(distribucion[nota] / maxDistribucion) * 100}%` }"
++              />
++            </div>
++            <span class="text-right text-sm tabular-nums text-zinc-800">{{ distribucion[nota] }}</span>
++          </div>
++        </div>
++      </CardContent>
++    </Card>
++
++    <Card v-if="tienePeriodo" class="border-zinc-200 shadow-sm">
++      <CardHeader>
++        <CardTitle class="text-lg text-zinc-900">Comentarios (notas 1–3)</CardTitle>
++        <CardDescription>
++          Solo respuestas con calificación baja y comentario escrito.
++        </CardDescription>
++      </CardHeader>
++      <CardContent>
++        <p v-if="loading" class="py-8 text-center text-sm text-zinc-500">Cargando comentarios…</p>
++        <div v-else class="overflow-x-auto">
++          <Table>
++            <TableHeader>
++              <TableRow>
++                <TableHead>Fecha</TableHead>
++                <TableHead>RUT</TableHead>
++                <TableHead>Codcli</TableHead>
++                <TableHead>Carrera</TableHead>
++                <TableHead>Jornada</TableHead>
++                <TableHead>Nota</TableHead>
++                <TableHead>Comentario</TableHead>
++              </TableRow>
++            </TableHeader>
++            <TableBody>
++              <TableRow v-for="fila in comentariosBajos" :key="fila.id">
++                <TableCell class="whitespace-nowrap align-top text-sm text-zinc-700">
++                  {{ formatearFecha(fila.creadoEn) }}
++                </TableCell>
++                <TableCell class="align-top font-mono text-xs text-zinc-700">
++                  {{ fila.rut ?? '—' }}
++                </TableCell>
++                <TableCell class="align-top font-mono text-xs text-zinc-700">
++                  {{ fila.codcli || '—' }}
++                </TableCell>
++                <TableCell class="align-top font-mono text-xs text-zinc-700">
++                  {{ fila.codigoCarrera || '—' }}
++                </TableCell>
++                <TableCell class="align-top text-sm text-zinc-700">
++                  {{ fila.jornada || '—' }}
++                </TableCell>
++                <TableCell class="align-top text-sm font-medium tabular-nums text-zinc-900">
++                  {{ fila.calificacion }}
++                </TableCell>
++                <TableCell class="max-w-md align-top whitespace-pre-wrap text-sm text-zinc-800">
++                  {{ fila.comentario }}
++                </TableCell>
++              </TableRow>
++              <TableRow v-if="comentariosBajos.length === 0">
++                <TableCell colspan="7" class="py-8 text-center text-sm text-zinc-500">
++                  No hay comentarios de notas 1–3 en este periodo.
++                </TableCell>
++              </TableRow>
++            </TableBody>
++          </Table>
++        </div>
++      </CardContent>
++    </Card>
++  </div>
++</template>
+diff --git a/src/views/matricula-alumno/ResumenAlumnoView.vue b/src/views/matricula-alumno/ResumenAlumnoView.vue
+index 84e4357..411b917 100644
+--- a/src/views/matricula-alumno/ResumenAlumnoView.vue
++++ b/src/views/matricula-alumno/ResumenAlumnoView.vue
+@@ -1,19 +1,20 @@
+ <script setup lang="ts">
+ import { computed, onMounted, ref, watch } from 'vue'
+ import { useRouter } from 'vue-router'
+ import { Download, Loader2 } from 'lucide-vue-next'
+ import { toast } from 'vue-sonner'
+ import { mostrarErrorRematricula } from '@/stores/errorRematricula'
+ 
+ import { Button } from '@/components/ui/button'
+ import { Card, CardContent } from '@/components/ui/card'
++import NpsRematriculaCard from '@/components/rematricula/NpsRematriculaCard.vue'
+ import { useContratoMatriculaViewModel } from '@/composables/useContratoMatriculaViewModel'
+ import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
+ import { downloadContratoFirmaPdf } from '@/services/contratoFirmaApi'
+ import { downloadContratoPreviewPdf } from '@/services/contratoPreviewApi'
+ import { fmtMontoClp } from '@/services/fetchPlanPagosMv'
+ import { armarGrabarPlanPagos, postGrabarPlanPagos } from '@/services/grabarPlanPagosApi'
+ import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
+ import type { MockDescuentoPagare, MockPagoMatricula } from '@/stores/mockMatriculaContext'
+ import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
+ import { useMatriculaFlujoPreflightStore } from '@/stores/datos_erp/matricula_flujo_preflight'
+@@ -250,20 +251,22 @@ async function descargarContrato(): Promise<void> {
+           <p><span class="text-muted-foreground">RUT:</span> {{ fuente.rutMostrado }}</p>
+           <p><span class="text-muted-foreground">Carrera:</span> {{ fuente.carreraMostrada }}</p>
+           <p><span class="text-muted-foreground">Codcli:</span> {{ fuente.codcliMostrado }}</p>
+           <p><span class="text-muted-foreground">Forma de pago:</span> {{ formaPagoLabel() }}</p>
+           <p v-if="alumnoCtx.discapacidad?.contesta">
+             <span class="text-muted-foreground">Encuesta discapacidad:</span>
+             {{ alumnoCtx.discapacidad.tipo }}
+           </p>
+         </div>
+ 
++        <NpsRematriculaCard />
++
+         <section
+           v-if="pagosWebpay"
+           class="mx-auto max-w-lg overflow-hidden rounded-lg border border-zinc-200"
+           aria-labelledby="pagos-webpay-titulo"
+         >
+           <div class="border-b border-zinc-200 bg-zinc-50 px-4 py-3">
+             <h2 id="pagos-webpay-titulo" class="text-base font-semibold text-zinc-900">
+               Pagos con Webpay
+             </h2>
+           </div>
+diff --git a/supabase/migrations/20261018180000_mnp_nps_rematricula.sql b/supabase/migrations/20261018180000_mnp_nps_rematricula.sql
+new file mode 100644
+index 0000000..9465f1d
+--- /dev/null
++++ b/supabase/migrations/20261018180000_mnp_nps_rematricula.sql
+@@ -0,0 +1,205 @@
++-- NPS transaccional de facilidad al finalizar rematrícula.
++
++CREATE TABLE IF NOT EXISTS public.mnp_nps_rematricula (
++    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
++    creado_en timestamptz NOT NULL DEFAULT now(),
++    rut_alumno text NOT NULL,
++    codcli text NOT NULL,
++    codigo_carrera text NOT NULL,
++    jornada text NOT NULL,
++    anio_periodo integer NOT NULL,
++    semestre_periodo integer NOT NULL,
++    periodo_label text NULL,
++    calificacion smallint NOT NULL,
++    comentario text NULL,
++    sesion_id uuid NULL
++        REFERENCES public.log_sesion_usuario (id) ON DELETE SET NULL,
++    url_origen text NULL,
++    CONSTRAINT mnp_nps_rematricula_calificacion_chk
++        CHECK (calificacion BETWEEN 1 AND 5),
++    CONSTRAINT mnp_nps_rematricula_comentario_chk
++        CHECK (
++            comentario IS NULL
++            OR (
++                length(comentario) <= 500
++                AND calificacion BETWEEN 1 AND 3
++            )
++        ),
++    CONSTRAINT mnp_nps_rematricula_codcli_periodo_uq
++        UNIQUE (codcli, anio_periodo, semestre_periodo)
++);
++
++CREATE INDEX IF NOT EXISTS idx_mnp_nps_rematricula_periodo
++    ON public.mnp_nps_rematricula (anio_periodo, semestre_periodo, creado_en DESC);
++
++CREATE INDEX IF NOT EXISTS idx_mnp_nps_rematricula_calificacion
++    ON public.mnp_nps_rematricula (calificacion);
++
++COMMENT ON TABLE public.mnp_nps_rematricula IS
++    'NPS transaccional de facilidad del flujo de rematrícula (1=muy difícil, 5=muy fácil).';
++
++ALTER TABLE public.mnp_nps_rematricula ENABLE ROW LEVEL SECURITY;
++
++DROP POLICY IF EXISTS mnp_nps_rematricula_no_select_anon ON public.mnp_nps_rematricula;
++CREATE POLICY mnp_nps_rematricula_no_select_anon ON public.mnp_nps_rematricula
++    FOR SELECT TO anon USING (false);
++
++DROP POLICY IF EXISTS mnp_nps_rematricula_no_insert_anon ON public.mnp_nps_rematricula;
++CREATE POLICY mnp_nps_rematricula_no_insert_anon ON public.mnp_nps_rematricula
++    FOR INSERT TO anon WITH CHECK (false);
++
++DROP POLICY IF EXISTS mnp_nps_rematricula_no_select_authenticated ON public.mnp_nps_rematricula;
++CREATE POLICY mnp_nps_rematricula_no_select_authenticated ON public.mnp_nps_rematricula
++    FOR SELECT TO authenticated USING (false);
++
++DROP POLICY IF EXISTS mnp_nps_rematricula_no_insert_authenticated ON public.mnp_nps_rematricula;
++CREATE POLICY mnp_nps_rematricula_no_insert_authenticated ON public.mnp_nps_rematricula
++    FOR INSERT TO authenticated WITH CHECK (false);
++
++CREATE OR REPLACE FUNCTION public.guardar_mnp_nps_rematricula(
++    p_rut_alumno text,
++    p_codcli text,
++    p_codigo_carrera text,
++    p_jornada text,
++    p_anio_periodo integer,
++    p_semestre_periodo integer,
++    p_calificacion integer,
++    p_comentario text DEFAULT NULL,
++    p_periodo_label text DEFAULT NULL,
++    p_sesion_id uuid DEFAULT NULL,
++    p_url_origen text DEFAULT NULL
++)
++RETURNS uuid
++LANGUAGE plpgsql
++SECURITY DEFINER
++SET search_path = public
++AS $$
++DECLARE
++    v_rut text := nullif(trim(coalesce(p_rut_alumno, '')), '');
++    v_codcli text := nullif(trim(coalesce(p_codcli, '')), '');
++    v_carrera text := nullif(trim(coalesce(p_codigo_carrera, '')), '');
++    v_jornada text := nullif(trim(coalesce(p_jornada, '')), '');
++    v_comentario text := nullif(trim(coalesce(p_comentario, '')), '');
++    v_id uuid;
++BEGIN
++    IF v_rut IS NULL OR v_codcli IS NULL OR v_carrera IS NULL OR v_jornada IS NULL THEN
++        RAISE EXCEPTION 'rut, codcli, codigo_carrera y jornada son obligatorios';
++    END IF;
++    IF p_anio_periodo IS NULL OR p_semestre_periodo IS NULL THEN
++        RAISE EXCEPTION 'periodo inválido';
++    END IF;
++    IF p_calificacion IS NULL OR p_calificacion < 1 OR p_calificacion > 5 THEN
++        RAISE EXCEPTION 'calificacion debe estar entre 1 y 5';
++    END IF;
++    IF p_calificacion >= 4 THEN
++        v_comentario := NULL;
++    ELSIF v_comentario IS NOT NULL AND length(v_comentario) > 500 THEN
++        v_comentario := left(v_comentario, 500);
++    END IF;
++    IF p_url_origen IS NOT NULL AND length(p_url_origen) > 2048 THEN
++        RAISE EXCEPTION 'url_origen demasiado larga';
++    END IF;
++
++    INSERT INTO public.mnp_nps_rematricula (
++        rut_alumno, codcli, codigo_carrera, jornada,
++        anio_periodo, semestre_periodo, periodo_label,
++        calificacion, comentario, sesion_id, url_origen
++    ) VALUES (
++        v_rut, v_codcli, v_carrera, v_jornada,
++        p_anio_periodo, p_semestre_periodo,
++        nullif(trim(coalesce(p_periodo_label, '')), ''),
++        p_calificacion, v_comentario, p_sesion_id,
++        nullif(trim(coalesce(p_url_origen, '')), '')
++    )
++    RETURNING id INTO v_id;
++
++    PERFORM public.registrar_log_mol_evento(
++        p_sesion_id,
++        'nps',
++        'responde',
++        'mnp_nps_rematricula',
++        v_id,
++        jsonb_build_object('calificacion', p_calificacion),
++        v_rut,
++        v_codcli,
++        NULL,
++        p_anio_periodo,
++        p_semestre_periodo,
++        p_periodo_label,
++        p_url_origen,
++        false
++    );
++
++    RETURN v_id;
++EXCEPTION
++    WHEN unique_violation THEN
++        RAISE EXCEPTION 'ya existe una respuesta NPS para este alumno y periodo';
++END;
++$$;
++
++COMMENT ON FUNCTION public.guardar_mnp_nps_rematricula IS
++    'Guarda NPS transaccional de rematrícula (una vez por codcli+periodo).';
++
++GRANT EXECUTE ON FUNCTION public.guardar_mnp_nps_rematricula(
++    text, text, text, text, integer, integer, integer, text, text, uuid, text
++) TO anon, authenticated, service_role;
++
++CREATE OR REPLACE FUNCTION public.estado_mnp_nps_rematricula(
++    p_codcli text,
++    p_anio_periodo integer,
++    p_semestre_periodo integer
++)
++RETURNS jsonb
++LANGUAGE plpgsql
++SECURITY DEFINER
++SET search_path = public
++AS $$
++DECLARE
++    v_codcli text := nullif(trim(coalesce(p_codcli, '')), '');
++    v_cal smallint;
++BEGIN
++    IF v_codcli IS NULL OR p_anio_periodo IS NULL OR p_semestre_periodo IS NULL THEN
++        RETURN jsonb_build_object('respondio', false, 'calificacion', NULL);
++    END IF;
++
++    SELECT calificacion INTO v_cal
++    FROM public.mnp_nps_rematricula
++    WHERE codcli = v_codcli
++      AND anio_periodo = p_anio_periodo
++      AND semestre_periodo = p_semestre_periodo
++    LIMIT 1;
++
++    IF v_cal IS NULL THEN
++        RETURN jsonb_build_object('respondio', false, 'calificacion', NULL);
++    END IF;
++
++    RETURN jsonb_build_object('respondio', true, 'calificacion', v_cal);
++END;
++$$;
++
++GRANT EXECUTE ON FUNCTION public.estado_mnp_nps_rematricula(text, integer, integer)
++    TO anon, authenticated, service_role;
++
++INSERT INTO public.bo_menu_item (
++  id, parent_id, tipo, label, route_name, icon_key, orden, activo
++) VALUES (
++  'b0000001-0001-4000-8000-000000000048',
++  'b0000001-0001-4000-8000-000000000020',
++  'link',
++  'NPS rematrícula',
++  'dashboard-nps-rematricula',
++  'Star',
++  30,
++  true
++) ON CONFLICT (id) DO UPDATE SET
++  parent_id = EXCLUDED.parent_id,
++  tipo = EXCLUDED.tipo,
++  label = EXCLUDED.label,
++  route_name = EXCLUDED.route_name,
++  icon_key = EXCLUDED.icon_key,
++  orden = EXCLUDED.orden,
++  activo = EXCLUDED.activo;
++
++INSERT INTO public.bo_menu_item_grupo (menu_item_id, codigo_grupo)
++VALUES ('b0000001-0001-4000-8000-000000000048', 1)
++ON CONFLICT (menu_item_id, codigo_grupo) DO NOTHING;

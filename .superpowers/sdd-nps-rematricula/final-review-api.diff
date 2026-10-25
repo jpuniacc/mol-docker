@@ -1,0 +1,273 @@
+# Review package: 01ae493c402e8ca0f828b1d7b3baf3acd9d2274a..HEAD
+
+## Commits
+3dfcb9d feat(rematricula): API admin para listar respuestas NPS
+
+## Files changed
+ src/controllers/rematricula-nps.controller.ts | 52 ++++++++++++++++
+ src/index.ts                                  |  3 +
+ src/routes/rematricula-nps.routes.ts          |  9 +++
+ src/services/nps-rematricula.service.test.ts  | 16 +++++
+ src/services/nps-rematricula.service.ts       | 88 +++++++++++++++++++++++++++
+ 5 files changed, 168 insertions(+)
+
+## Diff
+diff --git a/src/controllers/rematricula-nps.controller.ts b/src/controllers/rematricula-nps.controller.ts
+new file mode 100644
+index 0000000..a1852f7
+--- /dev/null
++++ b/src/controllers/rematricula-nps.controller.ts
+@@ -0,0 +1,52 @@
++import { Request, Response } from 'express'
++
++import {
++  emailEjecutivoDeQuery,
++  rutEnCartera,
++  rutsDeEjecutivo,
++} from '../services/cartera-ejecutivo'
++import { listarNpsRematricula } from '../services/nps-rematricula.service'
++
++function enteroQuery(raw: unknown): number | null {
++  if (typeof raw === 'number' && Number.isInteger(raw)) return raw
++  if (typeof raw !== 'string') return null
++  const trimmed = raw.trim()
++  if (!/^\d+$/.test(trimmed)) return null
++  const n = Number(trimmed)
++  return Number.isInteger(n) ? n : null
++}
++
++/**
++ * GET /api/rematricula/nps?anio=&semestre=&emailEjecutivo=
++ */
++export async function listarNpsRematriculaHttp(req: Request, res: Response): Promise<void> {
++  const anio = enteroQuery(req.query.anio)
++  const semestre = enteroQuery(req.query.semestre)
++
++  if (anio == null || semestre == null) {
++    res.status(400).json({
++      ok: false,
++      message: 'Parámetros anio y semestre son obligatorios',
++    })
++    return
++  }
++
++  try {
++    const data = await listarNpsRematricula(anio, semestre)
++    const email = emailEjecutivoDeQuery(req.query.emailEjecutivo)
++    if (email) {
++      const ruts = await rutsDeEjecutivo(email)
++      data.filas = data.filas.filter((fila) => rutEnCartera(fila.rut, ruts))
++      data.totalRespuestas = data.filas.length
++    }
++    res.status(200).json({ ok: true, ...data })
++  } catch (error) {
++    const message = error instanceof Error ? error.message : 'Error al listar NPS'
++    console.error('[nps-rematricula] listar:', message)
++    res.status(500).json({
++      ok: false,
++      message: 'No se pudieron leer las respuestas NPS',
++      error: message,
++    })
++  }
++}
+diff --git a/src/index.ts b/src/index.ts
+index 1e04ab7..edb7029 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -4,20 +4,21 @@ import './env'
+ import express, { Application, Request, Response } from 'express'
+ import cors from 'cors'
+ import postulantesRoutes from './routes/postulantes.routes'
+ import desistimientoRoutes from './routes/desistimiento.routes'
+ import firmaAceptaRoutes from './routes/firma-acepta.routes'
+ import matriculadosRoutes from './routes/matriculados.routes'
+ import authRoutes from './routes/auth.routes'
+ import rematriculaContactoOtpRoutes from './routes/rematricula-contacto-otp.routes'
+ import rematriculaContactoDatosRoutes from './routes/rematricula-contacto-datos.routes'
+ import rematriculaDiscapacidadRoutes from './routes/rematricula-discapacidad.routes'
++import rematriculaNpsRoutes from './routes/rematricula-nps.routes'
+ import rematriculaApoderadoRoutes from './routes/rematricula-apoderado.routes'
+ import rematriculaAccesoNoVigenteRoutes from './routes/rematricula-acceso-no-vigente.routes'
+ import rematriculaDesbloqueoTomaRamosRoutes from './routes/desbloqueo-toma-ramos.routes'
+ import rematriculaAlumnosPeriodoRoutes from './routes/rematricula-alumnos-periodo.routes'
+ import rematriculaArancelesRoutes from './routes/rematricula-aranceles.routes'
+ import rematriculaArancelRoutes from './routes/rematricula-arancel.routes'
+ import rematriculaBeneficiosRoutes from './routes/rematricula-beneficios.routes'
+ import rematriculaEstadoCaeAlumnosRoutes from './routes/rematricula-estado-cae-alumnos.routes'
+ import rematriculaCaeArancelReferenciaRoutes from './routes/rematricula-cae-arancel-referencia.routes'
+ import rematriculaErpSpAmbienteRoutes from './routes/rematricula-erp-sp-ambiente.routes'
+@@ -84,20 +85,21 @@ app.get('/api/health', (req: Request, res: Response) => {
+ 
+ // Rutas - IMPORTANTE: Rutas específicas ANTES de genéricas
+ app.use('/api/postulantes', desistimientoRoutes)  // Primero (rutas específicas como /:codint/historial-estados)
+ app.use('/api/postulantes', postulantesRoutes)     // Después (rutas genéricas como /:id)
+ app.use('/api/firma-acepta', firmaAceptaRoutes)
+ app.use('/api/matriculados', matriculadosRoutes)
+ app.use('/api/auth', authRoutes)                   // Autenticación LDAP
+ app.use('/api/rematricula/contacto-otp', rematriculaContactoOtpRoutes)
+ app.use('/api/rematricula/contacto', rematriculaContactoDatosRoutes)
+ app.use('/api/rematricula/discapacidad', rematriculaDiscapacidadRoutes)
++app.use('/api/rematricula/nps', rematriculaNpsRoutes)
+ app.use('/api/rematricula/apoderado', rematriculaApoderadoRoutes)
+ app.use('/api/rematricula/acceso', rematriculaAccesoNoVigenteRoutes)
+ app.use('/api/rematricula/desbloqueo-toma-ramos', rematriculaDesbloqueoTomaRamosRoutes)
+ app.use('/api/rematricula/alumnos-periodo', rematriculaAlumnosPeriodoRoutes)
+ app.use('/api/rematricula/aranceles', rematriculaArancelesRoutes)
+ app.use('/api/rematricula/arancel', rematriculaArancelRoutes)
+ app.use('/api/rematricula/beneficios', rematriculaBeneficiosRoutes)
+ app.use('/api/rematricula/estado-cae-alumnos', rematriculaEstadoCaeAlumnosRoutes)
+ app.use('/api/rematricula/cae-arancel-referencia', rematriculaCaeArancelReferenciaRoutes)
+ app.use('/api/rematricula/erp-sp-ambiente', rematriculaErpSpAmbienteRoutes)
+@@ -178,20 +180,21 @@ async function startServer() {
+       console.log(`   - POST   /api/matriculados/sync`)
+       console.log(`   - POST   /api/auth/validate`)
+       console.log(`   - GET    /api/auth/ldap-health`)
+       console.log(`   - POST   /api/rematricula/contacto-otp/email/solicitar`)
+       console.log(`   - POST   /api/rematricula/contacto-otp/email/verificar`)
+       console.log(`   - POST   /api/rematricula/contacto-otp/sms/solicitar`)
+       console.log(`   - POST   /api/rematricula/contacto-otp/sms/verificar`)
+       console.log(`   - POST   /api/rematricula/contacto/actualizar-datos-erp`)
+       console.log(`   - POST   /api/rematricula/contacto/sync-mt-client-prod-to-test`)
+       console.log(`   - POST   /api/rematricula/discapacidad/actualizar-erp`)
++      console.log(`   - GET    /api/rematricula/nps`)
+       console.log(`   - POST   /api/rematricula/acceso/no-vigente`)
+       console.log(`   - POST   /api/rematricula/acceso/subdere`)
+       console.log(`   - POST   /api/rematricula/acceso/arancel-diferenciado`)
+       console.log(`   - GET    /api/rematricula/desbloqueo-toma-ramos`)
+       console.log(`   - POST   /api/rematricula/desbloqueo-toma-ramos/importar`)
+       console.log(`   - POST   /api/rematricula/apoderado/aviso-desactualizado`)
+       console.log(`   - POST   /api/rematricula/apoderado/preview-from-erp`)
+       console.log(`   - POST   /api/rematricula/apoderado/refresh-from-erp`)
+       console.log(`   - POST   /api/rematricula/alumnos-periodo/sync`)
+       console.log(`   - POST   /api/rematricula/alumno/contrato/preview-pdf`)
+diff --git a/src/routes/rematricula-nps.routes.ts b/src/routes/rematricula-nps.routes.ts
+new file mode 100644
+index 0000000..e944f77
+--- /dev/null
++++ b/src/routes/rematricula-nps.routes.ts
+@@ -0,0 +1,9 @@
++import { Router } from 'express'
++
++import { listarNpsRematriculaHttp } from '../controllers/rematricula-nps.controller'
++
++const router = Router()
++
++router.get('/', listarNpsRematriculaHttp)
++
++export default router
+diff --git a/src/services/nps-rematricula.service.test.ts b/src/services/nps-rematricula.service.test.ts
+new file mode 100644
+index 0000000..a6e8b25
+--- /dev/null
++++ b/src/services/nps-rematricula.service.test.ts
+@@ -0,0 +1,16 @@
++import assert from 'node:assert/strict'
++import { describe, it } from 'node:test'
++
++import { filtrarComentariosBajos } from './nps-rematricula.service'
++
++describe('filtrarComentariosBajos', () => {
++  it('solo 1-3 con comentario', () => {
++    const out = filtrarComentariosBajos([
++      { calificacion: 5, comentario: 'ok' },
++      { calificacion: 2, comentario: 'lento' },
++      { calificacion: 1, comentario: null },
++    ])
++    assert.equal(out.length, 1)
++    assert.equal(out[0]?.comentario, 'lento')
++  })
++})
+diff --git a/src/services/nps-rematricula.service.ts b/src/services/nps-rematricula.service.ts
+new file mode 100644
+index 0000000..ad906e2
+--- /dev/null
++++ b/src/services/nps-rematricula.service.ts
+@@ -0,0 +1,88 @@
++import { querySupabase } from '../config/postgres-supabase'
++
++export type NpsRematriculaFila = {
++  id: string
++  creadoEn: string
++  rut: string | null
++  codcli: string
++  codigoCarrera: string
++  jornada: string
++  calificacion: number
++  comentario: string | null
++}
++
++export type ListadoNpsRematricula = {
++  anio: number
++  semestre: number
++  totalRespuestas: number
++  totalFinalizados: number
++  filas: NpsRematriculaFila[]
++}
++
++type FilaPg = {
++  id: string
++  creado_en: Date | string
++  rut_alumno: string | null
++  codcli: string
++  codigo_carrera: string
++  jornada: string
++  calificacion: number
++  comentario: string | null
++}
++
++/** Comentarios del reporte: solo calificaciones 1–3 con texto. */
++export function filtrarComentariosBajos<T extends { calificacion: number; comentario: string | null }>(
++  filas: T[],
++): T[] {
++  return filas.filter((fila) => {
++    if (fila.calificacion < 1 || fila.calificacion > 3) return false
++    const texto = fila.comentario?.trim() ?? ''
++    return texto.length > 0
++  })
++}
++
++function mapFila(fila: FilaPg): NpsRematriculaFila {
++  return {
++    id: String(fila.id),
++    creadoEn: fila.creado_en instanceof Date ? fila.creado_en.toISOString() : String(fila.creado_en),
++    rut: fila.rut_alumno,
++    codcli: String(fila.codcli ?? ''),
++    codigoCarrera: String(fila.codigo_carrera ?? ''),
++    jornada: String(fila.jornada ?? ''),
++    calificacion: Number(fila.calificacion),
++    comentario: fila.comentario,
++  }
++}
++
++export async function listarNpsRematricula(anio: number, semestre: number): Promise<ListadoNpsRematricula> {
++  const [respuestas, finalizados] = await Promise.all([
++    querySupabase(
++      `SELECT id, creado_en, rut_alumno, codcli, codigo_carrera, jornada,
++              calificacion, comentario
++         FROM public.mnp_nps_rematricula
++        WHERE anio_periodo = $1 AND semestre_periodo = $2
++        ORDER BY creado_en DESC`,
++      [anio, semestre],
++    ),
++    querySupabase(
++      `SELECT count(*)::int AS n
++         FROM public.mnp_progreso_rematricula
++        WHERE anio_periodo = $1 AND semestre_periodo = $2
++          AND excluido_mol = false
++          AND sin_match_mol = false
++          AND etapa_actual IN ('firma', 'matriculado')`,
++      [anio, semestre],
++    ),
++  ])
++
++  const filas = ((respuestas.rows ?? []) as FilaPg[]).map(mapFila)
++  const totalFinalizados = Number((finalizados.rows?.[0] as { n?: number } | undefined)?.n ?? 0)
++
++  return {
++    anio,
++    semestre,
++    totalRespuestas: filas.length,
++    totalFinalizados,
++    filas,
++  }
++}

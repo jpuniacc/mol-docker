@@ -1,0 +1,462 @@
+# Review package: f95643cc0d406310c6b9f7b745385cb129a946ad..6d0e255da670ff38861fe3ce4930fa72e91b8538
+
+## Commits
+6d0e255 feat(nps): vista admin MOL y menú NPS rematrícula
+
+## Files changed
+ src/constants/dashboardRouteNames.ts               |   1 +
+ src/router/index.ts                                |  11 +
+ src/services/npsRematriculaAdminApi.ts             |  72 ++++++
+ src/views/dashboard/layout/menuIcons.ts            |   2 +
+ .../dashboard/rematricula/NpsRematriculaView.vue   | 258 +++++++++++++++++++++
+ 5 files changed, 344 insertions(+)
+
+## Diff
+diff --git a/src/constants/dashboardRouteNames.ts b/src/constants/dashboardRouteNames.ts
+index f11671f..b955df4 100644
+--- a/src/constants/dashboardRouteNames.ts
++++ b/src/constants/dashboardRouteNames.ts
+@@ -23,20 +23,21 @@ export const DASHBOARD_MENU_ROUTE_NAMES = [
+   'dashboard-vista-aranceles-erp',
+   'dashboard-vista-beneficios-erp',
+   'dashboard-vista-estado-cae-alumnos',
+   'dashboard-vista-cae-arancel-referencia',
+   'dashboard-mantenedor-convenios',
+   'dashboard-mantenedor-convenios-excel',
+   'dashboard-casos-rematricula',
+   'dashboard-rematricula-kpi',
+   'dashboard-rematricula-seguimiento',
+   'dashboard-encuesta-discapacidad',
++  'dashboard-nps-rematricula',
+   'dashboard-gestion-firmas',
+   'dashboard-mantenedor-descuento-matricula-anticipada',
+   'dashboard-mantenedor-terminos-condiciones',
+   'dashboard-mantenedor-contacto-otp',
+   'dashboard-mantenedor-proximamente',
+   'dashboard-mantenedor-desbloqueo-toma-ramos',
+   'dashboard-backoffice-menu',
+   'dashboard-backoffice-usuarios',
+ ] as const
+ 
+diff --git a/src/router/index.ts b/src/router/index.ts
+index 01cdff6..1e79794 100644
+--- a/src/router/index.ts
++++ b/src/router/index.ts
+@@ -369,20 +369,31 @@ const routes = [
+         path: '/dashboard/encuesta-discapacidad',
+         name: 'dashboard-encuesta-discapacidad',
+         meta: {
+           requiresAdminAdmision: true,
+           requiresSoloGrupoDvU: true,
+           requiresPerfilUsuarioIn: [1, 2, 3],
+         },
+         component: () =>
+           import('../views/dashboard/rematricula/EncuestaDiscapacidadView.vue'),
+       },
++      {
++        path: '/dashboard/nps-rematricula',
++        name: 'dashboard-nps-rematricula',
++        meta: {
++          requiresAdminAdmision: true,
++          requiresSoloGrupoDvU: true,
++          requiresPerfilUsuarioIn: [1, 2, 3],
++        },
++        component: () =>
++          import('../views/dashboard/rematricula/NpsRematriculaView.vue'),
++      },
+       {
+         path: '/dashboard/gestion-firmas',
+         name: 'dashboard-gestion-firmas',
+         meta: {
+           requiresAdminAdmision: true,
+           requiresSoloGrupoDvU: true,
+           requiresPerfilUsuarioIn: [1, 2, 3],
+         },
+         component: () =>
+           import('../views/dashboard/rematricula/GestionFirmasView.vue'),
+diff --git a/src/services/npsRematriculaAdminApi.ts b/src/services/npsRematriculaAdminApi.ts
+new file mode 100644
+index 0000000..ed1e1ba
+--- /dev/null
++++ b/src/services/npsRematriculaAdminApi.ts
+@@ -0,0 +1,72 @@
++import { admisionApiBaseUrl } from '@/constants/admisionApi'
++import { urlConCarteraEjecutivo } from '@/stores/carteraEjecutivo'
++
++export type NpsRematriculaAdminFila = {
++  id: string
++  creadoEn: string
++  rut: string | null
++  codcli: string
++  codigoCarrera: string
++  jornada: string
++  calificacion: number
++  comentario: string | null
++}
++
++export type NpsRematriculaAdminListado = {
++  ok: true
++  anio: number
++  semestre: number
++  totalRespuestas: number
++  totalFinalizados: number
++  filas: NpsRematriculaAdminFila[]
++}
++
++export async function listarNpsRematriculaAdmin(
++  anio: number,
++  semestre: number,
++): Promise<NpsRematriculaAdminListado | { ok: false; error: string }> {
++  const controller = new AbortController()
++  const timer = setTimeout(() => controller.abort(), 60_000)
++  try {
++    const params = new URLSearchParams({
++      anio: String(anio),
++      semestre: String(semestre),
++    })
++    const destino = urlConCarteraEjecutivo(
++      `${admisionApiBaseUrl()}/api/rematricula/nps?${params.toString()}`,
++    )
++    if (typeof destino !== 'string') return { ok: false, error: destino.error }
++    const res = await fetch(destino, {
++      signal: controller.signal,
++    })
++    let body: unknown
++    try {
++      body = await res.json()
++    } catch {
++      return { ok: false, error: `Error HTTP ${res.status} al leer el NPS` }
++    }
++    if (!res.ok) {
++      const rec = body as { error?: string; message?: string }
++      return { ok: false, error: rec.error || rec.message || `Error HTTP ${res.status}` }
++    }
++    const rec = body as Partial<NpsRematriculaAdminListado>
++    if (!rec.ok || !Array.isArray(rec.filas)) {
++      return { ok: false, error: 'La respuesta del NPS no tiene el formato esperado' }
++    }
++    return {
++      ok: true,
++      anio: Number(rec.anio),
++      semestre: Number(rec.semestre),
++      totalRespuestas: Number(rec.totalRespuestas ?? rec.filas.length),
++      totalFinalizados: Number(rec.totalFinalizados ?? 0),
++      filas: rec.filas,
++    }
++  } catch (e) {
++    if (e instanceof Error && e.name === 'AbortError') {
++      return { ok: false, error: 'Tiempo de espera agotado al leer el NPS' }
++    }
++    return { ok: false, error: e instanceof Error ? e.message : 'No se pudo leer el NPS' }
++  } finally {
++    clearTimeout(timer)
++  }
++}
+diff --git a/src/views/dashboard/layout/menuIcons.ts b/src/views/dashboard/layout/menuIcons.ts
+index 174fec6..fb344ef 100644
+--- a/src/views/dashboard/layout/menuIcons.ts
++++ b/src/views/dashboard/layout/menuIcons.ts
+@@ -13,20 +13,21 @@ import {
+   Hand,
+   Handshake,
+   Home,
+   LayoutDashboard,
+   ListOrdered,
+   Menu,
+   PenLine,
+   Percent,
+   School,
+   Settings,
++  Star,
+   Unlock,
+   Users,
+   Wallet,
+ } from 'lucide-vue-next'
+ 
+ const ICON_MAP: Record<string, Component> = {
+   Home,
+   GraduationCap,
+   Users,
+   FlaskConical,
+@@ -41,16 +42,17 @@ const ICON_MAP: Record<string, Component> = {
+   DollarSign,
+   Handshake,
+   Gift,
+   Hand,
+   Accessibility,
+   FileCheck,
+   Percent,
+   PenLine,
+   LayoutDashboard,
+   ListOrdered,
++  Star,
+ }
+ 
+ export function menuIconFromKey(iconKey: string | null | undefined): Component {
+   if (iconKey && ICON_MAP[iconKey]) return ICON_MAP[iconKey]
+   return CircleDot
+ }
+diff --git a/src/views/dashboard/rematricula/NpsRematriculaView.vue b/src/views/dashboard/rematricula/NpsRematriculaView.vue
+new file mode 100644
+index 0000000..6de9ac9
+--- /dev/null
++++ b/src/views/dashboard/rematricula/NpsRematriculaView.vue
+@@ -0,0 +1,258 @@
++<script setup lang="ts">
++import { computed, onMounted, ref } from 'vue'
++import { RefreshCw } from 'lucide-vue-next'
++
++import { Button } from '@/components/ui/button'
++import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
++import {
++  Table,
++  TableBody,
++  TableCell,
++  TableHead,
++  TableHeader,
++  TableRow,
++} from '@/components/ui/table'
++import {
++  listarNpsRematriculaAdmin,
++  type NpsRematriculaAdminFila,
++} from '@/services/npsRematriculaAdminApi'
++import { usePeriodoActivoStore } from '@/stores/periodoActivo'
++import {
++  distribucionNps,
++  esCalificacionNps,
++  promedioNps,
++  tasaRespuestaNps,
++  type CalificacionNps,
++} from '@/utils/npsRematricula'
++
++const periodoActivo = usePeriodoActivoStore()
++
++const filas = ref<NpsRematriculaAdminFila[]>([])
++const totalRespuestas = ref(0)
++const totalFinalizados = ref(0)
++const loading = ref(false)
++const error = ref<string | null>(null)
++
++const tienePeriodo = computed(() => {
++  return periodoActivo.anio != null && periodoActivo.semestre != null
++})
++
++const periodoLabel = computed(() => periodoActivo.label ?? '—')
++
++const calificaciones = computed((): CalificacionNps[] => {
++  return filas.value
++    .map((fila) => fila.calificacion)
++    .filter(esCalificacionNps)
++})
++
++const promedio = computed(() => promedioNps(calificaciones.value))
++
++const promedioTexto = computed(() => {
++  if (promedio.value == null) return '—'
++  return promedio.value.toFixed(1)
++})
++
++const distribucion = computed(() => distribucionNps(calificaciones.value))
++
++const tasa = computed(() => tasaRespuestaNps(totalRespuestas.value, totalFinalizados.value))
++
++const tasaTexto = computed(() => {
++  if (tasa.value == null) return '—'
++  return `${(tasa.value * 100).toFixed(1)}%`
++})
++
++const maxDistribucion = computed(() => {
++  const vals = Object.values(distribucion.value)
++  return Math.max(1, ...vals)
++})
++
++const comentariosBajos = computed(() => {
++  return filas.value.filter((fila) => {
++    if (!esCalificacionNps(fila.calificacion) || fila.calificacion > 3) return false
++    const texto = fila.comentario?.trim() ?? ''
++    return texto.length > 0
++  })
++})
++
++const notasDistribucion: CalificacionNps[] = [1, 2, 3, 4, 5]
++
++function formatearFecha(fecha: string): string {
++  const date = new Date(fecha)
++  if (Number.isNaN(date.getTime())) return fecha
++  return date.toLocaleString('es-CL', {
++    timeZone: 'America/Santiago',
++    year: 'numeric',
++    month: '2-digit',
++    day: '2-digit',
++    hour: '2-digit',
++    minute: '2-digit',
++  })
++}
++
++async function cargar() {
++  if (!tienePeriodo.value) {
++    error.value = 'No hay periodo activo configurado'
++    filas.value = []
++    totalRespuestas.value = 0
++    totalFinalizados.value = 0
++    return
++  }
++  loading.value = true
++  error.value = null
++  const res = await listarNpsRematriculaAdmin(periodoActivo.anio!, periodoActivo.semestre!)
++  loading.value = false
++  if (!res.ok) {
++    error.value = res.error
++    return
++  }
++  filas.value = res.filas
++  totalRespuestas.value = res.totalRespuestas
++  totalFinalizados.value = res.totalFinalizados
++}
++
++onMounted(async () => {
++  await periodoActivo.ensureLoaded()
++  await cargar()
++})
++</script>
++
++<template>
++  <div class="mx-auto max-w-[1400px] space-y-6">
++    <Card class="border-zinc-200 shadow-sm">
++      <CardHeader class="flex flex-row flex-wrap items-start justify-between gap-4 space-y-0">
++        <div class="space-y-1">
++          <CardTitle class="text-xl text-zinc-900">NPS rematrícula</CardTitle>
++          <CardDescription class="max-w-3xl text-zinc-600">
++            Facilidad del proceso (1–5) en el periodo {{ periodoLabel }}. Promedio, distribución,
++            tasa de respuesta sobre finalizados (firma/matriculado) y comentarios de notas bajas.
++          </CardDescription>
++        </div>
++        <Button
++          type="button"
++          variant="outline"
++          class="cursor-pointer gap-1.5"
++          :disabled="loading || !tienePeriodo"
++          @click="cargar"
++        >
++          <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loading }" />
++          Recargar
++        </Button>
++      </CardHeader>
++      <CardContent class="space-y-4">
++        <div v-if="!tienePeriodo" class="text-sm text-zinc-500">
++          No hay periodo activo configurado.
++          <router-link
++            to="/dashboard/mantenedor-periodo-activo"
++            class="text-uniacc-celeste underline"
++          >
++            Ir al mantenedor de periodo
++          </router-link>
++        </div>
++
++        <p v-if="error" class="text-sm text-red-700">{{ error }}</p>
++
++        <div v-if="tienePeriodo" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
++          <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
++            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500">Promedio</p>
++            <p class="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">{{ promedioTexto }}</p>
++          </div>
++          <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
++            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500">Respuestas</p>
++            <p class="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">{{ totalRespuestas }}</p>
++          </div>
++          <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
++            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500">Finalizados</p>
++            <p class="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">{{ totalFinalizados }}</p>
++          </div>
++          <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
++            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500">Tasa respuesta</p>
++            <p class="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">{{ tasaTexto }}</p>
++          </div>
++        </div>
++      </CardContent>
++    </Card>
++
++    <Card v-if="tienePeriodo" class="border-zinc-200 shadow-sm">
++      <CardHeader>
++        <CardTitle class="text-lg text-zinc-900">Distribución 1–5</CardTitle>
++        <CardDescription>Cantidad de respuestas por calificación.</CardDescription>
++      </CardHeader>
++      <CardContent>
++        <p v-if="loading" class="py-4 text-center text-sm text-zinc-500">Cargando NPS…</p>
++        <div v-else class="space-y-3">
++          <div
++            v-for="nota in notasDistribucion"
++            :key="nota"
++            class="grid grid-cols-[2.5rem_1fr_3rem] items-center gap-3"
++          >
++            <span class="text-sm font-medium tabular-nums text-zinc-700">{{ nota }}</span>
++            <div class="h-3 overflow-hidden rounded-full bg-zinc-100" aria-hidden="true">
++              <div
++                class="h-full rounded-full bg-uniacc-celeste transition-[width] duration-200"
++                :style="{ width: `${(distribucion[nota] / maxDistribucion) * 100}%` }"
++              />
++            </div>
++            <span class="text-right text-sm tabular-nums text-zinc-800">{{ distribucion[nota] }}</span>
++          </div>
++        </div>
++      </CardContent>
++    </Card>
++
++    <Card v-if="tienePeriodo" class="border-zinc-200 shadow-sm">
++      <CardHeader>
++        <CardTitle class="text-lg text-zinc-900">Comentarios (notas 1–3)</CardTitle>
++        <CardDescription>
++          Solo respuestas con calificación baja y comentario escrito.
++        </CardDescription>
++      </CardHeader>
++      <CardContent>
++        <p v-if="loading" class="py-8 text-center text-sm text-zinc-500">Cargando comentarios…</p>
++        <div v-else class="overflow-x-auto">
++          <Table>
++            <TableHeader>
++              <TableRow>
++                <TableHead>Fecha</TableHead>
++                <TableHead>RUT</TableHead>
++                <TableHead>Codcli</TableHead>
++                <TableHead>Carrera</TableHead>
++                <TableHead>Jornada</TableHead>
++                <TableHead>Nota</TableHead>
++                <TableHead>Comentario</TableHead>
++              </TableRow>
++            </TableHeader>
++            <TableBody>
++              <TableRow v-for="fila in comentariosBajos" :key="fila.id">
++                <TableCell class="whitespace-nowrap align-top text-sm text-zinc-700">
++                  {{ formatearFecha(fila.creadoEn) }}
++                </TableCell>
++                <TableCell class="align-top font-mono text-xs text-zinc-700">
++                  {{ fila.rut ?? '—' }}
++                </TableCell>
++                <TableCell class="align-top font-mono text-xs text-zinc-700">
++                  {{ fila.codcli || '—' }}
++                </TableCell>
++                <TableCell class="align-top font-mono text-xs text-zinc-700">
++                  {{ fila.codigoCarrera || '—' }}
++                </TableCell>
++                <TableCell class="align-top text-sm text-zinc-700">
++                  {{ fila.jornada || '—' }}
++                </TableCell>
++                <TableCell class="align-top text-sm font-medium tabular-nums text-zinc-900">
++                  {{ fila.calificacion }}
++                </TableCell>
++                <TableCell class="max-w-md align-top whitespace-pre-wrap text-sm text-zinc-800">
++                  {{ fila.comentario }}
++                </TableCell>
++              </TableRow>
++              <TableRow v-if="comentariosBajos.length === 0">
++                <TableCell colspan="7" class="py-8 text-center text-sm text-zinc-500">
++                  No hay comentarios de notas 1–3 en este periodo.
++                </TableCell>
++              </TableRow>
++            </TableBody>
++          </Table>
++        </div>
++      </CardContent>
++    </Card>
++  </div>
++</template>

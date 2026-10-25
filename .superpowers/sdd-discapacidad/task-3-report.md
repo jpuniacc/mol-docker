@@ -49,7 +49,7 @@ No había tests con literales `'Física'` / `'Autismo'`; sin cambios en suite.
 
 ## Commit
 
-Ver `git log -1` en mol-docker tras commit Task 3.
+`c591a20` — feat(rematricula): tipos discapacidad alineados a MT_DISCAPACIDAD
 
 ## Siguiente
 
