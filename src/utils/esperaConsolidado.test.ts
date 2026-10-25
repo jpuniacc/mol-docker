@@ -54,17 +54,16 @@ describe('esperaDesdeConsolidado', () => {
 })
 
 describe('requiereVerificacionCae', () => {
-  it('el plan con CAE entra aunque el consolidado venga vacío', () => {
-    expect(requiereVerificacionCae(null, { alumno_cae: 'Si' })).toBe(true)
-    expect(requiereVerificacionCae('', { alumno_cae: 'Sí' })).toBe(true)
+  it('el consolidado vacío no toma el CAE viejo del plan', () => {
+    expect(requiereVerificacionCae(null)).toBe(false)
+    expect(requiereVerificacionCae('')).toBe(false)
   })
 
-  it('el consolidado CAE entra aunque el plan diga que no', () => {
-    expect(requiereVerificacionCae('CAE', { alumno_cae: 'No' })).toBe(true)
+  it('el consolidado CAE entra', () => {
+    expect(requiereVerificacionCae('CAE')).toBe(true)
   })
 
-  it('sin consolidado CAE y sin plan CAE no entra', () => {
-    expect(requiereVerificacionCae('BECA MINISTERIAL', { alumno_cae: 'No' })).toBe(false)
-    expect(requiereVerificacionCae(null, null)).toBe(false)
+  it('beca ministerial sin CAE no entra', () => {
+    expect(requiereVerificacionCae('BECA MINISTERIAL')).toBe(false)
   })
 })

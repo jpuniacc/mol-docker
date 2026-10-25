@@ -421,7 +421,7 @@ const esperaConsolidado = computed(() =>
   esperaDesdeConsolidado(carteraBeneficiosRow.value?.consolidado),
 )
 const requiereCae = computed(() =>
-  requiereVerificacionCae(carteraBeneficiosRow.value?.consolidado, plan.value),
+  requiereVerificacionCae(carteraBeneficiosRow.value?.consolidado),
 )
 const nombresBecaEstatal = computed(() => {
   const texto = esperaConsolidado.value.textoMinisterial
@@ -1328,7 +1328,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
 
 <template>
   <div class="space-y-6">
-    <!-- Verificación CAE (solo alumno_cae = Si) -->
+    <!-- Verificación CAE (solo si el consolidado de la cartera dice CAE) -->
     <div v-if="errorCarteraBeneficios && subPaso !== 'verificacion-cae'" class="space-y-4">
       <p class="text-sm text-red-700">{{ errorCarteraBeneficios }}</p>
       <Button variant="outline" type="button" class="cursor-pointer" @click="reintentarTrasCartera">

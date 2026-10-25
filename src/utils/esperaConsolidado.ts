@@ -1,5 +1,3 @@
-import { tieneCae } from '@/constants/verificacionCae'
-import type { PlanPagosMvRow } from '@/types/supabase'
 import { flagsConsolidado } from '@/utils/carteraBeneficiosUi'
 
 export type EsperaConsolidado = {
@@ -21,11 +19,7 @@ export function esperaDesdeConsolidado(
   }
 }
 
-/** CAE del consolidado o del plan (`alumno_cae` en Si o Sí). */
-export function requiereVerificacionCae(
-  consolidado: string | null | undefined,
-  plan: Pick<PlanPagosMvRow, 'alumno_cae'> | null | undefined,
-): boolean {
-  if (esperaDesdeConsolidado(consolidado).cae) return true
-  return tieneCae(plan as PlanPagosMvRow | null | undefined)
+/** El CAE de la rematrícula sale solo del consolidado de la cartera. */
+export function requiereVerificacionCae(consolidado: string | null | undefined): boolean {
+  return esperaDesdeConsolidado(consolidado).cae
 }

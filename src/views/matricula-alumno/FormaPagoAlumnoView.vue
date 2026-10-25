@@ -32,7 +32,6 @@ import TextoPortalSolicitudes from '@/components/rematricula/TextoPortalSolicitu
 import { MSG_DEUDA_PENDIENTE } from '@/constants/carteraOficial'
 import ConvenioVigenteUpload from '@/components/rematricula/ConvenioVigenteUpload.vue'
 import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
-import { tieneCae } from '@/constants/verificacionCae'
 import { BadgePercent, Check, ChevronDown, CreditCard, FileText, GraduationCap, TriangleAlert } from 'lucide-vue-next'
 import { abrirCasoRematricula, consultarCasosAlumno } from '@/services/casoRematriculaApi'
 import {
@@ -514,17 +513,22 @@ async function cargarPlanPagosAlumno(): Promise<PlanPagosMvRow | null> {
     return null
   }
   planPagosRow.value = data
-  await cargarMontoCaeDocumento(data)
+  await cargarMontoCaeDocumento()
   return data
 }
 
 const montoCaeAprobado = ref(0)
 
-async function cargarMontoCaeDocumento(fila: PlanPagosMvRow | null): Promise<void> {
+async function cargarMontoCaeDocumento(): Promise<void> {
   const codcli = pickCampoAlumno(fuente.codcliMostrado.value)
   const anio = periodoActivo.anio
   const sem = periodoActivo.semestre
-  if (!tieneCae(fila) || !codcli || anio == null || sem == null) {
+  if (
+    !requiereVerificacionCae(carteraBeneficiosRow.value?.consolidado) ||
+    !codcli ||
+    anio == null ||
+    sem == null
+  ) {
     montoCaeAprobado.value = 0
     return
   }
@@ -574,7 +578,7 @@ const esperaConsolidado = computed(() =>
 )
 
 const requiereCae = computed(() =>
-  requiereVerificacionCae(carteraBeneficiosRow.value?.consolidado, plan.value),
+  requiereVerificacionCae(carteraBeneficiosRow.value?.consolidado),
 )
 
 const nombresBecaEstatal = computed(() => {
@@ -1437,7 +1441,7 @@ function entradaBeneficiosGrabar(): {
         ? Math.round((arancelBruto * fila.porcCatalogo) / 100)
         : fila.monto,
   }))
-  const cae: LineaParaDocumentoDescuento | null = tieneCae(plan.value)
+  const cae: LineaParaDocumentoDescuento | null = requiereCae.value
     ? {
         concepto: 'arancel',
         flujo: 'CAE',
@@ -1830,7 +1834,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
     </Button>
   </div>
   <div v-else class="space-y-6">
-    <!-- Verificación CAE (solo alumno_cae = Si) -->
+    <!-- Verificación CAE (solo si el consolidado de la cartera dice CAE) -->
     <MatriculaAlumnoVerificacionCaeStep
       v-if="subPaso === 'verificacion-cae'"
       :estado="estadoVerificacionCae"
