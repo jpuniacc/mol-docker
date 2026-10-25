@@ -58,3 +58,17 @@ docs/01. Certificados SSL Web (Wildcard)/
 
 # Git worktrees locales
 .worktrees/
+
+# Herramientas de IA / sesiones locales
+.cursor/
+.superpowers/brainstorm/
+# Python
+__pycache__/
+*.pyc
+# Datos y binarios de trabajo (pueden traer datos personales)
+docs/**/*.xlsx
+docs/**/*.csv
+docs/**/*.docx
+docs/**/*.pdf
+docs/**/*.RPT
+docs/base alumnos/
