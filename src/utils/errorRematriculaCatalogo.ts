@@ -15,6 +15,10 @@ function conPortal(texto: string): string {
   return `${base} ${AVISO_PORTAL}`
 }
 
+export function textoConPortal(texto: string): string {
+  return conPortal(texto)
+}
+
 export const TITULO_CONEXION = 'Houston, tenemos un pequeño problema'
 export const CUERPO_CONEXION =
   'No pudimos continuar el proceso. Al parecer, el internet decidió irse a por café o nuestro servidor está estornudando. No te preocupes, tus datos siguen a salvo. Si continúan los problemas, ingresa al Portal de Solicitudes.'

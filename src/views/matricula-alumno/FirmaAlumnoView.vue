@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router'
 import { AppWindow, Check, Circle, Download, Loader2, Mail } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { mostrarErrorRematricula } from '@/stores/errorRematricula'
+import { textoConPortal } from '@/utils/errorRematriculaCatalogo'
+import TextoPortalSolicitudes from '@/components/rematricula/TextoPortalSolicitudes.vue'
 
 import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
 import ContratoPrestacionServiciosPreview from '@/components/rematricula/ContratoPrestacionServiciosPreview.vue'
@@ -66,6 +68,11 @@ const pasoEnvio = ref<PasoEnvioFirma | null>(null)
 const avisoLento = ref(false)
 const alcanzoEnvio = ref(false)
 const errorFirma = ref<string | null>(null)
+
+function publicarFalloFirma(mensaje: string): void {
+  errorFirma.value = mensaje
+  mostrarErrorRematricula(mensaje)
+}
 const firmantes = ref<ContratoFirmaFirmanteEstado[]>([])
 const restaurandoFirma = ref(false)
 const numOperacionFirma = ref<string | null>(null)
@@ -557,7 +564,7 @@ async function enviarAFirmar(): Promise<void> {
       }
       if (!grabado) {
         cerrarProgresoError()
-        errorFirma.value = errorGrabacion.value ?? 'No se pudo grabar el plan de pagos.'
+        publicarFalloFirma(errorGrabacion.value ?? 'No se pudo grabar el plan de pagos.')
         return
       }
     }
@@ -565,9 +572,11 @@ async function enviarAFirmar(): Promise<void> {
       const guardado = await alumnoCtx.flushBorrador()
       if (!guardado) {
         cerrarProgresoError()
-        errorFirma.value = alumnoCtx.cuentaWebpayGrabada
-          ? 'La cuenta quedó grabada, pero no se pudo guardar el plan. Reintenta enviar a firmar.'
-          : 'No se pudo guardar el plan de la cuenta.'
+        publicarFalloFirma(
+          alumnoCtx.cuentaWebpayGrabada
+            ? 'La cuenta quedó grabada, pero no se pudo guardar el plan. Reintenta enviar a firmar.'
+            : 'No se pudo guardar el plan de la cuenta.',
+        )
         return
       }
     }
@@ -579,7 +588,7 @@ async function enviarAFirmar(): Promise<void> {
     )
     if (ambosWebpay.value && numOperacionContrato === '—') {
       cerrarProgresoError()
-      errorFirma.value = errorGrabacion.value ?? 'No se obtuvo el número de operación del contrato.'
+      publicarFalloFirma(errorGrabacion.value ?? 'No se obtuvo el número de operación del contrato.')
       return
     }
     const res = await ensureContratoFirma({
@@ -598,7 +607,7 @@ async function enviarAFirmar(): Promise<void> {
     if (!res.ok) {
       cerrarProgresoError()
       if (volverAFormaDePagoSiNumeroAjeno(res.error)) return
-      errorFirma.value = res.error
+      publicarFalloFirma(res.error)
       return
     }
 
@@ -802,7 +811,7 @@ async function descargaBorrador(): Promise<void> {
           <Alert v-if="errorFirma" variant="destructive">
             <AlertTitle>No se pudo enviar el contrato a firmar</AlertTitle>
             <AlertDescription class="mt-2 space-y-3">
-              <p>{{ errorFirma }}</p>
+              <p><TextoPortalSolicitudes :texto="textoConPortal(errorFirma ?? '')" /></p>
               <Button type="button" variant="secondary" :disabled="enviando" @click="enviarAFirmar">
                 {{ enviando ? 'Reintentando…' : 'Reintentar' }}
               </Button>
@@ -826,7 +835,9 @@ async function descargaBorrador(): Promise<void> {
               Preparando el enlace de firma…
             </p>
             <div v-else-if="errorEnlaces" class="space-y-2">
-              <p class="text-sm text-destructive">{{ errorEnlaces }}</p>
+              <p class="text-sm text-destructive">
+                <TextoPortalSolicitudes :texto="textoConPortal(errorEnlaces ?? '')" />
+              </p>
               <Button type="button" variant="secondary" class="cursor-pointer" @click="reintentarEnlaces">
                 Reintentar
               </Button>
@@ -918,7 +929,7 @@ async function descargaBorrador(): Promise<void> {
               v-if="errorGrabacion"
               class="text-sm text-destructive"
             >
-              {{ errorGrabacion }}
+              <TextoPortalSolicitudes :texto="textoConPortal(errorGrabacion ?? '')" />
             </p>
             <p
               v-else-if="grabandoPlan"

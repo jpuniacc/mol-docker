@@ -192,7 +192,7 @@ const EscenaIlustracion = defineComponent({
 <template>
   <AlertDialog :open="store.abierto" @update:open="onOpenChange">
     <AlertDialogContent
-      class="z-[90] gap-0 overflow-hidden p-0 sm:max-w-md"
+      class="z-[90] max-h-[calc(100dvh-2rem)] gap-0 overflow-y-auto p-0 sm:max-w-md"
       overlay-class="z-[90]"
       @open-auto-focus="enfocarPrincipal"
     >

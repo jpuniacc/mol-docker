@@ -3,6 +3,8 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Loader2 } from 'lucide-vue-next'
 import { mostrarErrorRematricula } from '@/stores/errorRematricula'
+import { textoConPortal } from '@/utils/errorRematriculaCatalogo'
+import TextoPortalSolicitudes from '@/components/rematricula/TextoPortalSolicitudes.vue'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -178,6 +180,12 @@ async function alContinuar(): Promise<void> {
   }
 }
 
+function avisoPagoIlegible(): void {
+  const texto = 'No pudimos leer el resultado del pago.'
+  mensaje.value = textoConPortal(texto)
+  mostrarErrorRematricula(texto)
+}
+
 function alVolver(): void {
   const estado = filaVoucher.value?.estado
   const aviso = estado === 'rechazada' || estado === 'abortada' ? estado : undefined
@@ -189,7 +197,7 @@ onMounted(async () => {
   const buyOrder = primerQuery(route.query.buy_order)
 
   if (errorQuery === 'retorno-invalido') {
-    mensaje.value = 'No pudimos leer el resultado del pago.'
+    avisoPagoIlegible()
     mostrarReintentar.value = true
     if (buyOrder) {
       const fila = await obtenerWebpay(buyOrder)
@@ -200,7 +208,7 @@ onMounted(async () => {
   }
 
   if (!buyOrder) {
-    mensaje.value = 'No pudimos leer el resultado del pago.'
+    avisoPagoIlegible()
     mostrarReintentar.value = true
     cargando.value = false
     return
@@ -208,7 +216,7 @@ onMounted(async () => {
 
   const fila = await obtenerWebpay(buyOrder)
   if (!fila) {
-    mensaje.value = 'No pudimos leer el resultado del pago.'
+    avisoPagoIlegible()
     mostrarReintentar.value = true
     cargando.value = false
     return
@@ -218,7 +226,7 @@ onMounted(async () => {
 
   const armado = armarVoucherWebpay(fila)
   if (!armado) {
-    mensaje.value = 'No pudimos leer el resultado del pago.'
+    avisoPagoIlegible()
     mostrarReintentar.value = true
     cargando.value = false
     return
@@ -241,7 +249,9 @@ onMounted(async () => {
             {{ redirigiendo ? 'Te estamos llevando al siguiente pago.' : 'Consultando el resultado del pago…' }}
           </p>
         </div>
-        <p v-else class="text-center text-lg text-muted-foreground">{{ mensaje }}</p>
+        <p v-else class="text-center text-lg text-muted-foreground">
+          <TextoPortalSolicitudes :texto="mensaje" />
+        </p>
         <div v-if="mostrarReintentar && !redirigiendo" class="flex justify-center">
           <Button
             class="cursor-pointer rounded-full bg-uniacc-orange px-8 hover:bg-uniacc-orange/90"
