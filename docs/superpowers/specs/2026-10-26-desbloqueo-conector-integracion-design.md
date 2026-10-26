@@ -72,7 +72,7 @@ Supabase es la fuente del mantenedor. Si U+ falla, el cambio en Supabase se mant
 
 ## Alumnos ya cargados
 
-Un script de una sola vez en la API (`scripts/backfill-desbloqueo-conector.ts`) recorre los RUT distintos de `mnp_desbloqueo_toma_ramos` y hace el mismo upsert con `USUARIO = MOL`. Se corre dentro del contenedor `uniacc-api` de mol-dev, que hoy tiene 113 RUT, todos desbloqueados. Producción tiene 0 filas, así que no hace falta correrlo allá.
+Un script de una sola vez en la API (`src/scripts/backfill-desbloqueo-conector.ts`, compilado a `dist/scripts/backfill-desbloqueo-conector.js`) recorre los RUT distintos de `mnp_desbloqueo_toma_ramos` y hace el mismo upsert con `USUARIO = MOL`. Se corre dentro del contenedor `uniacc-api` de mol-dev, que hoy tiene 113 RUT, todos desbloqueados. Producción tiene 0 filas, así que no hace falta correrlo allá.
 
 ## Unidades
 
