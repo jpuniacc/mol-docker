@@ -98,10 +98,10 @@ export async function buscarDesbloqueoTomaRamos(rut: string): Promise<
 export async function importarDesbloqueoTomaRamos(
   filas: FilaDesbloqueoEntrada[],
   actualizadoPor: string,
-): Promise<{ ok: boolean; insertadas: number; errores: string[]; message?: string }> {
+): Promise<{ ok: boolean; insertadas: number; errores: string[]; avisosU: string[]; message?: string }> {
   const destino = urlConCarteraEjecutivo(`${admisionApiBaseUrl()}/api/rematricula/desbloqueo-toma-ramos/importar`)
   if (typeof destino !== 'string') {
-    return { ok: false, insertadas: 0, errores: [], message: destino.error }
+    return { ok: false, insertadas: 0, errores: [], avisosU: [], message: destino.error }
   }
   const res = await fetch(destino, {
     method: 'POST',
@@ -112,18 +112,20 @@ export async function importarDesbloqueoTomaRamos(
     ok?: boolean
     insertadas?: number
     errores?: string[]
+    avisosU?: string[]
     message?: string
   }>(res)
   return {
     ok: Boolean(body?.ok),
     insertadas: body?.insertadas ?? 0,
     errores: body?.errores ?? [],
+    avisosU: body?.avisosU ?? [],
     message: body?.message,
   }
 }
 
 export async function desbloquearTomaRamos(input: FilaDesbloqueoEntrada & { actualizadoPor: string }): Promise<
-  { ok: true } | { ok: false; message: string }
+  { ok: true; avisosU: string[] } | { ok: false; message: string }
 > {
   const destino = urlConCarteraEjecutivo(`${admisionApiBaseUrl()}/api/rematricula/desbloqueo-toma-ramos/desbloquear`)
   if (typeof destino !== 'string') return { ok: false, message: destino.error }
@@ -132,13 +134,13 @@ export async function desbloquearTomaRamos(input: FilaDesbloqueoEntrada & { actu
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   })
-  const body = await leerJson<{ ok?: boolean; message?: string }>(res)
+  const body = await leerJson<{ ok?: boolean; message?: string; avisosU?: string[] }>(res)
   if (!res.ok || !body?.ok) return { ok: false, message: body?.message ?? 'No se pudo desbloquear.' }
-  return { ok: true }
+  return { ok: true, avisosU: body.avisosU ?? [] }
 }
 
 export async function bloquearTomaRamos(input: FilaDesbloqueoEntrada & { actualizadoPor: string }): Promise<
-  { ok: true } | { ok: false; message: string }
+  { ok: true; avisosU: string[] } | { ok: false; message: string }
 > {
   const destino = urlConCarteraEjecutivo(`${admisionApiBaseUrl()}/api/rematricula/desbloqueo-toma-ramos/bloquear`)
   if (typeof destino !== 'string') return { ok: false, message: destino.error }
@@ -147,20 +149,22 @@ export async function bloquearTomaRamos(input: FilaDesbloqueoEntrada & { actuali
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   })
-  const body = await leerJson<{ ok?: boolean; message?: string }>(res)
+  const body = await leerJson<{ ok?: boolean; message?: string; avisosU?: string[] }>(res)
   if (!res.ok || !body?.ok) {
     return { ok: false, message: body?.message ?? 'No se pudo volver a bloquear.' }
   }
-  return { ok: true }
+  return { ok: true, avisosU: body.avisosU ?? [] }
 }
 
-export async function quitarDesbloqueoTomaRamos(id: number): Promise<{ ok: true } | { ok: false; message: string }> {
+export async function quitarDesbloqueoTomaRamos(
+  id: number,
+): Promise<{ ok: true; avisosU: string[] } | { ok: false; message: string }> {
   const destino = urlConCarteraEjecutivo(`${admisionApiBaseUrl()}/api/rematricula/desbloqueo-toma-ramos/${id}`)
   if (typeof destino !== 'string') return { ok: false, message: destino.error }
   const res = await fetch(destino, {
     method: 'DELETE',
   })
-  const body = await leerJson<{ ok?: boolean; message?: string }>(res)
+  const body = await leerJson<{ ok?: boolean; message?: string; avisosU?: string[] }>(res)
   if (!res.ok || !body?.ok) return { ok: false, message: body?.message ?? 'No se pudo quitar la fila.' }
-  return { ok: true }
+  return { ok: true, avisosU: body.avisosU ?? [] }
 }

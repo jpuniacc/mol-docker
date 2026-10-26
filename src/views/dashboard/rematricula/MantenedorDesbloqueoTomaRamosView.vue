@@ -103,6 +103,13 @@ function onArchivo(ev: Event) {
   archivo.value = input.files?.[0] ?? null
 }
 
+function avisarU(avisos: string[]) {
+  if (avisos.length === 0) return
+  toast.warning(
+    avisos.length === 1 ? avisos[0] : `${avisos.length} RUT no llegaron a U+. ${avisos[0]}`,
+  )
+}
+
 async function subirExcel() {
   if (!archivo.value) {
     mostrarErrorRematricula('Selecciona un archivo Excel')
@@ -124,6 +131,7 @@ async function subirExcel() {
     if (result.errores.length > 0) {
       toast.warning(`${result.errores.length} fila(s) no entraron. ${result.errores[0]}`)
     }
+    avisarU(result.avisosU)
     archivo.value = null
     archivoKey.value += 1
     await recargar()
@@ -163,6 +171,7 @@ async function desbloquearFila(fila: { rutCuerpo: string; dv: string; codcli: st
     return
   }
   toast.success('Alumno desbloqueado en MOL')
+  avisarU(result.avisosU)
   await recargar()
   if (busqueda.value?.rutCuerpo === fila.rutCuerpo) await buscar()
 }
@@ -188,6 +197,7 @@ async function bloquear(fila: DesbloqueoTomaRamosFila) {
     return
   }
   toast.success('El pago vuelve a exigir la regularización de deuda')
+  avisarU(result.avisosU)
   await recargar()
   if (busqueda.value?.rutCuerpo === fila.rutCuerpo) await buscar()
 }
@@ -199,6 +209,7 @@ async function quitar(fila: DesbloqueoTomaRamosFila) {
     return
   }
   toast.success('Fila quitada')
+  avisarU(result.avisosU)
   await recargar()
   if (busqueda.value?.rutCuerpo === fila.rutCuerpo) await buscar()
 }
