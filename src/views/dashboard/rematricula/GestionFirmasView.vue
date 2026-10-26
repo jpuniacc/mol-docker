@@ -24,6 +24,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   downloadContratoFirmaPdf,
+  getContratoFirmaEstado,
   listContratoFirmas,
   type ContratoFirmaFirmanteEstado,
   type ContratoFirmaListRow,
@@ -111,8 +112,22 @@ async function abrirDetalle(row: ContratoFirmaListRow): Promise<void> {
   pdfLoading.value = true
 
   try {
-    const res = await downloadContratoFirmaPdf(numOperacion)
+    const [res, estado] = await Promise.all([
+      downloadContratoFirmaPdf(numOperacion),
+      getContratoFirmaEstado(numOperacion),
+    ])
     if (isPdfFetchStale(generation, numOperacion) || controller.signal.aborted) return
+
+    if (estado.ok) {
+      const actualizado: ContratoFirmaListRow = {
+        ...row,
+        ready: estado.ready,
+        firmantes: estado.firmantes,
+      }
+      seleccionado.value = actualizado
+      const indice = rows.value.findIndex((item) => item.num_operacion === numOperacion)
+      if (indice >= 0) rows.value[indice] = { ...rows.value[indice], ...actualizado }
+    }
 
     if (!res.ok) {
       pdfError.value = `No pudimos traer el contrato de la operación ${numOperacion}. El registro sigue aquí.`
