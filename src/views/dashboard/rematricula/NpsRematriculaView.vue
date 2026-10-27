@@ -184,7 +184,7 @@ onMounted(async () => {
               <Star class="h-5 w-5" aria-hidden="true" />
             </div>
             <div class="min-w-0 space-y-1">
-              <h1 class="text-xl font-semibold tracking-tight md:text-2xl">NPS rematrícula</h1>
+              <h1 class="text-xl font-semibold tracking-tight md:text-2xl">CES rematrícula</h1>
               <p class="max-w-2xl text-sm text-white/90">
                 Facilidad del proceso (1 = muy difícil · 7 = muy fácil) en el periodo
                 <span class="font-semibold text-white">{{ periodoLabel }}</span>.
