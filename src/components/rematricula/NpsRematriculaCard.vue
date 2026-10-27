@@ -12,9 +12,9 @@ import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import { esCalificacionNps, type CalificacionNps } from '@/utils/npsRematricula'
 
-const PREGUNTA = '¿Qué tan fácil fue completar tu proceso de rematrícula?'
+const PREGUNTA = '¿Qué tan fácil fue rematricularte en UNIACC a través de esta plataforma?'
 const MSG_PREPARACION = 'No pudimos preparar la evaluación. Reintenta más tarde.'
-const CALIFICACIONES: readonly CalificacionNps[] = [1, 2, 3, 4, 5]
+const CALIFICACIONES: readonly CalificacionNps[] = [1, 2, 3, 4, 5, 6, 7]
 
 const alumnoMnp = useDatosAlumnoMnpStore()
 const periodoActivo = usePeriodoActivoStore()
@@ -30,7 +30,7 @@ const errorGuardado = ref<string | null>(null)
 
 const muestraComentario = computed(() => {
   const c = calificacion.value
-  return c != null && c <= 3
+  return c != null && c <= 4
 })
 
 function pickStr(v: string | null | undefined): string | null {
@@ -104,7 +104,7 @@ function seleccionar(n: CalificacionNps): void {
   if (enviando.value) return
   calificacion.value = n
   errorGuardado.value = null
-  if (n >= 4) comentario.value = ''
+  if (n >= 5) comentario.value = ''
 }
 
 async function enviar(): Promise<void> {
@@ -173,7 +173,7 @@ async function enviar(): Promise<void> {
         <p class="text-sm leading-relaxed text-zinc-800">{{ PREGUNTA }}</p>
 
         <div
-          class="flex flex-wrap justify-center gap-2"
+          class="flex flex-wrap justify-center gap-1.5 sm:gap-2"
           role="group"
           :aria-label="PREGUNTA"
         >
@@ -181,7 +181,7 @@ async function enviar(): Promise<void> {
             v-for="n in CALIFICACIONES"
             :key="n"
             type="button"
-            class="flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg border text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            class="flex h-10 w-10 shrink-0 cursor-pointer sm:h-11 sm:w-11 items-center justify-center rounded-lg border text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-orange focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             :class="
               calificacion === n
                 ? 'border-uniacc-orange bg-uniacc-orange/10 text-zinc-900 ring-1 ring-uniacc-orange/40'
@@ -195,7 +195,7 @@ async function enviar(): Promise<void> {
           </button>
         </div>
 
-        <p class="text-center text-xs text-muted-foreground">1 = muy difícil · 5 = muy fácil</p>
+        <p class="text-center text-xs text-muted-foreground">1 = Muy difícil · 7 = Muy fácil</p>
 
         <div v-if="muestraComentario" class="space-y-2">
           <label for="nps-comentario" class="text-sm font-medium text-zinc-900">

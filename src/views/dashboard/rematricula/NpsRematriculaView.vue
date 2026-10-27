@@ -75,57 +75,56 @@ const maxDistribucion = computed(() => {
 
 const comentariosBajos = computed(() => {
   return filas.value.filter((fila) => {
-    if (!esCalificacionNps(fila.calificacion) || fila.calificacion > 3) return false
+    if (!esCalificacionNps(fila.calificacion) || fila.calificacion > 4) return false
     const texto = fila.comentario?.trim() ?? ''
     return texto.length > 0
   })
 })
 
-const notasDistribucion: CalificacionNps[] = [1, 2, 3, 4, 5]
+const notasDistribucion: CalificacionNps[] = [1, 2, 3, 4, 5, 6, 7]
 
 const etiquetaNota: Record<CalificacionNps, string> = {
   1: 'Muy difícil',
   2: 'Difícil',
-  3: 'Regular',
-  4: 'Fácil',
-  5: 'Muy fácil',
+  3: 'Algo difícil',
+  4: 'Neutral',
+  5: 'Algo fácil',
+  6: 'Fácil',
+  7: 'Muy fácil',
+}
+
+/** Degradado rojo → verde por nota (1..7). */
+const barraNota: Record<CalificacionNps, string> = {
+  1: 'bg-red-600',
+  2: 'bg-orange-500',
+  3: 'bg-amber-400',
+  4: 'bg-yellow-300',
+  5: 'bg-lime-400',
+  6: 'bg-green-500',
+  7: 'bg-emerald-600',
+}
+
+const chipNota: Record<CalificacionNps, string> = {
+  1: 'border-red-200 bg-red-50 text-red-800',
+  2: 'border-orange-200 bg-orange-50 text-orange-800',
+  3: 'border-amber-200 bg-amber-50 text-amber-800',
+  4: 'border-yellow-200 bg-yellow-50 text-yellow-800',
+  5: 'border-lime-200 bg-lime-50 text-lime-800',
+  6: 'border-green-200 bg-green-50 text-green-800',
+  7: 'border-emerald-200 bg-emerald-50 text-emerald-800',
 }
 
 function claseBarraNota(nota: CalificacionNps): string {
-  switch (nota) {
-    case 1:
-      return 'bg-rose-500'
-    case 2:
-      return 'bg-uniacc-orange'
-    case 3:
-      return 'bg-amber-400'
-    case 4:
-      return 'bg-uniacc-celeste'
-    case 5:
-      return 'bg-emerald-500'
-  }
+  return barraNota[nota]
 }
 
 function claseBadgeNota(nota: number): string {
-  if (nota === 1) return 'border-rose-200 bg-rose-50 text-rose-800'
-  if (nota === 2) return 'border-orange-200 bg-orange-50 text-uniacc-orange'
-  if (nota === 3) return 'border-amber-200 bg-amber-50 text-amber-800'
+  if (esCalificacionNps(nota)) return chipNota[nota]
   return 'border-zinc-200 bg-zinc-50 text-zinc-700'
 }
 
 function claseChipNota(nota: CalificacionNps): string {
-  switch (nota) {
-    case 1:
-      return 'border-rose-200 bg-rose-50 text-rose-800'
-    case 2:
-      return 'border-orange-200 bg-orange-50 text-uniacc-orange'
-    case 3:
-      return 'border-amber-200 bg-amber-50 text-amber-800'
-    case 4:
-      return 'border-sky-200 bg-sky-50 text-uniacc-celeste'
-    case 5:
-      return 'border-emerald-200 bg-emerald-50 text-emerald-800'
-  }
+  return chipNota[nota]
 }
 
 function formatearFecha(fecha: string): string {
@@ -187,7 +186,7 @@ onMounted(async () => {
             <div class="min-w-0 space-y-1">
               <h1 class="text-xl font-semibold tracking-tight md:text-2xl">NPS rematrícula</h1>
               <p class="max-w-2xl text-sm text-white/90">
-                Facilidad del proceso (1 = muy difícil · 5 = muy fácil) en el periodo
+                Facilidad del proceso (1 = muy difícil · 7 = muy fácil) en el periodo
                 <span class="font-semibold text-white">{{ periodoLabel }}</span>.
               </p>
             </div>
@@ -237,7 +236,7 @@ onMounted(async () => {
           <div class="min-w-0">
             <p class="text-xs font-medium uppercase tracking-wide text-zinc-500">Promedio</p>
             <p class="text-3xl font-semibold tabular-nums text-zinc-900">{{ promedioTexto }}</p>
-            <p class="text-xs text-zinc-500">Escala 1–5</p>
+            <p class="text-xs text-zinc-500">Escala 1–7</p>
           </div>
         </CardHeader>
       </Card>
@@ -295,7 +294,7 @@ onMounted(async () => {
       <CardHeader class="border-b border-zinc-100 bg-gradient-to-r from-uniacc-blue/[0.04] to-transparent">
         <div class="flex items-center gap-2">
           <BarChart3 class="h-5 w-5 text-uniacc-blue" aria-hidden="true" />
-          <CardTitle class="text-lg text-zinc-900">Distribución 1–5</CardTitle>
+          <CardTitle class="text-lg text-zinc-900">Distribución 1–7</CardTitle>
         </div>
         <CardDescription>
           Cantidad de respuestas por calificación. El color refuerza la etiqueta, no la reemplaza.
@@ -339,7 +338,7 @@ onMounted(async () => {
       <CardHeader class="border-b border-rose-100 bg-gradient-to-r from-rose-50 to-transparent">
         <div class="flex flex-wrap items-center gap-2">
           <MessageSquareWarning class="h-5 w-5 text-rose-600" aria-hidden="true" />
-          <CardTitle class="text-lg text-zinc-900">Comentarios (notas 1–3)</CardTitle>
+          <CardTitle class="text-lg text-zinc-900">Comentarios (notas 1–4)</CardTitle>
           <Badge
             variant="outline"
             class="border-rose-200 bg-white text-rose-700"
@@ -360,7 +359,7 @@ onMounted(async () => {
           <MessageSquareWarning class="h-8 w-8 text-zinc-300" aria-hidden="true" />
           <p class="text-sm font-medium text-zinc-700">Sin comentarios de notas bajas</p>
           <p class="max-w-md text-sm text-zinc-500">
-            Cuando alguien marque 1–3 y deje un comentario, aparecerá aquí para seguimiento.
+            Cuando alguien marque 1–4 y deje un comentario, aparecerá aquí para seguimiento.
           </p>
         </div>
         <div v-else class="overflow-x-auto rounded-lg border border-zinc-200">

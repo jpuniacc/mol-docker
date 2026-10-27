@@ -1,14 +1,14 @@
-export type CalificacionNps = 1 | 2 | 3 | 4 | 5
+export type CalificacionNps = 1 | 2 | 3 | 4 | 5 | 6 | 7
 
 export function esCalificacionNps(n: number): n is CalificacionNps {
-  return Number.isInteger(n) && n >= 1 && n <= 5
+  return Number.isInteger(n) && n >= 1 && n <= 7
 }
 
 export function normalizarComentarioNps(
   calificacion: CalificacionNps,
   comentario: string | null | undefined,
 ): string | null {
-  if (calificacion >= 4) return null
+  if (calificacion >= 5) return null
   const t = (comentario ?? '').trim()
   if (!t) return null
   return t.length > 500 ? t.slice(0, 500) : t
@@ -23,7 +23,7 @@ export function promedioNps(calificaciones: CalificacionNps[]): number | null {
 export function distribucionNps(
   calificaciones: CalificacionNps[],
 ): Record<CalificacionNps, number> {
-  const out: Record<CalificacionNps, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+  const out: Record<CalificacionNps, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 }
   for (const c of calificaciones) out[c] += 1
   return out
 }
