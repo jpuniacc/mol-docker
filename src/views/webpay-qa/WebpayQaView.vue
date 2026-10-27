@@ -13,7 +13,7 @@ import {
 } from '@/services/webpayQaApi'
 import type { ConceptoWebpay } from '@/services/webpayPlusApi'
 
-const monto = ref<string>('1500')
+const monto = ref<string>('50')
 const concepto = ref<ConceptoWebpay>('matricula')
 const codcli = ref<string>('99999999')
 const error = ref<string>('')
@@ -59,7 +59,7 @@ async function iniciar(): Promise<void> {
       <CardHeader>
         <CardTitle class="text-2xl text-uniacc-orange">Prueba Webpay QA</CardTitle>
         <CardDescription>
-          Pantalla pública de prueba (ambiente de integración). No requiere inicio de sesión.
+          Pantalla pública de prueba Webpay. Usa $50 con tarjeta real para validar producción. No requiere inicio de sesión.
         </CardDescription>
       </CardHeader>
       <CardContent>
