@@ -235,13 +235,19 @@ async function onSubmit() {
               Ingresa tu usuario institucional y contraseña (*)
             </p>
             <Button
-              type="button"
+              as-child
               variant="outline"
               size="sm"
-              class="shrink-0 gap-1.5 rounded-full border-uniacc-orange text-uniacc-orange hover:bg-uniacc-orange/10 hover:text-uniacc-orange"
+              class="shrink-0 cursor-pointer gap-1.5 rounded-full border-uniacc-orange text-uniacc-orange hover:bg-uniacc-orange/10 hover:text-uniacc-orange"
             >
-              <FileText class="h-4 w-4" />
-              Guía
+              <a
+                href="https://www.uniacc.cl/wp-content/uploads/2026/10/Instructivo-MOL-1.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <FileText class="h-4 w-4" />
+                Guía
+              </a>
             </Button>
           </div>
 
