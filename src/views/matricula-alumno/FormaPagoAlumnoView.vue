@@ -238,7 +238,7 @@ function clasePanelMedio(abierto: boolean): string {
     : 'hidden md:mt-2 md:block md:space-y-2'
 }
 const pagareDiaVencimiento = ref<string>('5')
-const pagareTotalCuotas = ref<'10' | '12'>('10')
+const pagareTotalCuotas = ref<'12' | '10'>('12')
 const pagareFechaInicio = ref('')
 const abriendoPagoMatricula = ref(false)
 const creandoWebpay = ref(false)
@@ -268,7 +268,7 @@ const arancelEncendido = computed(
     }) && !arancelPagadoWebpay.value,
 )
 
-function totalCuotasActual(): 10 | 12 {
+function totalCuotasActual(): 12 | 10 {
   return pagareTotalCuotas.value === '12' ? 12 : 10
 }
 
@@ -1329,7 +1329,7 @@ function prepararSelectorMedios(): void {
   medioPagoMatricula.value = medioInicialMatricula()
   medioPagoArancel.value = medioInicialArancel()
   pagareDiaVencimiento.value = '5'
-  pagareTotalCuotas.value = '10'
+  pagareTotalCuotas.value = '12'
   sincronizarFechaInicioConDiaVencimiento()
 }
 
@@ -1594,7 +1594,7 @@ async function abrirPlanSiVieneDeWebpay(): Promise<void> {
   medioPagoMatricula.value = medioMat
   medioPagoArancel.value = medioAra
   pagareDiaVencimiento.value = '5'
-  pagareTotalCuotas.value = '10'
+  pagareTotalCuotas.value = '12'
   await abrirPasoPlanPagare()
 }
 
@@ -2634,8 +2634,8 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
                     v-model="pagareTotalCuotas"
                     class="h-11 w-full cursor-pointer appearance-none rounded-md border border-input bg-background px-3 pr-9 text-base text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-sm"
                   >
-                    <option value="10">10 cuotas</option>
                     <option value="12">12 cuotas</option>
+                    <option value="10">10 cuotas</option>
                   </select>
                   <ChevronDown
                     class="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 opacity-50"
