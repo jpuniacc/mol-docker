@@ -1217,7 +1217,7 @@ async function confirmarPagareMatricula() {
     diaVencimiento: dia as 5 | 15 | 25,
     fechaInicio: fecha,
     monto,
-    valorCuota: cuotasDetalle[0]?.monto ?? Math.floor(montoMat / nCuotas),
+    valorCuota: cuotasDetalle[0]?.monto ?? Math.round(montoMat / nCuotas),
     simulado: false,
     cuotasDetalle,
     numOperacion,

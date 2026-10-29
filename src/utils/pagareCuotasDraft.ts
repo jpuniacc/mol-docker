@@ -49,10 +49,15 @@ export function folioCuota(ctapagnum: string, cuota: number): string {
   return `${ctapagnum.trim()}${String(cuota).padStart(2, '0')}`
 }
 
+/**
+ * Reparte un monto en N cuotas enteras alineado a U+
+ * (`sp_mol_grabar_plan_pagos`: base = ROUND(monto/cuotas, 0); última ajusta).
+ * Así el pagaré MOL y la cuenta corriente muestran los mismos montos.
+ */
 export function splitMontoEnCuotas(total: number, n: number): number[] {
   if (n < 1) throw new Error('n debe ser >= 1')
   const entero = Math.round(total)
-  const base = Math.floor(entero / n)
+  const base = Math.round(entero / n)
   const out: number[] = []
   let acumulado = 0
   for (let i = 1; i <= n; i++) {

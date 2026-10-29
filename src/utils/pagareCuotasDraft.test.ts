@@ -33,6 +33,18 @@ describe('splitMontoEnCuotas', () => {
     expect(parts).toEqual([33, 33, 34])
     expect(parts.reduce((a, b) => a + b, 0)).toBe(100)
   })
+
+  it('usa ROUND como sp_mol_grabar_plan_pagos (caso Hans 2027-1)', () => {
+    const ara = splitMontoEnCuotas(2_450_000, 12)
+    expect(ara.slice(0, 11).every((x) => x === 204_167)).toBe(true)
+    expect(ara[11]).toBe(204_163)
+    expect(ara.reduce((a, b) => a + b, 0)).toBe(2_450_000)
+
+    const mat = splitMontoEnCuotas(250_000, 12)
+    expect(mat.slice(0, 11).every((x) => x === 20_833)).toBe(true)
+    expect(mat[11]).toBe(20_837)
+    expect(mat.reduce((a, b) => a + b, 0)).toBe(250_000)
+  })
 })
 
 describe('addMonthsSameDay', () => {
