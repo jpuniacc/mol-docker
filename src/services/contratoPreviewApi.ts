@@ -11,6 +11,7 @@ const TIMEOUT_MS = 90_000
 
 export async function downloadContratoPreviewPdf(
   model: ContratoMatriculaViewModel,
+  opts: { incluirApoderado?: boolean } = {},
 ): Promise<ContratoPreviewPdfResponse> {
   const base = admisionApiBaseUrl()
   const url = `${base}/api/rematricula/alumno/contrato/preview-pdf`
@@ -21,7 +22,11 @@ export async function downloadContratoPreviewPdf(
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(model),
+      body: JSON.stringify(
+        opts.incluirApoderado === undefined
+          ? model
+          : { ...model, incluirApoderado: opts.incluirApoderado },
+      ),
       signal: controller.signal,
     })
 

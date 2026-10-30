@@ -30,7 +30,7 @@ import { registrarFirmaAudit } from '@/services/firmaAuditLog'
 import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import { useMatriculaFlujoPreflightStore } from '@/stores/datos_erp/matricula_flujo_preflight'
-import { esPropioSostenedor } from '@/utils/apoderadoResponsable'
+import { tieneSostenedorFinanciero } from '@/utils/apoderadoResponsable'
 import { estadoFirmaDual } from '@/utils/firmaDual'
 import { postGrabarPlanPagos } from '@/services/grabarPlanPagosApi'
 import { asignarDocumentosDescuento } from '@/utils/documentosDescuentoContrato'
@@ -60,6 +60,24 @@ const preflight = useMatriculaFlujoPreflightStore()
 const periodoActivo = usePeriodoActivoStore()
 const fuente = useAlumnoRematriculaFuente()
 const { viewModel, tienePlanConfirmado } = useContratoMatriculaViewModel('alumno')
+/** es_responsable_financiero del plan (undefined = aún no cargado). */
+const esResponsableFinancieroPlan = ref<string | null | undefined>(undefined)
+const incluirApoderadoContrato = computed(() => {
+  const vm = viewModel.value
+  if (!vm) return true
+  return tieneSostenedorFinanciero(esResponsableFinancieroPlan.value, vm.alumno.rut, vm.sostenedor.rut)
+})
+
+async function cargarResponsableFinanciero(): Promise<void> {
+  const codcli = fuente.codcliMostrado.value.trim()
+  if (!codcli || codcli === '—' || periodoActivo.anio == null || periodoActivo.semestre == null) return
+  const { data } = await fetchPlanPagosMvByCodcli({
+    codcli,
+    anioMatricula: periodoActivo.anio,
+    periodoMatricula: periodoActivo.semestre,
+  })
+  if (data) esResponsableFinancieroPlan.value = data.es_responsable_financiero ?? null
+}
 
 const descargando = ref(false)
 const aceptado = ref(false)
@@ -545,10 +563,15 @@ async function enviarAFirmar(): Promise<void> {
         periodoMatricula: periodoActivo.semestre,
       })
       esResponsableFinanciero = planRow?.es_responsable_financiero
+      if (planRow) esResponsableFinancieroPlan.value = planRow.es_responsable_financiero ?? null
       const mailPlan = (planRow?.mail_apoder ?? '').trim()
       if (mailPlan && mailPlan !== '—') emailApoderado = mailPlan
     }
-    const incluirApoderado = !esPropioSostenedor(esResponsableFinanciero)
+    const incluirApoderado = tieneSostenedorFinanciero(
+      esResponsableFinanciero,
+      vm.alumno.rut,
+      vm.sostenedor.rut,
+    )
 
     // Con los dos Webpay se graba antes, para que el PDF salga con el número de operación de U+.
     const orden = ordenGrabadoWebpay({
@@ -626,6 +649,7 @@ async function enviarAFirmar(): Promise<void> {
 
 onMounted(() => {
   void restaurarFirmaExistente()
+  void cargarResponsableFinanciero()
 })
 
 onUnmounted(() => {
@@ -643,7 +667,9 @@ async function descargaBorrador(): Promise<void> {
   }
   descargando.value = true
   try {
-    const res = await downloadContratoPreviewPdf(vm)
+    const res = await downloadContratoPreviewPdf(vm, {
+      incluirApoderado: incluirApoderadoContrato.value,
+    })
     if (!res.ok || !res.blob) {
       mostrarErrorRematricula(res.error || 'No se pudo generar el PDF')
       return
@@ -699,7 +725,11 @@ async function descargaBorrador(): Promise<void> {
           <div
             class="max-h-[70vh] overflow-y-auto rounded-md border border-zinc-200 bg-zinc-100/80 p-2"
           >
-            <ContratoPrestacionServiciosPreview v-if="viewModel" :model="viewModel" />
+            <ContratoPrestacionServiciosPreview
+              v-if="viewModel"
+              :model="viewModel"
+              :incluir-apoderado="incluirApoderadoContrato"
+            />
           </div>
           <div class="flex flex-wrap justify-end gap-3">
             <Button

@@ -6,6 +6,40 @@ export function esPropioSostenedor(esResponsable: string | null | undefined): bo
   return (esResponsable ?? '').trim().toUpperCase() === 'S'
 }
 
+function normalizarRut(rut: string | null | undefined): string | null {
+  const t = (rut ?? '').replace(/[.\s]/g, '').toUpperCase()
+  const m = /^(\d{1,8})-?([\dK])$/.exec(t)
+  if (!m) return null
+  const cuerpo = m[1].replace(/^0+(?=\d)/, '')
+  let suma = 0
+  let mul = 2
+  for (let i = cuerpo.length - 1; i >= 0; i--) {
+    suma += Number(cuerpo[i]) * mul
+    mul = mul === 7 ? 2 : mul + 1
+  }
+  const r = 11 - (suma % 11)
+  const dv = r === 11 ? '0' : r === 10 ? 'K' : String(r)
+  return dv === m[2] ? `${cuerpo}-${dv}` : null
+}
+
+/**
+ * ¿El contrato lleva sostenedor financiero (bloque + firmante TuFirma)?
+ * Solo si es_responsable_financiero es 'N' (si no se conoce, se omite esa condición)
+ * Y el RUT del sostenedor es válido Y distinto al del alumno. Misma regla que uniacc-api.
+ */
+export function tieneSostenedorFinanciero(
+  esResponsable: string | null | undefined,
+  rutAlumno: string | null | undefined,
+  rutSostenedor: string | null | undefined,
+): boolean {
+  if (esResponsable !== undefined) {
+    if ((esResponsable ?? '').trim().toUpperCase() !== 'N') return false
+  }
+  const sost = normalizarRut(rutSostenedor)
+  if (!sost) return false
+  return normalizarRut(rutAlumno) !== sost
+}
+
 function textoOSinInfo(v: string | null | undefined): string {
   const t = (v ?? '').trim()
   return t.length > 0 ? t : APODERADO_SIN_INFO

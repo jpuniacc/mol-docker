@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Download, Loader2, Mail } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
@@ -21,7 +21,7 @@ import {
 } from '@/services/contratoFirmaApi'
 import { downloadContratoPreviewPdf } from '@/services/contratoPreviewApi'
 import { useMockMatriculaContextStore } from '@/stores/mockMatriculaContext'
-import { esPropioSostenedor } from '@/utils/apoderadoResponsable'
+import { tieneSostenedorFinanciero } from '@/utils/apoderadoResponsable'
 
 const POLL_MS = 5000
 
@@ -29,6 +29,15 @@ const router = useRouter()
 const mockCtx = useMockMatriculaContextStore()
 const fuente = useMockAlumnoFuente()
 const { viewModel, tienePlanConfirmado } = useContratoMatriculaViewModel()
+const incluirApoderadoContrato = computed(() => {
+  const vm = viewModel.value
+  if (!vm) return true
+  return tieneSostenedorFinanciero(
+    fuente.plan.value ? (fuente.plan.value.es_responsable_financiero ?? null) : undefined,
+    vm.alumno.rut,
+    vm.sostenedor.rut,
+  )
+})
 
 const descargando = ref(false)
 const aceptado = ref(false)
@@ -126,7 +135,7 @@ async function enviarAFirmar(): Promise<void> {
   errorFirma.value = null
 
   try {
-    const incluirApoderado = !esPropioSostenedor(fuente.plan.value?.es_responsable_financiero)
+    const incluirApoderado = incluirApoderadoContrato.value
     const codcli = fuente.codcliMostrado.value
     const res = await ensureContratoFirma({
       ...vm,
@@ -169,7 +178,9 @@ async function descargaBorrador(): Promise<void> {
   }
   descargando.value = true
   try {
-    const res = await downloadContratoPreviewPdf(vm)
+    const res = await downloadContratoPreviewPdf(vm, {
+      incluirApoderado: incluirApoderadoContrato.value,
+    })
     if (!res.ok || !res.blob) {
       toast.error(res.error || 'No se pudo generar el PDF')
       return
@@ -225,7 +236,11 @@ async function descargaBorrador(): Promise<void> {
           <div
             class="max-h-[70vh] overflow-y-auto rounded-md border border-zinc-200 bg-zinc-100/80 p-2"
           >
-            <ContratoPrestacionServiciosPreview v-if="viewModel" :model="viewModel" />
+            <ContratoPrestacionServiciosPreview
+              v-if="viewModel"
+              :model="viewModel"
+              :incluir-apoderado="incluirApoderadoContrato"
+            />
           </div>
           <div class="flex flex-wrap justify-end gap-3">
             <Button

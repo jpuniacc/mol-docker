@@ -7,6 +7,8 @@ import type { BloquesContrato } from '@/utils/lineasContratoMedio'
 
 const props = defineProps<{
   model: ContratoMatriculaViewModel & { bloques?: BloquesContrato }
+  /** Muestra el bloque de firma del sostenedor financiero. Default true. */
+  incluirApoderado?: boolean
 }>()
 
 function formatClp(n: number): string {
@@ -382,11 +384,8 @@ const vencimientoPagareArancel = computed(
         <p class="font-semibold">Estudiante o Alumno</p>
         <p class="text-[10px]">{{ model.alumno.nombre }}</p>
       </div>
-      <div class="text-center">
-        <div class="mb-8 border-b border-zinc-400" />
-        <p class="font-semibold">pp. {{ clausulasFixture.institucion.nombre }}</p>
-      </div>
-      <div class="text-center">
+      <div aria-hidden="true" />
+      <div v-if="props.incluirApoderado !== false" class="text-center">
         <div class="mb-8 border-b border-zinc-400" />
         <p class="font-semibold">Sostenedor Financiero</p>
         <p class="text-[10px]">{{ model.sostenedor.nombre }}</p>

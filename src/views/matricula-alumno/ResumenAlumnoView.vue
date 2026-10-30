@@ -15,6 +15,7 @@ import { downloadContratoPreviewPdf } from '@/services/contratoPreviewApi'
 import { fmtMontoClp } from '@/services/fetchPlanPagosMv'
 import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import type { MockDescuentoPagare, MockPagoMatricula } from '@/stores/mockMatriculaContext'
+import { tieneSostenedorFinanciero } from '@/utils/apoderadoResponsable'
 import { etiquetaFormaPago } from '@/utils/etiquetaFormaPago'
 import { resumenPagosWebpay } from '@/utils/resumenPagosWebpay'
 
@@ -187,7 +188,9 @@ async function descargarContrato(): Promise<void> {
       return
     }
 
-    const res = await downloadContratoPreviewPdf(vm)
+    const res = await downloadContratoPreviewPdf(vm, {
+      incluirApoderado: tieneSostenedorFinanciero(undefined, vm.alumno.rut, vm.sostenedor.rut),
+    })
     if (!res.ok || !res.blob) {
       mostrarErrorRematricula(res.error || 'No se pudo generar el contrato')
       return
