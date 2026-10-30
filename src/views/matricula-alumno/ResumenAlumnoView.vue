@@ -7,7 +7,7 @@ import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import NpsRematriculaCard from '@/components/rematricula/NpsRematriculaCard.vue'
+import NpsRematriculaDialog from '@/components/rematricula/NpsRematriculaDialog.vue'
 import { useContratoMatriculaViewModel } from '@/composables/useContratoMatriculaViewModel'
 import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
 import { downloadContratoFirmaPdf } from '@/services/contratoFirmaApi'
@@ -25,6 +25,13 @@ const { viewModel } = useContratoMatriculaViewModel('alumno')
 
 const fmt = fmtMontoClp
 const descargando = ref(false)
+const botonContratoRef = ref<InstanceType<typeof Button> | null>(null)
+const cesRef = ref<InstanceType<typeof NpsRematriculaDialog> | null>(null)
+
+function elementoBotonContrato(): HTMLElement | null {
+  const el = (botonContratoRef.value as { $el?: unknown } | null)?.$el
+  return el instanceof HTMLElement ? el : null
+}
 
 onMounted(() => {
   window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
@@ -201,8 +208,30 @@ async function descargarContrato(): Promise<void> {
           ¡Felicitaciones {{ fuente.nombreMostrado }}!
         </h1>
         <p class="text-center text-lg text-muted-foreground">
-          Has finalizado el proceso de matrícula. Descarga el contrato presionando el botón más abajo.
+          Has finalizado el proceso de matrícula. Descarga el contrato presionando el botón.
         </p>
+
+        <div class="flex flex-col items-center gap-2">
+          <Button
+            ref="botonContratoRef"
+            class="cursor-pointer rounded-full bg-uniacc-orange px-8 hover:bg-uniacc-orange/90"
+            type="button"
+            :disabled="descargando"
+            @click="descargarContrato"
+          >
+            <Loader2 v-if="descargando" class="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+            <Download v-else class="mr-2 h-4 w-4" aria-hidden="true" />
+            {{ descargando ? 'Descargando…' : 'Descargar el contrato' }}
+          </Button>
+          <button
+            v-if="cesRef?.puedeReabrir"
+            type="button"
+            class="cursor-pointer text-sm text-muted-foreground underline underline-offset-2 hover:text-zinc-900"
+            @click="cesRef?.abrir()"
+          >
+            Evaluar mi experiencia
+          </button>
+        </div>
 
         <div class="mx-auto max-w-lg space-y-2 rounded-lg border bg-muted/40 px-4 py-4 text-sm">
           <p><span class="text-muted-foreground">RUT:</span> {{ fuente.rutMostrado }}</p>
@@ -214,8 +243,6 @@ async function descargarContrato(): Promise<void> {
             {{ alumnoCtx.discapacidad.tipo }}
           </p>
         </div>
-
-        <NpsRematriculaCard />
 
         <section
           v-if="pagosWebpay"
@@ -341,19 +368,6 @@ async function descargarContrato(): Promise<void> {
             WhatsApp +56 9 3452 7028
           </p>
         </div>
-
-        <div class="flex justify-center">
-          <Button
-            class="cursor-pointer rounded-full bg-uniacc-orange px-8 hover:bg-uniacc-orange/90"
-            type="button"
-            :disabled="descargando"
-            @click="descargarContrato"
-          >
-            <Loader2 v-if="descargando" class="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-            <Download v-else class="mr-2 h-4 w-4" aria-hidden="true" />
-            {{ descargando ? 'Descargando…' : 'Descargar el contrato' }}
-          </Button>
-        </div>
       </CardContent>
     </Card>
 
@@ -362,5 +376,7 @@ async function descargarContrato(): Promise<void> {
         Volver al inicio
       </Button>
     </div>
+
+    <NpsRematriculaDialog ref="cesRef" :foco-retorno="elementoBotonContrato" />
   </div>
 </template>
