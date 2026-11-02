@@ -370,6 +370,7 @@ export function allowedRouteNamesFromMenu(
   // Gestión de firmas se usa desde Casos; el ítem de menú 041 fue reutilizado por KPI.
   if (names.has('dashboard-casos-rematricula')) {
     names.add('dashboard-gestion-firmas')
+    names.add('dashboard-conciliacion-transbank')
   }
   boMenuJson('allowedRouteNamesFromMenu() Set como array', [...names])
   return names

@@ -321,6 +321,10 @@ function irAGestionFirmas() {
   void router.push({ name: 'dashboard-gestion-firmas' })
 }
 
+function irAConciliacionTransbank() {
+  void router.push({ name: 'dashboard-conciliacion-transbank' })
+}
+
 function verResueltos() {
   filtroCola.value = 'resueltos'
 }
@@ -587,8 +591,17 @@ onMounted(() => {
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-          <Button type="button" size="sm" variant="outline" @click="irAKpi">
+          <Button type="button" size="sm" variant="outline" class="cursor-pointer" @click="irAKpi">
             Ver KPI
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            class="cursor-pointer"
+            @click="irAConciliacionTransbank"
+          >
+            Conciliación Transbank
           </Button>
           <Button
             type="button"

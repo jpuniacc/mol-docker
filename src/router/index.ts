@@ -398,6 +398,17 @@ const routes = [
           import('../views/dashboard/rematricula/GestionFirmasView.vue'),
       },
       {
+        path: '/dashboard/conciliacion-transbank',
+        name: 'dashboard-conciliacion-transbank',
+        meta: {
+          requiresAdminAdmision: true,
+          requiresSoloGrupoDvU: true,
+          requiresPerfilUsuarioIn: [1, 2, 3],
+        },
+        component: () =>
+          import('../views/dashboard/rematricula/ConciliacionTransbankView.vue'),
+      },
+      {
         path: '/dashboard/mantenedor-descuento-matricula-anticipada',
         name: 'dashboard-mantenedor-descuento-matricula-anticipada',
         meta: {

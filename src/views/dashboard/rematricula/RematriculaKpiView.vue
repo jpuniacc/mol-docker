@@ -23,6 +23,10 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
+  listarFecMatRematricula,
+  mapaFecMatPorCodcli,
+} from '@/services/fecMatRematriculaApi'
+import {
   fetchKpiProgresoRematricula,
   listarProgresoRematricula,
   listarTimelineMolAlumno,
@@ -82,6 +86,8 @@ const refreshing = ref(false)
 const kpi = ref<KpiProgresoRematricula | null>(null)
 const etapaAbierta = ref<EtapaProgresoRematricula | null>(null)
 const alumnosPorEtapa = ref<Partial<Record<EtapaProgresoRematricula, MnpProgresoRematriculaRow[]>>>({})
+/** FEC_MAT U+ (solo etapa matriculado). */
+const fecMatPorCodcli = ref<Record<string, string>>({})
 const cargandoEtapa = ref<EtapaProgresoRematricula | null>(null)
 const errorEtapa = ref<string | null>(null)
 const busquedaEtapa = ref('')
@@ -218,8 +224,8 @@ async function cargarEtapa(etapa: EtapaProgresoRematricula) {
     periodoActivo.semestre!,
     { etapa },
   )
-  cargandoEtapa.value = null
   if (error) {
+    cargandoEtapa.value = null
     errorEtapa.value = error
     mostrarErrorRematricula(`Error al cargar alumnos: ${error}`)
     return
@@ -233,6 +239,19 @@ async function cargarEtapa(etapa: EtapaProgresoRematricula) {
         ? data.filter(fila => !fila.sin_match_mol)
         : data.filter(fila => !fila.excluido_mol && !fila.sin_match_mol),
   }
+  if (etapa === 'matriculado') {
+    const fechas = await listarFecMatRematricula(
+      periodoActivo.anio!,
+      periodoActivo.semestre!,
+    )
+    if (fechas.ok) {
+      fecMatPorCodcli.value = mapaFecMatPorCodcli(fechas.filas)
+    } else {
+      fecMatPorCodcli.value = {}
+      console.warn('[kpi] FEC_MAT U+:', fechas.error)
+    }
+  }
+  cargandoEtapa.value = null
 }
 
 async function toggleEtapa(etapa: EtapaProgresoRematricula) {
@@ -302,6 +321,7 @@ async function actualizarProgreso() {
     }
     
     alumnosPorEtapa.value = {}
+    fecMatPorCodcli.value = {}
     const etapa = etapaAbierta.value
     await cargarKpi()
     if (etapa) await cargarEtapa(etapa)
@@ -481,6 +501,7 @@ onMounted(async () => {
                         <TableHead>Nombre</TableHead>
                         <TableHead>Carrera</TableHead>
                         <TableHead>Código</TableHead>
+                        <TableHead v-if="item.etapa === 'matriculado'">Fecha matrícula</TableHead>
                         <TableHead></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -507,6 +528,9 @@ onMounted(async () => {
                         </TableCell>
                         <TableCell>{{ fila.nombre_carrera || '—' }}</TableCell>
                         <TableCell>{{ fila.codcli }}</TableCell>
+                        <TableCell v-if="item.etapa === 'matriculado'" class="whitespace-nowrap tabular-nums text-xs">
+                          {{ fecMatPorCodcli[fila.codcli] ?? '—' }}
+                        </TableCell>
                         <TableCell>
                           <Button
                             type="button"
