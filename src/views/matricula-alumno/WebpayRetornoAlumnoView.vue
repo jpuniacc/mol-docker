@@ -22,7 +22,9 @@ import {
   useMatriculaAlumnoContextStore,
   type WebpayConceptoEstado,
 } from '@/stores/matriculaAlumnoContext'
+import { registrarWebpayAudit, type RegistrarWebpayAuditParams } from '@/services/webpayAuditLog'
 import { detalleDesdeWebpay } from '@/utils/webpayPagoDetalle'
+import { destinoDesdePaso, motivoContinuarError } from '@/utils/webpayRetornoContinuar'
 import { siguientePaso, type MedioConcepto } from '@/utils/webpaySiguientePaso'
 import VoucherWebpayDialog from '@/components/matricula/VoucherWebpayDialog.vue'
 import { armarVoucherWebpay, type VoucherWebpay } from '@/utils/voucherWebpay'
@@ -76,6 +78,60 @@ function guardarEstadoConcepto(fila: FilaPublica): void {
   }
 }
 
+function emitirWebpayAudit(params: RegistrarWebpayAuditParams): void {
+  void registrarWebpayAudit(params).catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err)
+    console.warn('[WebpayAudit]', message)
+  })
+}
+
+function contextoAuditAlumno(fila: FilaPublica | null): Pick<
+  RegistrarWebpayAuditParams,
+  'rutAlumno' | 'codcli' | 'anioPeriodo' | 'semestrePeriodo'
+> {
+  return {
+    rutAlumno: fuente.rutMostrado.value === '—' ? null : fuente.rutMostrado.value,
+    codcli: fuente.codcliMostrado.value === '—' ? null : fuente.codcliMostrado.value,
+    anioPeriodo: fila?.anioPeriodo ?? null,
+    semestrePeriodo: fila?.semestrePeriodo ?? null,
+  }
+}
+
+function auditarRetorno(buyOrder: string, errorQuery: string, fila: FilaPublica | null): void {
+  emitirWebpayAudit({
+    accion: 'retorno',
+    ...contextoAuditAlumno(fila),
+    payload: {
+      buy_order: buyOrder || null,
+      estado: fila?.estado ?? null,
+      error: errorQuery || null,
+      autenticado: auth.isAuthenticated,
+    },
+  })
+}
+
+function auditarContinuarOk(fila: FilaPublica, destino: ReturnType<typeof destinoDesdePaso> | 'forma-pago'): void {
+  emitirWebpayAudit({
+    accion: 'continuar_ok',
+    ...contextoAuditAlumno(fila),
+    payload: {
+      buy_order: fila.buyOrder,
+      destino,
+    },
+  })
+}
+
+function auditarContinuarError(fila: FilaPublica, motivo: ReturnType<typeof motivoContinuarError>): void {
+  emitirWebpayAudit({
+    accion: 'continuar_error',
+    ...contextoAuditAlumno(fila),
+    payload: {
+      buy_order: fila.buyOrder,
+      motivo,
+    },
+  })
+}
+
 function irAFormaPago(plan?: ConceptoWebpay, aviso?: 'abortada' | 'rechazada'): void {
   const esAlumno =
     auth.authSource === 'pixarron' &&
@@ -92,6 +148,7 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
   const medioMatricula = alumnoCtx.medioMatricula
   const medioArancel: MedioConcepto | null = alumnoCtx.medioArancel
   if (medioMatricula == null) {
+    auditarContinuarError(fila, motivoContinuarError('medio_null'))
     mostrarErrorRematricula('No encontramos cómo seguir con el pago.')
     mostrarReintentar.value = true
     return
@@ -110,6 +167,7 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
     const monto =
       paso.concepto === 'matricula' ? alumnoCtx.webpayMontoMatricula : alumnoCtx.webpayMontoArancel
     if (monto == null || !Number.isInteger(monto) || monto <= 0) {
+      auditarContinuarError(fila, motivoContinuarError('monto_invalido'))
       mostrarErrorRematricula('No encontramos el monto del siguiente pago.')
       mostrarReintentar.value = true
       return
@@ -117,6 +175,7 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
     const codcliAcademico = fuente.codcliMostrado.value.trim()
     const rut = fuente.rutMostrado.value.trim()
     if (!codcliAcademico || codcliAcademico === '—' || !rut || rut === '—') {
+      auditarContinuarError(fila, motivoContinuarError('identidad'))
       mostrarErrorRematricula('Faltan codcli académico o RUT para continuar el pago')
       mostrarReintentar.value = true
       return
@@ -131,31 +190,37 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
       monto,
     })
     if (!creado.ok) {
+      auditarContinuarError(fila, motivoContinuarError('crear_webpay'))
       mostrarErrorRematricula(creado.error)
       mostrarReintentar.value = true
       return
     }
+    auditarContinuarOk(fila, destinoDesdePaso(paso))
     redirigiendo.value = true
     redirigirAWebpay(creado.url, creado.token)
     return
   }
 
   if (paso.tipo === 'elegir-arancel') {
+    auditarContinuarOk(fila, destinoDesdePaso(paso))
     irAFormaPago()
     return
   }
 
   if (paso.tipo === 'plan-pagare') {
+    auditarContinuarOk(fila, destinoDesdePaso(paso))
     irAFormaPago(paso.concepto)
     return
   }
 
   if (paso.tipo === 'firma') {
+    auditarContinuarOk(fila, destinoDesdePaso(paso))
     alumnoCtx.marcarPasoAlcanzado(3)
     void router.push({ name: 'matricula-alumno-firma' })
     return
   }
 
+  auditarContinuarOk(fila, 'forma-pago')
   irAFormaPago()
 }
 
@@ -200,10 +265,12 @@ onMounted(async () => {
   if (errorQuery === 'retorno-invalido') {
     avisoPagoIlegible()
     mostrarReintentar.value = true
+    let filaInvalida: FilaPublica | null = null
     if (buyOrder) {
-      const fila = await obtenerWebpay(buyOrder)
-      if (fila) guardarEstadoConcepto(fila)
+      filaInvalida = await obtenerWebpay(buyOrder)
+      if (filaInvalida) guardarEstadoConcepto(filaInvalida)
     }
+    auditarRetorno(buyOrder, errorQuery, filaInvalida)
     cargando.value = false
     return
   }
@@ -211,6 +278,7 @@ onMounted(async () => {
   if (!buyOrder) {
     avisoPagoIlegible()
     mostrarReintentar.value = true
+    auditarRetorno(buyOrder, errorQuery, null)
     cargando.value = false
     return
   }
@@ -219,6 +287,7 @@ onMounted(async () => {
   if (!fila) {
     avisoPagoIlegible()
     mostrarReintentar.value = true
+    auditarRetorno(buyOrder, errorQuery, null)
     cargando.value = false
     return
   }
@@ -229,12 +298,14 @@ onMounted(async () => {
   if (!armado) {
     avisoPagoIlegible()
     mostrarReintentar.value = true
+    auditarRetorno(buyOrder, errorQuery, fila)
     cargando.value = false
     return
   }
 
   filaVoucher.value = fila
   voucher.value = armado
+  auditarRetorno(buyOrder, errorQuery, fila)
   cargando.value = false
 })
 </script>
