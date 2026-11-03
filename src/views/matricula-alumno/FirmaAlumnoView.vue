@@ -276,6 +276,50 @@ function volverAFormaDePagoSiNumeroAjeno(error: string): boolean {
   return true
 }
 
+/**
+ * Alta o reuso en TuFirma (sin grabar Webpay). Si el render quedó FAILED,
+ * el API regenera el PDF con el mismo número de operación.
+ */
+async function asegurarDocumentoFirma(): Promise<ContratoFirmaEstadoResponse> {
+  const vm = viewModel.value
+  if (!vm) {
+    return { ok: false, error: 'Sin datos del contrato para firmar' }
+  }
+  const codcliRaw = fuente.codcliMostrado.value
+  const codcli = codcliRaw === '—' ? '' : codcliRaw.trim()
+  let esResponsableFinanciero: string | null | undefined = esResponsableFinancieroPlan.value
+  let emailApoderado = vm.emailApoderado
+  if (codcli && periodoActivo.anio != null && periodoActivo.semestre != null) {
+    const { data: planRow } = await fetchPlanPagosMvByCodcli({
+      codcli,
+      anioMatricula: periodoActivo.anio,
+      periodoMatricula: periodoActivo.semestre,
+    })
+    esResponsableFinanciero = planRow?.es_responsable_financiero
+    if (planRow) esResponsableFinancieroPlan.value = planRow.es_responsable_financiero ?? null
+    const mailPlan = (planRow?.mail_apoder ?? '').trim()
+    if (mailPlan && mailPlan !== '—') emailApoderado = mailPlan
+  }
+  const incluirApoderado = tieneSostenedorFinanciero(
+    esResponsableFinanciero,
+    vm.alumno.rut,
+    vm.sostenedor.rut,
+  )
+  const numOp = numeroOperacionContrato(vm.numOperacion, alumnoCtx.numOperacionCuenta, {
+    ambosWebpay: ambosWebpay.value,
+  })
+  if (ambosWebpay.value && numOp === '—') {
+    return { ok: false, error: 'No se obtuvo el número de operación del contrato.' }
+  }
+  return ensureContratoFirma({
+    ...vm,
+    numOperacion: numOp,
+    incluirApoderado,
+    emailApoderado,
+    codcli,
+  })
+}
+
 async function prepararFirma(numOperacion: string): Promise<void> {
   if (esperaOperacion.value === numOperacion) return
   const pendientes = firmantes.value.filter((firmante) => !firmante.ready)
@@ -320,7 +364,7 @@ async function prepararFirma(numOperacion: string): Promise<void> {
     mostrarErrorRematricula(fallo, {
       reintentar: () => {
         esperaOperacion.value = null
-        void prepararFirma(numOperacion)
+        void recuperarDocumentoYPrepararFirma()
       },
     })
     return
@@ -329,11 +373,41 @@ async function prepararFirma(numOperacion: string): Promise<void> {
   iniciarCuentaRegresiva()
 }
 
-function reintentarEnlaces(): void {
-  const num = numOperacionFirma.value
-  if (!num || preparandoEnlaces.value) return
+/** ensure (regenera si FAILED) y luego pide enlaces. */
+async function recuperarDocumentoYPrepararFirma(): Promise<void> {
+  if (enviando.value || preparandoEnlaces.value) return
   esperaOperacion.value = null
-  void prepararFirma(num)
+  preparandoEnlaces.value = true
+  errorEnlaces.value = null
+  try {
+    const res = await asegurarDocumentoFirma()
+    if (unmounted) return
+    if (!res.ok) {
+      preparandoEnlaces.value = false
+      if (volverAFormaDePagoSiNumeroAjeno(res.error)) return
+      errorEnlaces.value = res.error
+      mostrarErrorRematricula(res.error, {
+        reintentar: () => {
+          esperaOperacion.value = null
+          void recuperarDocumentoYPrepararFirma()
+        },
+      })
+      return
+    }
+    if (res.created) {
+      enlacesFirma.value = {}
+      await registrarPasoFirma('enviado', res.numOperacion)
+    }
+    preparandoEnlaces.value = false
+    aplicarEstadoOk(res)
+    if (!res.ready) iniciarPoll(res.numOperacion)
+  } catch {
+    if (!unmounted) preparandoEnlaces.value = false
+  }
+}
+
+function reintentarEnlaces(): void {
+  void recuperarDocumentoYPrepararFirma()
 }
 
 function abrirFirma(email: string): void {
@@ -525,10 +599,36 @@ function iniciarPoll(numOperacion: string): void {
 }
 
 async function restaurarFirmaExistente(): Promise<void> {
-  const num = (viewModel.value?.numOperacion ?? '').trim()
+  const num = (viewModel.value?.numOperacion ?? alumnoCtx.numOperacionCuenta ?? '').trim()
   if (!num || num === '—') return
   restaurandoFirma.value = true
   try {
+    // Tras un envío, ensure regenera el PDF si TuFirma dejó render_status=FAILED.
+    if (alumnoCtx.envioFirmaIniciado && viewModel.value) {
+      const res = await asegurarDocumentoFirma()
+      if (unmounted) return
+      if (!res.ok) {
+        if (volverAFormaDePagoSiNumeroAjeno(res.error)) return
+        // Fallback: consultar estado (p. ej. ensure 503) sin bloquear la pantalla.
+        const estado = await getContratoFirmaEstado(num, identidadFirma())
+        if (unmounted) return
+        if (!estado.ok) {
+          volverAFormaDePagoSiNumeroAjeno(estado.error)
+          return
+        }
+        aplicarEstadoOk(estado)
+        if (!estado.ready) iniciarPoll(estado.numOperacion)
+        return
+      }
+      if (res.created) {
+        enlacesFirma.value = {}
+        await registrarPasoFirma('enviado', res.numOperacion)
+      }
+      aplicarEstadoOk(res)
+      if (!res.ready) iniciarPoll(res.numOperacion)
+      return
+    }
+
     const res = await getContratoFirmaEstado(num, identidadFirma())
     if (unmounted) return
     if (!res.ok) {
@@ -559,27 +659,6 @@ async function enviarAFirmar(): Promise<void> {
   iniciarProgresoEnvio()
 
   try {
-    const codcliRaw = fuente.codcliMostrado.value
-    const codcli = codcliRaw === '—' ? undefined : codcliRaw.trim()
-    let esResponsableFinanciero: string | null | undefined
-    let emailApoderado = vm.emailApoderado
-    if (codcli && periodoActivo.anio != null && periodoActivo.semestre != null) {
-      const { data: planRow } = await fetchPlanPagosMvByCodcli({
-        codcli,
-        anioMatricula: periodoActivo.anio,
-        periodoMatricula: periodoActivo.semestre,
-      })
-      esResponsableFinanciero = planRow?.es_responsable_financiero
-      if (planRow) esResponsableFinancieroPlan.value = planRow.es_responsable_financiero ?? null
-      const mailPlan = (planRow?.mail_apoder ?? '').trim()
-      if (mailPlan && mailPlan !== '—') emailApoderado = mailPlan
-    }
-    const incluirApoderado = tieneSostenedorFinanciero(
-      esResponsableFinanciero,
-      vm.alumno.rut,
-      vm.sostenedor.rut,
-    )
-
     // Con los dos Webpay se graba antes, para que el PDF salga con el número de operación de U+.
     const orden = ordenGrabadoWebpay({
       ambosWebpay: ambosWebpay.value,
@@ -610,24 +689,8 @@ async function enviarAFirmar(): Promise<void> {
         return
       }
     }
-    const vmFirmado = viewModel.value ?? vm
-    const numOperacionContrato = numeroOperacionContrato(
-      vmFirmado.numOperacion,
-      alumnoCtx.numOperacionCuenta,
-      { ambosWebpay: ambosWebpay.value },
-    )
-    if (ambosWebpay.value && numOperacionContrato === '—') {
-      cerrarProgresoError()
-      publicarFalloFirma(errorGrabacion.value ?? 'No se obtuvo el número de operación del contrato.')
-      return
-    }
-    const res = await ensureContratoFirma({
-      ...vmFirmado,
-      numOperacion: numOperacionContrato,
-      incluirApoderado,
-      emailApoderado,
-      codcli,
-    })
+
+    const res = await asegurarDocumentoFirma()
 
     if (unmounted) {
       clearEnvioTimers()
@@ -643,6 +706,7 @@ async function enviarAFirmar(): Promise<void> {
 
     cerrarProgresoOk()
     if (res.created) {
+      enlacesFirma.value = {}
       await registrarPasoFirma('enviado', res.numOperacion)
     }
     aplicarEstadoOk(res)
