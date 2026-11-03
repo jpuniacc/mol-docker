@@ -78,11 +78,31 @@ function guardarEstadoConcepto(fila: FilaPublica): void {
   }
 }
 
+const ESPERA_AUDIT_ANTES_WEBPAY_MS = 1_000
+
 function emitirWebpayAudit(params: RegistrarWebpayAuditParams): void {
   void registrarWebpayAudit(params).catch((err: unknown) => {
     const message = err instanceof Error ? err.message : String(err)
     console.warn('[WebpayAudit]', message)
   })
+}
+
+/** Espera el RPC antes del submit de página completa. Tope ~1s: Continuar no se queda colgado. */
+async function esperarAuditoriaAntesDeWebpay(trabajo: Promise<unknown>): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    await Promise.race([
+      trabajo,
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, ESPERA_AUDIT_ANTES_WEBPAY_MS)
+      }),
+    ])
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.warn('[WebpayAudit]', message)
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+  }
 }
 
 function contextoAuditAlumno(fila: FilaPublica | null): Pick<
@@ -110,15 +130,29 @@ function auditarRetorno(buyOrder: string, errorQuery: string, fila: FilaPublica 
   })
 }
 
-function auditarContinuarOk(fila: FilaPublica, destino: ReturnType<typeof destinoDesdePaso> | 'forma-pago'): void {
-  emitirWebpayAudit({
+function paramsContinuarOk(
+  fila: FilaPublica,
+  destino: ReturnType<typeof destinoDesdePaso> | 'forma-pago',
+): RegistrarWebpayAuditParams {
+  return {
     accion: 'continuar_ok',
     ...contextoAuditAlumno(fila),
     payload: {
       buy_order: fila.buyOrder,
       destino,
     },
-  })
+  }
+}
+
+function auditarContinuarOk(fila: FilaPublica, destino: ReturnType<typeof destinoDesdePaso> | 'forma-pago'): void {
+  emitirWebpayAudit(paramsContinuarOk(fila, destino))
+}
+
+async function auditarContinuarOkAntesDeWebpay(
+  fila: FilaPublica,
+  destino: ReturnType<typeof destinoDesdePaso>,
+): Promise<void> {
+  await esperarAuditoriaAntesDeWebpay(registrarWebpayAudit(paramsContinuarOk(fila, destino)))
 }
 
 function auditarContinuarError(fila: FilaPublica, motivo: ReturnType<typeof motivoContinuarError>): void {
@@ -195,7 +229,7 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
       mostrarReintentar.value = true
       return
     }
-    auditarContinuarOk(fila, destinoDesdePaso(paso))
+    await auditarContinuarOkAntesDeWebpay(fila, destinoDesdePaso(paso))
     redirigiendo.value = true
     redirigirAWebpay(creado.url, creado.token)
     return
