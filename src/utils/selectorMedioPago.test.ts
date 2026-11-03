@@ -17,13 +17,47 @@ describe('selectorMedioPago', () => {
 
   it('Continuar solo arma el plan de pagaré', () => {
     expect(
-      puedeContinuar({ medioMatricula: 'pagare', medioArancel: 'pagare', matriculaAutorizada: false }),
+      puedeContinuar({
+        medioMatricula: 'pagare',
+        medioArancel: 'pagare',
+        matriculaAutorizada: false,
+        arancelPorPagar: 1_000_000,
+      }),
     ).toBe(true)
     expect(
-      puedeContinuar({ medioMatricula: 'pagare', medioArancel: 'webpay', matriculaAutorizada: false }),
+      puedeContinuar({
+        medioMatricula: 'pagare',
+        medioArancel: 'webpay',
+        matriculaAutorizada: false,
+        arancelPorPagar: 1_000_000,
+      }),
     ).toBe(false)
     expect(
-      puedeContinuar({ medioMatricula: 'webpay', medioArancel: 'pagare', matriculaAutorizada: true }),
+      puedeContinuar({
+        medioMatricula: 'webpay',
+        medioArancel: 'pagare',
+        matriculaAutorizada: true,
+        arancelPorPagar: 1_000_000,
+      }),
+    ).toBe(true)
+  })
+
+  it('con arancel $0 no exige medio de arancel', () => {
+    expect(
+      puedeContinuar({
+        medioMatricula: 'pagare',
+        medioArancel: null,
+        matriculaAutorizada: false,
+        arancelPorPagar: 0,
+      }),
+    ).toBe(true)
+    expect(
+      puedeContinuar({
+        medioMatricula: 'webpay',
+        medioArancel: null,
+        matriculaAutorizada: true,
+        arancelPorPagar: 0,
+      }),
     ).toBe(true)
   })
 })

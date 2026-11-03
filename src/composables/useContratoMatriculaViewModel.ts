@@ -117,8 +117,11 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
       ctx.medioMatricula === 'webpay' && ctx.webpayMatriculaEstado === 'autorizada'
     const arancelWebpayOk =
       ctx.medioArancel === 'webpay' && ctx.webpayArancelEstado === 'autorizada'
-    // Con los dos conceptos pagados por Webpay no hay plan de pagaré, pero el contrato se arma igual.
-    if (!pago && !(matriculaWebpayOk && arancelWebpayOk)) return null
+    // Beca 100 %: arancel neto $0, sin medio; basta la matrícula Webpay autorizada.
+    const arancelCubierto =
+      ctx.medioArancel == null && typeof ctx.webpayMontoArancel === 'number' && ctx.webpayMontoArancel === 0
+    // Sin pagaré: dos Webpay, o Webpay de matrícula con arancel cubierto.
+    if (!pago && !(matriculaWebpayOk && (arancelWebpayOk || arancelCubierto))) return null
 
     const asignaturasNuevo = false
 
@@ -153,7 +156,7 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
         : (ctx.descuentosContrato ?? [])
     const bloques = bloquesContrato({
       medioMatricula: matriculaWebpayOk ? 'webpay' : 'pagare',
-      medioArancel: arancelWebpayOk ? 'webpay' : 'pagare',
+      medioArancel: arancelWebpayOk ? 'webpay' : arancelCubierto ? null : 'pagare',
       descuentoFormaPagoArancel,
       montoWebpayMatricula: Math.max(0, ctx.webpayMontoMatricula ?? 0),
       montoWebpayArancel: Math.max(0, saldoWebpayArancel - descuentoFormaPagoArancel),
@@ -173,7 +176,7 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
 
     return {
       numOperacion: numeroOperacionContrato(pago?.numOperacion, ctx.numOperacionCuenta, {
-        ambosWebpay: matriculaWebpayOk && arancelWebpayOk,
+        ambosWebpay: matriculaWebpayOk && (arancelWebpayOk || arancelCubierto),
       }),
       contrato,
       fechaContratoLabel: fechaHoyLabel(),

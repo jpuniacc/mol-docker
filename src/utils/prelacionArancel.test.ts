@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { aplicarPrelacionArancel, type ItemPrelacionInput } from './prelacionArancel'
+import {
+  aplicarPrelacionArancel,
+  omiteTopeInternas,
+  type ItemPrelacionInput,
+} from './prelacionArancel'
 
 function item(partial: Partial<ItemPrelacionInput> & Pick<ItemPrelacionInput, 'codigo' | 'flujo' | 'monto'>): ItemPrelacionInput {
   return {
@@ -88,6 +92,27 @@ describe('aplicarPrelacionArancel', () => {
     expect(r.arancelNeto).toBe(300_000)
   })
 
+  it('1744 al 100% no se recorta por el tope del 70%', () => {
+    const r = aplicarPrelacionArancel({
+      arancelBruto: 1_000_000,
+      items: [item({ codigo: '1744', flujo: 'MOL_DVU', monto: 1_000_000 })],
+    })
+    expect(r.descuentoInterna).toBe(1_000_000)
+    expect(r.recorteTope).toBe(0)
+    expect(r.arancelNeto).toBe(0)
+    expect(r.items.find((i) => i.codigo === '1744')?.monto).toBe(1_000_000)
+  })
+
+  it('otra interna al 100% (no 1744) sí se recorta al 70%', () => {
+    const r = aplicarPrelacionArancel({
+      arancelBruto: 1_000_000,
+      items: [item({ codigo: '1795', flujo: 'MOL_DVU', monto: 1_000_000 })],
+    })
+    expect(r.descuentoInterna).toBe(700_000)
+    expect(r.recorteTope).toBe(300_000)
+    expect(r.arancelNeto).toBe(300_000)
+  })
+
   it('no deja el arancel bajo 0 si el % derivado supera 100%', () => {
     const r = aplicarPrelacionArancel({
       arancelBruto: 1_000_000,
@@ -109,5 +134,14 @@ describe('aplicarPrelacionArancel', () => {
     })
     expect(r.descuentoTotal).toBe(0)
     expect(r.items.every((i) => i.aplica === false)).toBe(true)
+  })
+})
+
+describe('omiteTopeInternas', () => {
+  it('solo 1744 con % >= 100 omite el tope', () => {
+    expect(omiteTopeInternas('1744', 100)).toBe(true)
+    expect(omiteTopeInternas('1744', 80)).toBe(false)
+    expect(omiteTopeInternas('1795', 100)).toBe(false)
+    expect(omiteTopeInternas(null, 100)).toBe(false)
   })
 })

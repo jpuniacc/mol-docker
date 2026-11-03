@@ -73,6 +73,29 @@ describe('cuenta Webpay', () => {
     expect(restaurado.planCuentaWebpay?.descuentos[0]?.codben).toBe('1756')
   })
 
+  it('persiste el plan con arancel $0 cubierto', () => {
+    const store = useMatriculaAlumnoContextStore()
+    store.guardarPlanCuentaWebpay({
+      contrato: '20271PSIC1VR1',
+      fechaInicio: '2026-11-03',
+      caja: 997,
+      montoMatricula: 200000,
+      montoArancel: 0,
+      descuentos: [
+        {
+          codben: '1744',
+          documento: '90121412985',
+          monto: 4550000,
+          porc: 100,
+          montoSolicitado: 4550000,
+          concepto: 'arancel',
+        },
+      ],
+    })
+    expect(store.planCuentaWebpay?.montoArancel).toBe(0)
+    expect(store.planCuentaWebpay?.descuentos[0]?.codben).toBe('1744')
+  })
+
   it('olvida el plan si una tarjeta deja de estar autorizada', () => {
     const store = useMatriculaAlumnoContextStore()
     store.guardarPlanCuentaWebpay({

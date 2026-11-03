@@ -80,6 +80,33 @@ describe('armarGrabarCuentaWebpay', () => {
     ])
   })
 
+  it('acepta arancel $0 cubierto sin medio de arancel', () => {
+    const armado = armarGrabarCuentaWebpay({
+      ...base,
+      montoArancel: 0,
+      descuentos: [
+        {
+          concepto: 'arancel',
+          documento: '90121412985',
+          tipoDocumento: 'BECAS INTERNAS ASIGNADAS',
+          descripcion: 'Beca Talento',
+          detalle: 'BECAS INTERNAS ASIGNADAS',
+          monto: 4_550_000,
+          vencimiento: '29/12/2027',
+          codben: '1744',
+          porc: 100,
+          montoSolicitado: 4_550_000,
+        },
+      ],
+    })
+    expect(armado.ok).toBe(true)
+    if (!armado.ok) return
+    expect(armado.payload.montoArancel).toBe(0)
+    expect(armado.payload.medioMatricula).toBe('webpay')
+    expect(armado.payload.medioArancel).toBeUndefined()
+    expect(armado.payload.beneficios?.[0]?.codben).toBe(1744)
+  })
+
   it('rechaza un beneficio con monto si no trae CODBEN o folio', () => {
     const sinCodigo = armarGrabarCuentaWebpay({
       ...base,

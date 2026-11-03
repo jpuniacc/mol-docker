@@ -1,4 +1,6 @@
 export const CODIGO_APOYO_UNIACC = '1756'
+/** Beca Talento Presencial: al 100 % efectivo omite el tope del 70 % de internas. */
+export const CODIGO_TALENTO_PRESENCIAL = '1744'
 export const TOPE_INTERNAS = 0.7
 
 export type FlujoPrelacion =
@@ -43,6 +45,18 @@ export type PrelacionArancelResultado = {
 
 function normCod(valor: string): string {
   return valor.trim().toUpperCase()
+}
+
+/**
+ * True si la interna no debe recortarse al tope del 70 %.
+ * Solo `1744` con porcentaje efectivo ≥ 100 (escala 0–100).
+ */
+export function omiteTopeInternas(
+  codigo: string | null | undefined,
+  porcEfectivoPct: number,
+): boolean {
+  if (normCod(codigo ?? '') !== CODIGO_TALENTO_PRESENCIAL) return false
+  return Number.isFinite(porcEfectivoPct) && porcEfectivoPct >= 100
 }
 
 function esApoyo(codigo: string): boolean {
@@ -166,12 +180,18 @@ export function aplicarPrelacionArancel(input: {
   for (const index of elegidas) aplicarEn(index, 'INTERNA')
 
   const topeInternas = Math.round(arancelBruto * TOPE_INTERNAS)
-  if (descuentoInterna > topeInternas) {
-    recorteTope += descuentoInterna - topeInternas
-    saldo += descuentoInterna - topeInternas
-    descuentoInterna = topeInternas
-    let restante = recorteTope
-    for (const index of [...elegidas].reverse()) {
+  const elegidasSujetas = elegidas.filter(
+    (index) => !omiteTopeInternas(items[index].codigo, enriched[index].porc * 100),
+  )
+  const descuentoSujeto = elegidasSujetas.reduce((sum, index) => sum + items[index].monto, 0)
+  const descuentoExento = descuentoInterna - descuentoSujeto
+  if (descuentoSujeto > topeInternas) {
+    const corteTotal = descuentoSujeto - topeInternas
+    recorteTope += corteTotal
+    saldo += corteTotal
+    descuentoInterna = descuentoExento + topeInternas
+    let restante = corteTotal
+    for (const index of [...elegidasSujetas].reverse()) {
       if (restante <= 0) break
       const corte = Math.min(items[index].monto, restante)
       items[index] = { ...items[index], monto: items[index].monto - corte }

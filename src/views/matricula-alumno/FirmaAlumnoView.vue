@@ -350,13 +350,16 @@ function abrirFirma(email: string): void {
   }
 }
 
-const ambosWebpay = computed(
-  () =>
-    alumnoCtx.medioMatricula === 'webpay' &&
-    alumnoCtx.webpayMatriculaEstado === 'autorizada' &&
-    alumnoCtx.medioArancel === 'webpay' &&
-    alumnoCtx.webpayArancelEstado === 'autorizada',
-)
+/** Cuenta Webpay lista para grabar antes de firmar: dos Webpay, o matrícula Webpay con arancel $0. */
+const ambosWebpay = computed(() => {
+  const matriculaOk =
+    alumnoCtx.medioMatricula === 'webpay' && alumnoCtx.webpayMatriculaEstado === 'autorizada'
+  if (!matriculaOk) return false
+  if (alumnoCtx.medioArancel === 'webpay' && alumnoCtx.webpayArancelEstado === 'autorizada') {
+    return true
+  }
+  return alumnoCtx.medioArancel == null && alumnoCtx.webpayMontoArancel === 0
+})
 
 // Tras Transbank la SPA recarga y el preflight queda vacío. Se pide igual que en la forma de pago.
 async function asegurarPreflightWebpay(): Promise<string | null> {
@@ -458,6 +461,10 @@ async function grabarCuentaWebpay(cerrarFicha: boolean): Promise<boolean> {
       concepto: beneficio.concepto === 'M' ? 'matricula' : 'arancel',
     })),
   })
+  if (alumnoCtx.planCuentaWebpay == null) {
+    errorGrabacion.value = 'No se pudo persistir el plan de la cuenta Webpay.'
+    return false
+  }
   const planGuardado = await alumnoCtx.flushBorrador()
   if (!planGuardado) {
     errorGrabacion.value = 'No se pudo guardar el plan de la cuenta.'

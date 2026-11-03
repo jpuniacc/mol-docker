@@ -1,4 +1,8 @@
-import { CODIGO_APOYO_UNIACC, TOPE_INTERNAS } from '@/utils/prelacionArancel'
+import {
+  CODIGO_APOYO_UNIACC,
+  TOPE_INTERNAS,
+  omiteTopeInternas,
+} from '@/utils/prelacionArancel'
 import {
   disminuirArt13,
   exigeMedicionPromedio,
@@ -137,9 +141,12 @@ export function filasBeneficioConPromedio(input: {
   }
 
   const tope = Math.round(Math.max(0, input.arancelBruto) * TOPE_INTERNAS)
-  let exceso = internas.reduce((sum, fila) => sum + fila.monto, 0) - tope
+  const internasSujetas = internas.filter(
+    (fila) => !omiteTopeInternas(fila.codigo, fila.porcAplica ?? 0),
+  )
+  let exceso = internasSujetas.reduce((sum, fila) => sum + fila.monto, 0) - tope
   if (exceso > 0) {
-    for (const fila of [...internas].reverse()) {
+    for (const fila of [...internasSujetas].reverse()) {
       if (exceso <= 0) break
       const corte = Math.min(fila.monto, exceso)
       fila.monto -= corte

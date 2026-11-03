@@ -26,6 +26,8 @@ export type SenalesPagoAlumno = {
   medioArancel?: MedioElegido | null
   webpayMatriculaEstado?: string | null
   webpayArancelEstado?: string | null
+  /** Neto arancel; si ≤ 0 no se exige medio de arancel. */
+  arancelPorPagar?: number | null
 }
 
 /** La forma de pago quedó hecha: pagaré, las dos Webpay autorizadas, o ya se envió a firmar. */
@@ -42,6 +44,7 @@ export function pagoFormaListo(ctx: SenalesPagoAlumno): boolean {
       matriculaAutorizada: ctx.webpayMatriculaEstado === 'autorizada',
       arancelAutorizado: ctx.webpayArancelEstado === 'autorizada',
       planListo: ctx.pagoMatricula != null,
+      arancelPorPagar: ctx.arancelPorPagar,
     }).tipo === 'firma'
   )
 }
@@ -57,6 +60,7 @@ export function pasoMaximoAlumno(ctx: {
   medioArancel?: MedioElegido | null
   webpayMatriculaEstado?: string | null
   webpayArancelEstado?: string | null
+  arancelPorPagar?: number | null
 }): number {
   let paso = ctx.pasoAlcanzado
   if (ctx.discapacidad != null) paso = Math.max(paso, 2)
@@ -141,6 +145,8 @@ export type AvanceHomeAlumnoInput = {
   medioArancel?: 'webpay' | 'pagare' | null
   webpayMatriculaEstado?: string | null
   webpayArancelEstado?: string | null
+  /** Neto arancel; si ≤ 0 no se exige medio de arancel. */
+  arancelPorPagar?: number | null
 }
 
 export type CtaAvanceHome = {

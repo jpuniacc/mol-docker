@@ -52,6 +52,7 @@ const avance = computed(() =>
     medioArancel: alumnoCtx.medioArancel,
     webpayMatriculaEstado: alumnoCtx.webpayMatriculaEstado,
     webpayArancelEstado: alumnoCtx.webpayArancelEstado,
+    arancelPorPagar: alumnoCtx.webpayMontoArancel,
   }),
 )
 

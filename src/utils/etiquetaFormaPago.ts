@@ -12,12 +12,18 @@ export function etiquetaFormaPago(input: {
   medioMatricula: MedioConcepto
   medioArancel: MedioConcepto
   formaPagoSeleccionada: FormaPago
+  /** Neto de arancel; 0 = cubierto por beneficios, no exige medio. */
+  arancelPorPagar?: number | null
 }): string {
   const matricula = input.medioMatricula
   const arancel = input.medioArancel
   if (matricula && arancel) {
     if (matricula === arancel) return ETIQUETA[matricula]
     return 'WebPay y pagaré'
+  }
+  // Matrícula elegida y arancel $0 (beca 100 %): solo cuenta el medio de matrícula.
+  if (matricula && arancel == null && (input.arancelPorPagar ?? 0) <= 0) {
+    return ETIQUETA[matricula]
   }
   const unica = input.formaPagoSeleccionada
   if (!unica) return 'No seleccionada'

@@ -103,6 +103,7 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
     matriculaAutorizada: alumnoCtx.webpayMatriculaEstado === 'autorizada',
     arancelAutorizado: alumnoCtx.webpayArancelEstado === 'autorizada',
     planListo: alumnoCtx.pagoMatricula != null,
+    arancelPorPagar: alumnoCtx.webpayMontoArancel,
   })
 
   if (paso.tipo === 'webpay') {

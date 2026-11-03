@@ -52,4 +52,23 @@ describe('etiquetaFormaPago', () => {
       }),
     ).toBe('No seleccionada')
   })
+
+  it('con arancel $0 muestra solo el medio de matrícula', () => {
+    expect(
+      etiquetaFormaPago({
+        medioMatricula: 'webpay',
+        medioArancel: null,
+        formaPagoSeleccionada: null,
+        arancelPorPagar: 0,
+      }),
+    ).toBe('WebPay')
+    expect(
+      etiquetaFormaPago({
+        medioMatricula: 'pagare',
+        medioArancel: null,
+        formaPagoSeleccionada: null,
+        arancelPorPagar: 0,
+      }),
+    ).toBe('Pagaré')
+  })
 })

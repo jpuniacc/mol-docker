@@ -66,14 +66,13 @@ export function armarGrabarCuentaWebpay(input: GrabarCuentaWebpayInput): ArmadoC
     return { ok: false, error: 'Falta el periodo académico para grabar el plan' }
   }
   const { montoMatricula, montoArancel } = input
-  if (
-    !Number.isInteger(montoMatricula) ||
-    montoMatricula <= 0 ||
-    !Number.isInteger(montoArancel) ||
-    montoArancel <= 0
-  ) {
-    return { ok: false, error: 'Falta el saldo de matrícula o de arancel' }
+  if (!Number.isInteger(montoMatricula) || montoMatricula <= 0) {
+    return { ok: false, error: 'Falta el saldo de matrícula' }
   }
+  if (!Number.isInteger(montoArancel) || montoArancel < 0) {
+    return { ok: false, error: 'Falta el saldo de arancel' }
+  }
+  const arancelCubierto = montoArancel === 0
   const beneficios = beneficiosDeLaCuenta(input.descuentos)
   if (!beneficios.ok) return beneficios
   const caja = input.caja != null && input.caja > 0 ? input.caja : 997
@@ -96,7 +95,7 @@ export function armarGrabarCuentaWebpay(input: GrabarCuentaWebpayInput): ArmadoC
       corrpagArancel: '0',
       beneficios: beneficios.beneficios,
       medioMatricula: 'webpay',
-      medioArancel: 'webpay',
+      ...(arancelCubierto ? {} : { medioArancel: 'webpay' as const }),
       cerrarFicha: input.cerrarFicha,
     },
   }

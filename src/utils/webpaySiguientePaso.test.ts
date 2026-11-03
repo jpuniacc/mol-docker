@@ -85,6 +85,7 @@ describe('siguientePaso', () => {
         medioMatricula: 'webpay',
         medioArancel: null,
         matriculaAutorizada: true,
+        arancelPorPagar: 1_000_000,
       }),
     ).toEqual({ tipo: 'elegir-arancel' })
   })
@@ -95,7 +96,31 @@ describe('siguientePaso', () => {
         ...base,
         medioMatricula: 'webpay',
         medioArancel: null,
+        arancelPorPagar: 1_000_000,
       }),
     ).toEqual({ tipo: 'webpay', concepto: 'matricula' })
+  })
+
+  it('arancel $0 con matrícula pagaré arma solo el plan de matrícula', () => {
+    expect(
+      siguientePaso({
+        ...base,
+        medioMatricula: 'pagare',
+        medioArancel: null,
+        arancelPorPagar: 0,
+      }),
+    ).toEqual({ tipo: 'flujo-pagare' })
+  })
+
+  it('arancel $0 con matrícula Webpay autorizada va a firma', () => {
+    expect(
+      siguientePaso({
+        ...base,
+        medioMatricula: 'webpay',
+        medioArancel: null,
+        matriculaAutorizada: true,
+        arancelPorPagar: 0,
+      }),
+    ).toEqual({ tipo: 'firma' })
   })
 })

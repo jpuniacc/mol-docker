@@ -1166,6 +1166,7 @@ async function continuarSelectorMedios() {
     matriculaAutorizada: alumnoCtx.webpayMatriculaEstado === 'autorizada',
     arancelAutorizado: alumnoCtx.webpayArancelEstado === 'autorizada',
     planListo: false,
+    arancelPorPagar: alumnoCtx.webpayMontoArancel,
   })
 
   if (paso.tipo === 'flujo-pagare' || paso.tipo === 'plan-pagare') {

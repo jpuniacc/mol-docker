@@ -73,6 +73,70 @@ describe('filasBeneficioConPromedio', () => {
     expect(apoyo).toMatchObject({ monto: 200_000, recortadoTope: true })
   })
 
+  it('1744 al 100 % no se recorta por el tope del 70 %', () => {
+    const filas = filasBeneficioConPromedio({
+      items: [
+        {
+          slot: 1,
+          descripcion: 'Beca Talento Presencial',
+          cod_beneficio: '1744',
+          pct: 100,
+          sinMapear: false,
+          aplica: true,
+          flujo: 'MOL_DVU',
+        },
+      ],
+      catalogo: [
+        {
+          codigo_beneficio: '1744',
+          flujo: 'MOL_DVU',
+          renovable: 'RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR',
+        },
+      ],
+      seleccionados: { 1: true },
+      arancelBruto: 1_000_000,
+      promedio: 6.1,
+    })
+    expect(filas[0]).toMatchObject({
+      codigo: '1744',
+      porcAplica: 100,
+      monto: 1_000_000,
+      recortadoTope: false,
+    })
+  })
+
+  it('1744 al 80 % sigue recortándose al 70 %', () => {
+    const filas = filasBeneficioConPromedio({
+      items: [
+        {
+          slot: 1,
+          descripcion: 'Beca Talento Presencial',
+          cod_beneficio: '1744',
+          pct: 80,
+          sinMapear: false,
+          aplica: true,
+          flujo: 'MOL_DVU',
+        },
+      ],
+      catalogo: [
+        {
+          codigo_beneficio: '1744',
+          flujo: 'MOL_DVU',
+          renovable: 'RENOVACION / PROMEDIO GENERAL 5.5 O SUPERIOR',
+        },
+      ],
+      seleccionados: { 1: true },
+      arancelBruto: 1_000_000,
+      promedio: 6.1,
+    })
+    expect(filas[0]).toMatchObject({
+      codigo: '1744',
+      porcAplica: 80,
+      monto: 700_000,
+      recortadoTope: true,
+    })
+  })
+
   it('aplica la beca estatal sobre el arancel antes que la interna', () => {
     const filas = filasBeneficioConPromedio({
       items: [

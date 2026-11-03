@@ -43,6 +43,7 @@ const formaPagoLabel = (): string =>
     medioMatricula: alumnoCtx.medioMatricula,
     medioArancel: alumnoCtx.medioArancel,
     formaPagoSeleccionada: alumnoCtx.formaPagoSeleccionada,
+    arancelPorPagar: alumnoCtx.webpayMontoArancel,
   })
 
 type LineaPlan = {

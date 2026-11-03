@@ -272,11 +272,14 @@ function totalCuotasActual(): 12 | 10 {
   return pagareTotalCuotas.value === '12' ? 12 : 10
 }
 
+const arancelPorPagarSelector = computed(() => montoNetoArancel())
+
 const puedeContinuarSelectorMedios = computed(() =>
   puedeContinuar({
     medioMatricula: medioPagoMatricula.value,
     medioArancel: medioPagoArancel.value,
     matriculaAutorizada: matriculaPagadaWebpay.value,
+    arancelPorPagar: arancelPorPagarSelector.value,
   }),
 )
 
@@ -1327,7 +1330,8 @@ function prepararSelectorMedios(): void {
   avisoWebpay.value = ''
   pagoMatriculaPaso.value = 'selector'
   medioPagoMatricula.value = medioInicialMatricula()
-  medioPagoArancel.value = medioInicialArancel()
+  medioPagoArancel.value = montoNetoArancel() <= 0 ? null : medioInicialArancel()
+  arancelMedioAbierto.value = montoNetoArancel() <= 0
   pagareDiaVencimiento.value = '5'
   pagareTotalCuotas.value = '12'
   sincronizarFechaInicioConDiaVencimiento()
@@ -1408,11 +1412,15 @@ function onPagoMatriculaDialogOpenChange(open: boolean) {
 }
 
 function persistirMediosYMontosWebpay(): void {
+  const arancelNeto = montoNetoArancel()
+  if (arancelNeto <= 0) {
+    medioPagoArancel.value = null
+  }
   alumnoCtx.setMedioMatricula(medioPagoMatricula.value)
-  alumnoCtx.setMedioArancel(medioPagoArancel.value)
+  alumnoCtx.setMedioArancel(arancelNeto <= 0 ? null : medioPagoArancel.value)
   alumnoCtx.setWebpayMontoMatricula(montoNetoMatricula())
   // Saldo antes del 5 %. El contrato y la cuenta calculan el descuento sobre este monto.
-  alumnoCtx.setWebpayMontoArancel(montoNetoArancel())
+  alumnoCtx.setWebpayMontoArancel(arancelNeto)
   alumnoCtx.setDatosContratoWebpay({
     valorMatriculaBruto: montoBrutoMatricula(),
     valorArancelBruto: montoBrutoArancel(),
@@ -1582,7 +1590,14 @@ async function abrirPlanSiVieneDeWebpay(): Promise<void> {
   }
   const plan = route.query.plan
   if (plan !== 'matricula' && plan !== 'arancel') {
-    if (matriculaPagadaWebpay.value && alumnoCtx.medioArancel == null && pagoMatricula.value == null) {
+    const arancelPendiente =
+      (alumnoCtx.webpayMontoArancel ?? montoNetoArancel()) > 0
+    if (
+      matriculaPagadaWebpay.value &&
+      alumnoCtx.medioArancel == null &&
+      pagoMatricula.value == null &&
+      arancelPendiente
+    ) {
       prepararSelectorMedios()
       pagoMatriculaDialogOpen.value = true
     }
@@ -1590,7 +1605,9 @@ async function abrirPlanSiVieneDeWebpay(): Promise<void> {
   }
   const medioMat = alumnoCtx.medioMatricula
   const medioAra = alumnoCtx.medioArancel
-  if (medioMat == null || medioAra == null) return
+  const arancelNeto = alumnoCtx.webpayMontoArancel ?? montoNetoArancel()
+  if (medioMat == null) return
+  if (medioAra == null && arancelNeto > 0) return
   medioPagoMatricula.value = medioMat
   medioPagoArancel.value = medioAra
   pagareDiaVencimiento.value = '5'
@@ -1604,17 +1621,22 @@ async function continuarSelectorMedios() {
     return
   }
   const medioMat = medioPagoMatricula.value
+  const arancelNeto = montoNetoArancel()
+  const arancelCero = arancelNeto <= 0
+  if (arancelCero) medioPagoArancel.value = null
   const medioAra = medioPagoArancel.value
-  if (medioMat == null || medioAra == null) return
+  if (medioMat == null) return
+  if (!arancelCero && medioAra == null) return
 
   persistirMediosYMontosWebpay()
 
   const paso = siguientePaso({
     medioMatricula: medioMat,
-    medioArancel: medioAra,
+    medioArancel: arancelCero ? null : medioAra,
     matriculaAutorizada: alumnoCtx.webpayMatriculaEstado === 'autorizada',
     arancelAutorizado: alumnoCtx.webpayArancelEstado === 'autorizada',
     planListo: false,
+    arancelPorPagar: arancelNeto,
   })
 
   if (paso.tipo === 'flujo-pagare' || paso.tipo === 'plan-pagare') {
@@ -1740,15 +1762,19 @@ async function confirmarPagareMatricula() {
   alumnoCtx.marcarPasoAlcanzado(3)
   toast.success('Plan de pagos confirmado. Continúa con el contrato.')
   const medioMat = medioPagoMatricula.value ?? alumnoCtx.medioMatricula
-  const medioAra = medioPagoArancel.value ?? alumnoCtx.medioArancel
+  const arancelNeto = montoNetoArancel()
+  const medioAra =
+    arancelNeto <= 0 ? null : (medioPagoArancel.value ?? alumnoCtx.medioArancel)
   cerrarPagoMatriculaDialog()
-  if (medioMat == null || medioAra == null) return
+  if (medioMat == null) return
+  if (arancelNeto > 0 && medioAra == null) return
   const paso = siguientePaso({
     medioMatricula: medioMat,
     medioArancel: medioAra,
     matriculaAutorizada: alumnoCtx.webpayMatriculaEstado === 'autorizada',
     arancelAutorizado: alumnoCtx.webpayArancelEstado === 'autorizada',
     planListo: true,
+    arancelPorPagar: arancelNeto,
   })
   if (paso.tipo === 'firma') {
     alumnoCtx.marcarPasoAlcanzado(3)
@@ -2515,6 +2541,14 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
               </button>
               <div id="panel-medio-arancel" :class="clasePanelMedio(arancelMedioAbierto)">
               <p
+                v-if="arancelPorPagarSelector <= 0"
+                class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-900"
+              >
+                Cubierto por tus beneficios ·
+                <span class="font-semibold tabular-nums">{{ fmt(0) }}</span>
+              </p>
+              <template v-else>
+              <p
                 v-if="descuentoFormaPagoArancel(montoNetoArancel()) > 0"
                 class="flex items-center gap-1.5 text-sm text-emerald-700"
               >
@@ -2583,6 +2617,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
                 </span>
               </button>
               </div>
+              </template>
               </div>
             </section>
 

@@ -20,7 +20,8 @@ export type ContratoMatriculaViewModelConMedio = ContratoMatriculaViewModel & {
 
 export function bloquesContrato(input: {
   medioMatricula: 'pagare' | 'webpay'
-  medioArancel: 'pagare' | 'webpay'
+  /** null = arancel cubierto (neto $0), sin cuotas ni Webpay. */
+  medioArancel: 'pagare' | 'webpay' | null
   descuentoFormaPagoArancel: number
   montoWebpayMatricula: number
   montoWebpayArancel: number

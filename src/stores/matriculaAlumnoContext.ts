@@ -135,8 +135,9 @@ function numOperacionPersistido(v: unknown): string | null {
   return /^\d+$/.test(t) ? t : null
 }
 
-function montoWebpayPersistido(v: unknown): number | null {
-  if (typeof v !== 'number' || !Number.isInteger(v) || v <= 0) return null
+function montoWebpayPersistido(v: unknown, opts?: { allowZero?: boolean }): number | null {
+  if (typeof v !== 'number' || !Number.isInteger(v)) return null
+  if (opts?.allowZero ? v < 0 : v <= 0) return null
   return v
 }
 
@@ -197,7 +198,7 @@ function planCuentaWebpayPersistido(v: unknown): PlanCuentaWebpayPersistido | nu
     plan.montoMatricula <= 0 ||
     typeof plan.montoArancel !== 'number' ||
     !Number.isInteger(plan.montoArancel) ||
-    plan.montoArancel <= 0
+    plan.montoArancel < 0
   ) {
     return null
   }
@@ -494,7 +495,9 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
             : null
         this.webpayMontoMatricula = montoWebpayPersistido(parsed.webpayMontoMatricula)
         this.numOperacionCuenta = numOperacionPersistido(parsed.numOperacionCuenta)
-        this.webpayMontoArancel = montoWebpayPersistido(parsed.webpayMontoArancel)
+        this.webpayMontoArancel = montoWebpayPersistido(parsed.webpayMontoArancel, {
+          allowZero: true,
+        })
         this.valorMatriculaBruto = montoWebpayPersistido(parsed.valorMatriculaBruto)
         this.valorArancelBruto = montoWebpayPersistido(parsed.valorArancelBruto)
         this.descuentosContrato = descuentosContratoPersistidos(parsed.descuentosContrato)
@@ -754,7 +757,7 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
     },
 
     setWebpayMontoArancel(monto: number | null) {
-      this.webpayMontoArancel = montoWebpayPersistido(monto)
+      this.webpayMontoArancel = montoWebpayPersistido(monto, { allowZero: true })
       this.persistToSessionStorage()
     },
 
