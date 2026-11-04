@@ -3,13 +3,17 @@ import { defineStore } from 'pinia'
 import type { MvUsuarioRow } from '@/types/supabase'
 
 import { guardarAvisoArancelDiferenciado } from '@/constants/arancelDiferenciado'
-import { guardarAvisoSubdere } from '@/constants/carteraOficial'
+import {
+  guardarAvisoMatriculaBackoffice,
+  guardarAvisoSubdere,
+} from '@/constants/carteraOficial'
 import {
   registrarIntentoArancelDiferenciado,
   registrarIntentoNoVigente,
   registrarIntentoSubdere,
 } from '@/services/accesoNoVigenteApi'
 import type { LoginSuccess } from '@/services/auth'
+import { consultarMatriculaCarteraCanalBo } from '@/services/matriculaCarteraCanalApi'
 import { supabase } from '@/services/supabaseClient'
 import { cerrarLogSesion, iniciarLogSesion } from '@/services/sessionLog'
 import { useDashboardMenuStore } from './dashboardMenu'
@@ -18,6 +22,7 @@ import { useContactoOtpConfigStore } from './contactoOtpConfig'
 import { useMockContactoOtpUiStore } from './mockContactoOtpUi'
 import { useMockMatriculaContextStore } from './mockMatriculaContext'
 import { useMatriculaAlumnoContextStore } from './matriculaAlumnoContext'
+import { usePeriodoActivoStore } from './periodoActivo'
 
 const STORAGE_KEY = 'rematricula-auth-session'
 
@@ -211,6 +216,19 @@ export const useAuthStore = defineStore('auth', {
             guardarAvisoSubdere()
             this.logout()
             return
+          }
+          const periodoActivo = usePeriodoActivoStore()
+          await periodoActivo.ensureLoaded()
+          const anio = periodoActivo.anio
+          const semestre = periodoActivo.semestre
+          const rutAlumno = datosMnp.filas[0]?.rut_alumno ?? null
+          if (anio != null && semestre != null && rutAlumno) {
+            const bo = await consultarMatriculaCarteraCanalBo(rutAlumno, anio, semestre)
+            if (bo.bloqueado) {
+              guardarAvisoMatriculaBackoffice()
+              this.logout()
+              return
+            }
           }
           if (datosMnp.accesoBloqueadoNoVigente) {
             const filas = [...datosMnp.filas]

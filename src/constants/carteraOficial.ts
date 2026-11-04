@@ -19,7 +19,13 @@ export const TITULO_BECA_SUBDERE = 'No es posible continuar con tu proceso de re
 export const MSG_BECA_SUBDERE =
   'El estado de tu beneficio SUBDERE requiere revisión antes de continuar con la rematrícula. Para solicitar orientación, ingresa al Portal de Solicitudes UNIACC'
 
+export const TITULO_MATRICULA_BACKOFFICE = 'Ya te encuentras matriculado'
+
+export const MSG_MATRICULA_BACKOFFICE =
+  'Tu proceso de rematrícula fue realizado por Backoffice y ya te encuentras matriculado.'
+
 const AVISO_SESION_SUBDERE = 'rematricula-bloqueo-subdere'
+const AVISO_SESION_MATRICULA_BO = 'rematricula-bloqueo-matricula-bo'
 
 export function guardarAvisoSubdere(): void {
   sessionStorage.setItem(AVISO_SESION_SUBDERE, '1')
@@ -28,6 +34,16 @@ export function guardarAvisoSubdere(): void {
 export function tomarAvisoSubdere(): boolean {
   if (sessionStorage.getItem(AVISO_SESION_SUBDERE) !== '1') return false
   sessionStorage.removeItem(AVISO_SESION_SUBDERE)
+  return true
+}
+
+export function guardarAvisoMatriculaBackoffice(): void {
+  sessionStorage.setItem(AVISO_SESION_MATRICULA_BO, '1')
+}
+
+export function tomarAvisoMatriculaBackoffice(): boolean {
+  if (sessionStorage.getItem(AVISO_SESION_MATRICULA_BO) !== '1') return false
+  sessionStorage.removeItem(AVISO_SESION_MATRICULA_BO)
   return true
 }
 

@@ -27,6 +27,10 @@ import {
   mapaFecMatPorCodcli,
 } from '@/services/fecMatRematriculaApi'
 import {
+  fetchKpiMatriculaCarteraCanal,
+  type KpiMatriculaCarteraCanal,
+} from '@/services/matriculaCarteraCanalApi'
+import {
   fetchKpiProgresoRematricula,
   listarProgresoRematricula,
   listarTimelineMolAlumno,
@@ -84,6 +88,14 @@ const FILAS_POR_PAGINA = 40
 const loading = ref(false)
 const refreshing = ref(false)
 const kpi = ref<KpiProgresoRematricula | null>(null)
+const kpiCanal = ref<KpiMatriculaCarteraCanal | null>(null)
+
+function fmtSyncedAtCanal(iso: string | null): string {
+  if (!iso) return 'Sin sincronizar'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return 'Sin sincronizar'
+  return d.toLocaleString('es-CL', { timeZone: 'America/Santiago' })
+}
 const etapaAbierta = ref<EtapaProgresoRematricula | null>(null)
 const alumnosPorEtapa = ref<Partial<Record<EtapaProgresoRematricula, MnpProgresoRematriculaRow[]>>>({})
 /** FEC_MAT U+ (solo etapa matriculado). */
@@ -292,15 +304,23 @@ async function cargarKpi() {
   
   loading.value = true
   try {
-    const { data, error } = await fetchKpiProgresoRematricula(
-      periodoActivo.anio!,
-      periodoActivo.semestre!
-    )
-    if (error) {
-      mostrarErrorRematricula(`Error al cargar KPI: ${error}`)
+    const anio = periodoActivo.anio!
+    const semestre = periodoActivo.semestre!
+    const [progreso, canal] = await Promise.all([
+      fetchKpiProgresoRematricula(anio, semestre),
+      fetchKpiMatriculaCarteraCanal(anio, semestre),
+    ])
+    if (progreso.error) {
+      mostrarErrorRematricula(`Error al cargar KPI: ${progreso.error}`)
       return
     }
-    kpi.value = data
+    kpi.value = progreso.data
+    if (canal.error) {
+      console.warn('[kpi] canal matrícula cartera:', canal.error)
+      kpiCanal.value = { total: 0, por_mol: 0, por_bo: 0, synced_at: null }
+    } else {
+      kpiCanal.value = canal.data
+    }
   } finally {
     loading.value = false
   }
@@ -383,16 +403,40 @@ onMounted(async () => {
         </CardHeader>
       </Card>
 
-      <Card class="overflow-hidden border-emerald-600/30">
+      <Card class="overflow-hidden border-emerald-600/30 md:col-span-1">
         <div class="h-1.5 bg-emerald-600" aria-hidden="true" />
-        <CardHeader class="flex-row items-center gap-4">
-          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600/10 text-emerald-700">
-            <GraduationCap class="h-5 w-5" aria-hidden="true" />
+        <CardHeader class="space-y-3">
+          <div class="flex flex-row items-center gap-4">
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600/10 text-emerald-700">
+              <GraduationCap class="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div class="min-w-0">
+              <CardTitle class="text-3xl tabular-nums text-zinc-900">
+                {{ kpiCanal?.total ?? 0 }}
+              </CardTitle>
+              <CardDescription>Total matriculados cartera</CardDescription>
+            </div>
           </div>
-          <div class="min-w-0">
-            <CardTitle class="text-3xl tabular-nums text-zinc-900">{{ kpi.matriculado ?? 0 }}</CardTitle>
-            <CardDescription>Cantidad de alumnos matriculados</CardDescription>
+          <div class="grid grid-cols-2 gap-3 text-sm">
+            <div class="rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2">
+              <p class="text-xs text-muted-foreground">Por MOL</p>
+              <p class="text-xl font-semibold tabular-nums text-emerald-800">
+                {{ kpiCanal?.por_mol ?? 0 }}
+              </p>
+            </div>
+            <div class="rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2">
+              <p class="text-xs text-muted-foreground">Por BO</p>
+              <p class="text-xl font-semibold tabular-nums text-amber-900">
+                {{ kpiCanal?.por_bo ?? 0 }}
+              </p>
+            </div>
           </div>
+          <p class="text-xs text-muted-foreground">
+            Actualizado {{ fmtSyncedAtCanal(kpiCanal?.synced_at ?? null) }}
+          </p>
+          <p class="text-xs text-muted-foreground">
+            Embudo MOL (etapa matriculado): {{ kpi.matriculado ?? 0 }}
+          </p>
         </CardHeader>
       </Card>
 

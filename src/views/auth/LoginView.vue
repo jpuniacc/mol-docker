@@ -21,7 +21,10 @@ import {
 } from '@/constants/arancelDiferenciado'
 import {
   MSG_BECA_SUBDERE,
+  MSG_MATRICULA_BACKOFFICE,
   TITULO_BECA_SUBDERE,
+  TITULO_MATRICULA_BACKOFFICE,
+  tomarAvisoMatriculaBackoffice,
   tomarAvisoSubdere,
 } from '@/constants/carteraOficial'
 import {
@@ -81,6 +84,13 @@ function abrirAvisosDeBloqueo() {
     mostrarBloqueoIngreso({
       titulo: TITULO_BECA_SUBDERE,
       cuerpo: MSG_BECA_SUBDERE,
+    })
+    return
+  }
+  if (tomarAvisoMatriculaBackoffice()) {
+    mostrarBloqueoIngreso({
+      titulo: TITULO_MATRICULA_BACKOFFICE,
+      cuerpo: MSG_MATRICULA_BACKOFFICE,
     })
     return
   }

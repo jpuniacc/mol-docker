@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   MSG_BECA_SUBDERE,
+  MSG_MATRICULA_BACKOFFICE,
+  TITULO_MATRICULA_BACKOFFICE,
   MSG_DEUDA_PENDIENTE,
   MSG_FUERA_CARTERA_OFICIAL,
   TEXTO_ENLACE_PORTAL_SOLICITUDES,
@@ -43,5 +45,11 @@ describe('fueraCarteraDesdeEstado', () => {
     expect(
       fueraCarteraDesdeEstado({ carteraCargada: true, enCartera: true, excluidoMol: false }),
     ).toBe(false)
+  })
+
+  it('aviso matrícula Backoffice', () => {
+    expect(TITULO_MATRICULA_BACKOFFICE).toContain('matriculado')
+    expect(MSG_MATRICULA_BACKOFFICE).toContain('Backoffice')
+    expect(MSG_MATRICULA_BACKOFFICE).toContain('matriculado')
   })
 })
