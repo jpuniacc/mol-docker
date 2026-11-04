@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import {
   descuentoMatriculaAplicado,
+  descuentoMatriculaCambio,
   descuentoMatriculaParaPago,
   filaDescuentoMatriculaDelMes,
+  msHastaProximaMedianocheChile,
   type FilaDescuentoMatriculaMes,
 } from '@/utils/descuentoMatriculaMes'
 
@@ -93,7 +95,80 @@ const FILA_NOVIEMBRE: FilaDescuentoMatriculaMes = {
   reserva_hasta: '2027-03-15',
 }
 
+/** Catálogo prod 2027-1 (ids reales del mantenedor). */
+const FILAS_PROD_2027_1: FilaDescuentoMatriculaMes[] = [
+  {
+    id: 2,
+    nombre: 'Matricula Anticipada Noviembre',
+    periodo: '2027-1',
+    aplicable_a: 'MATRICULA',
+    monto_descuento: 50000,
+    activo: true,
+    vigencia_desde: '2026-11-01',
+    vigencia_hasta: '2026-11-30',
+    reserva_hasta: '2027-01-31',
+  },
+  {
+    id: 1,
+    nombre: 'Matricula Anticipada Diciembre',
+    periodo: '2027-1',
+    aplicable_a: 'MATRICULA',
+    monto_descuento: 25000,
+    activo: true,
+    vigencia_desde: '2026-12-01',
+    vigencia_hasta: '2026-12-31',
+    reserva_hasta: '2027-01-31',
+  },
+  {
+    id: 6,
+    nombre: 'Matricula Anticipada Enero',
+    periodo: '2027-1',
+    aplicable_a: 'MATRICULA',
+    monto_descuento: 25000,
+    activo: true,
+    vigencia_desde: '2027-01-01',
+    vigencia_hasta: '2027-01-10',
+    reserva_hasta: '2027-01-31',
+  },
+]
+
 describe('descuentoMatriculaParaPago', () => {
+  it('rollover sin reserva: mismo alumno nov $50.000 luego dic $25.000', () => {
+    const base = {
+      filas: FILAS_PROD_2027_1,
+      periodo: '2027-1',
+      tieneCae: false,
+      tieneBecaEstatal: false,
+      reserva: null,
+    }
+    expect(descuentoMatriculaParaPago({ ...base, hoy: '2026-11-20' })).toEqual({
+      nombre: 'Matricula Anticipada Noviembre',
+      monto: 50000,
+    })
+    expect(descuentoMatriculaParaPago({ ...base, hoy: '2026-12-01' })).toEqual({
+      nombre: 'Matricula Anticipada Diciembre',
+      monto: 25000,
+    })
+  })
+
+  it('con reserva CAE no hace rollover al pasar el mes', () => {
+    const reserva = {
+      descuentoId: 2,
+      nombre: 'Matricula Anticipada Noviembre',
+      monto: 50000,
+    }
+    expect(
+      descuentoMatriculaParaPago({
+        filas: FILAS_PROD_2027_1,
+        periodo: '2027-1',
+        hoy: '2026-12-15',
+        tieneCae: true,
+        tieneBecaEstatal: false,
+        reserva,
+      }),
+    ).toEqual({ nombre: 'Matricula Anticipada Noviembre', monto: 50000 })
+  })
+
   it('usa el monto reservado en enero aunque tenga CAE', () => {
     expect(
       descuentoMatriculaParaPago({
@@ -131,6 +206,47 @@ describe('descuentoMatriculaParaPago', () => {
         reserva: null,
       }),
     ).toBeNull()
+  })
+})
+
+describe('descuentoMatriculaCambio', () => {
+  it('detecta rollover nov→dic sin reserva', () => {
+    const base = {
+      filas: FILAS_PROD_2027_1,
+      periodo: '2027-1',
+      tieneCae: false,
+      tieneBecaEstatal: false,
+      reserva: null,
+    }
+    const nov = descuentoMatriculaParaPago({ ...base, hoy: '2026-11-30' })
+    const dic = descuentoMatriculaParaPago({ ...base, hoy: '2026-12-01' })
+    expect(descuentoMatriculaCambio(nov, dic)).toBe(true)
+  })
+
+  it('con reserva CAE nov→dic no reporta cambio', () => {
+    const reserva = {
+      descuentoId: 2,
+      nombre: 'Matricula Anticipada Noviembre',
+      monto: 50000,
+    }
+    const base = {
+      filas: FILAS_PROD_2027_1,
+      periodo: '2027-1',
+      tieneCae: true,
+      tieneBecaEstatal: false,
+      reserva,
+    }
+    const nov = descuentoMatriculaParaPago({ ...base, hoy: '2026-11-30' })
+    const dic = descuentoMatriculaParaPago({ ...base, hoy: '2026-12-01' })
+    expect(descuentoMatriculaCambio(nov, dic)).toBe(false)
+  })
+})
+
+describe('msHastaProximaMedianocheChile', () => {
+  it('devuelve al menos 1s y menos de 36h', () => {
+    const ms = msHastaProximaMedianocheChile(new Date('2026-11-30T15:00:00-03:00'))
+    expect(ms).toBeGreaterThanOrEqual(1000)
+    expect(ms).toBeLessThan(36 * 60 * 60 * 1000)
   })
 })
 

@@ -107,8 +107,10 @@ import type {
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import {
   descuentoMatriculaAplicado,
+  descuentoMatriculaCambio,
   fechaChileIso,
   FLUJO_DESCUENTO_MATRICULA,
+  msHastaProximaMedianocheChile,
   type ReservaDescuentoMatriculaAplicar,
 } from '@/utils/descuentoMatriculaMes'
 import {
@@ -390,6 +392,7 @@ async function asegurarPreflightPagare(force = false): Promise<boolean> {
 }
 
 async function generarCuotasPagare() {
+  if (syncHoyChileDescuento()) return
   const fecha = pagareFechaInicio.value
   const dia = diaVencimientoActual()
   const hoy = hoyIsoLocal()
@@ -589,11 +592,15 @@ const nombresBecaEstatal = computed(() => {
   return texto ? [texto] : []
 })
 
+/** Día Chile que alimenta el catálogo; se invalida al cruzar medianoche o al re-enfocar. */
+const hoyChileIso = ref(fechaChileIso())
+let timerMedianocheChile: ReturnType<typeof setTimeout> | null = null
+
 const descuentoMatriculaAplicadoConFila = computed(() =>
   descuentoMatriculaAplicado({
     filas: descuentosMatriculaCatalogo.value,
     periodo: periodoActivoLabel.value ?? '',
-    hoy: fechaChileIso(),
+    hoy: hoyChileIso.value,
     tieneCae: requiereCae.value,
     tieneBecaEstatal: esperaConsolidado.value.ministerial,
     reserva: reservaMatricula.value,
@@ -603,6 +610,47 @@ const descuentoMatriculaAplicadoConFila = computed(() =>
 const descuentoMatriculaMes = computed(
   () => descuentoMatriculaAplicadoConFila.value?.descuento ?? null,
 )
+
+const TOAST_DESCUENTO_MATRICULA_ACTUALIZADO =
+  'El descuento de matrícula se actualizó. Revisá el monto a pagar.'
+
+/**
+ * Si el calendario Chile cambió, actualiza montos. Devuelve true si el descuento
+ * (nombre/monto) cambió — la UI ya muestra el valor nuevo; el caller puede abortar.
+ */
+function syncHoyChileDescuento(): boolean {
+  const ahora = fechaChileIso()
+  if (ahora === hoyChileIso.value) return false
+  const antes = descuentoMatriculaMes.value
+  hoyChileIso.value = ahora
+  const despues = descuentoMatriculaMes.value
+  const cambio = descuentoMatriculaCambio(antes, despues)
+  if (cambio) toast.info(TOAST_DESCUENTO_MATRICULA_ACTUALIZADO)
+  return cambio
+}
+
+function programarSyncMedianocheChile(): void {
+  if (timerMedianocheChile != null) clearTimeout(timerMedianocheChile)
+  timerMedianocheChile = setTimeout(() => {
+    timerMedianocheChile = null
+    syncHoyChileDescuento()
+    programarSyncMedianocheChile()
+  }, msHastaProximaMedianocheChile())
+}
+
+function onVisibilidadOFocusDescuentoMatricula(): void {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+  syncHoyChileDescuento()
+}
+
+function limpiarSyncHoyChileDescuento(): void {
+  if (timerMedianocheChile != null) {
+    clearTimeout(timerMedianocheChile)
+    timerMedianocheChile = null
+  }
+  document.removeEventListener('visibilitychange', onVisibilidadOFocusDescuentoMatricula)
+  window.removeEventListener('focus', onVisibilidadOFocusDescuentoMatricula)
+}
 
 // CODBEN del ERP de la fila del catálogo que se aplicó. Sin fila o sin entero positivo, no hay código.
 function codbenDescuentoMatricula(): string | undefined {
@@ -1060,6 +1108,11 @@ async function correrVerificacionCae(reintento = false) {
 }
 
 onMounted(async () => {
+  hoyChileIso.value = fechaChileIso()
+  document.addEventListener('visibilitychange', onVisibilidadOFocusDescuentoMatricula)
+  window.addEventListener('focus', onVisibilidadOFocusDescuentoMatricula)
+  programarSyncMedianocheChile()
+
   await Promise.all([
     periodoActivo.ensureLoaded(),
     convenioStore.ensureLoaded(),
@@ -1275,6 +1328,7 @@ async function precargarDeudaSiHayRut() {
 async function abrirPagoMatricula() {
   abriendoPagoMatricula.value = true
   try {
+    if (syncHoyChileDescuento()) return
     const rut = rutMostrado.value
     if (!rut || rut === '—') {
       mostrarErrorRematricula('Sin RUT para validar deuda / pagar matrícula')
@@ -1391,7 +1445,10 @@ function iniciarSalidaWebpay(concepto: 'matricula' | 'arancel'): void {
   }, 1000)
 }
 
-onBeforeUnmount(limpiarIntervaloSalida)
+onBeforeUnmount(() => {
+  limpiarIntervaloSalida()
+  limpiarSyncHoyChileDescuento()
+})
 
 function volverSelectorPagoMatricula() {
   pagoMatriculaPaso.value = 'selector'
@@ -1524,6 +1581,7 @@ function contextoCrearWebpay(): {
 
 /** Devuelve true si la pestaña salió hacia Webpay. */
 async function iniciarWebpay(concepto: 'matricula' | 'arancel'): Promise<boolean> {
+  if (syncHoyChileDescuento()) return false
   const ctx = contextoCrearWebpay()
   if (!ctx) {
     cerrarPagoMatriculaDialog()
@@ -1687,6 +1745,7 @@ const bloquesPlanPago = computed(() => [
 ])
 
 async function confirmarPagareMatricula() {
+  if (syncHoyChileDescuento()) return
   const hoy = hoyIsoLocal()
   const fecha = pagareFechaInicio.value
   const dia = Number(pagareDiaVencimiento.value)

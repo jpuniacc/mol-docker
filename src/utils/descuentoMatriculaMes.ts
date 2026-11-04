@@ -38,6 +38,32 @@ export function fechaChileIso(ahora: Date = new Date()): string {
   }).format(ahora)
 }
 
+/** True si nombre o monto del descuento de matrícula difieren (incl. null ↔ valor). */
+export function descuentoMatriculaCambio(
+  antes: DescuentoMatriculaDelMes | null,
+  despues: DescuentoMatriculaDelMes | null,
+): boolean {
+  if (antes == null && despues == null) return false
+  if (antes == null || despues == null) return true
+  return antes.nombre !== despues.nombre || antes.monto !== despues.monto
+}
+
+/**
+ * Ms hasta el instante en que el calendario Chile pasa al día siguiente,
+ * más un margen corto para disparar el sync post-medianoche.
+ */
+export function msHastaProximaMedianocheChile(ahora: Date = new Date()): number {
+  const hoy = fechaChileIso(ahora)
+  let lo = ahora.getTime()
+  let hi = lo + 36 * 60 * 60 * 1000
+  while (hi - lo > 250) {
+    const mid = Math.floor((lo + hi) / 2)
+    if (fechaChileIso(new Date(mid)) === hoy) lo = mid
+    else hi = mid
+  }
+  return Math.max(1000, hi - ahora.getTime() + 750)
+}
+
 function vigenciaDeUnSoloMes(desde: string, hasta: string): boolean {
   return desde.slice(0, 7) === hasta.slice(0, 7)
 }
