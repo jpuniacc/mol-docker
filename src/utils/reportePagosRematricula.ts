@@ -1,4 +1,5 @@
-export type CanalReportePagos = 'MOL' | 'BO'
+export type MedioPago = 'webpay' | 'pagare' | 'pendiente'
+export type Concepto = 'matricula' | 'arancel'
 
 export type FilaReportePagosRematricula = {
   codcli: string
@@ -7,112 +8,218 @@ export type FilaReportePagosRematricula = {
   nombre_alumno: string | null
   codigo_carrera: string | null
   nombre_carrera: string | null
-  canal: CanalReportePagos
-  pago_matricula: boolean
+  fec_mat: string | null
+  medio_matricula: MedioPago
   monto_matricula: number | null
-  fecha_matricula: string | null
+  fecha_pago_matricula: string | null
   buy_order_matricula: string | null
-  pago_arancel: boolean
+  cuotas_matricula: number | null
+  medio_arancel: MedioPago
   monto_arancel: number | null
-  fecha_arancel: string | null
+  fecha_pago_arancel: string | null
   buy_order_arancel: string | null
+  cuotas_arancel: number | null
+  fecha_inicio_pagare: string | null
+}
+
+export type ResumenConcepto = {
+  webpay: number
+  webpay_monto: number
+  pagare: number
+  pagare_monto: number
+  pendiente: number
 }
 
 export type KpiReportePagosRematricula = {
-  matriculados_total: number
   matriculados_mol: number
-  matriculados_bo: number
-  webpay_matricula_alumnos: number
-  webpay_matricula_monto: number
-  webpay_arancel_alumnos: number
-  webpay_arancel_monto: number
-  mol_sin_webpay_matricula: number
+  matriculados_hoy: number
+  matriculados_7d: number
+  matricula: ResumenConcepto
+  arancel: ResumenConcepto
+}
+
+const num = (v: unknown): number | null => {
+  if (v == null || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+const str = (v: unknown): string | null => (v == null ? null : String(v))
+
+export function normalizarMedio(v: unknown): MedioPago {
+  const s = String(v ?? '').toLowerCase()
+  return s === 'webpay' || s === 'pagare' ? s : 'pendiente'
 }
 
 export function parseFilaReportePagos(raw: unknown): FilaReportePagosRematricula | null {
   if (!raw || typeof raw !== 'object') return null
   const r = raw as Record<string, unknown>
-  const canal = String(r.canal ?? '').toUpperCase()
-  if (canal !== 'MOL' && canal !== 'BO') return null
   const codcli = String(r.codcli ?? '').trim()
   if (!codcli) return null
   return {
     codcli,
-    rut: r.rut == null ? null : String(r.rut),
-    rut_norm: r.rut_norm == null ? null : String(r.rut_norm),
-    nombre_alumno: r.nombre_alumno == null ? null : String(r.nombre_alumno),
-    codigo_carrera: r.codigo_carrera == null ? null : String(r.codigo_carrera),
-    nombre_carrera: r.nombre_carrera == null ? null : String(r.nombre_carrera),
-    canal,
-    pago_matricula: r.pago_matricula === true,
-    monto_matricula: r.monto_matricula == null ? null : Number(r.monto_matricula),
-    fecha_matricula: r.fecha_matricula == null ? null : String(r.fecha_matricula),
-    buy_order_matricula: r.buy_order_matricula == null ? null : String(r.buy_order_matricula),
-    pago_arancel: r.pago_arancel === true,
-    monto_arancel: r.monto_arancel == null ? null : Number(r.monto_arancel),
-    fecha_arancel: r.fecha_arancel == null ? null : String(r.fecha_arancel),
-    buy_order_arancel: r.buy_order_arancel == null ? null : String(r.buy_order_arancel),
+    rut: str(r.rut),
+    rut_norm: str(r.rut_norm),
+    nombre_alumno: str(r.nombre_alumno),
+    codigo_carrera: str(r.codigo_carrera),
+    nombre_carrera: str(r.nombre_carrera),
+    fec_mat: str(r.fec_mat),
+    medio_matricula: normalizarMedio(r.medio_matricula),
+    monto_matricula: num(r.monto_matricula),
+    fecha_pago_matricula: str(r.fecha_pago_matricula),
+    buy_order_matricula: str(r.buy_order_matricula),
+    cuotas_matricula: num(r.cuotas_matricula),
+    medio_arancel: normalizarMedio(r.medio_arancel),
+    monto_arancel: num(r.monto_arancel),
+    fecha_pago_arancel: str(r.fecha_pago_arancel),
+    buy_order_arancel: str(r.buy_order_arancel),
+    cuotas_arancel: num(r.cuotas_arancel),
+    fecha_inicio_pagare: str(r.fecha_inicio_pagare),
   }
 }
 
 export function parseKpiReportePagos(raw: unknown): KpiReportePagosRematricula {
   const row = Array.isArray(raw) ? raw[0] : raw
-  const r =
-    row && typeof row === 'object' ? (row as Record<string, unknown>) : ({} as Record<string, unknown>)
+  const r = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+  const n = (k: string) => Number(r[k] ?? 0) || 0
+  const c = (p: 'mat' | 'ara'): ResumenConcepto => ({
+    webpay: n(`${p}_webpay_alumnos`),
+    webpay_monto: n(`${p}_webpay_monto`),
+    pagare: n(`${p}_pagare_alumnos`),
+    pagare_monto: n(`${p}_pagare_monto`),
+    pendiente: n(`${p}_pendiente_alumnos`),
+  })
   return {
-    matriculados_total: Number(r.matriculados_total ?? 0) || 0,
-    matriculados_mol: Number(r.matriculados_mol ?? 0) || 0,
-    matriculados_bo: Number(r.matriculados_bo ?? 0) || 0,
-    webpay_matricula_alumnos: Number(r.webpay_matricula_alumnos ?? 0) || 0,
-    webpay_matricula_monto: Number(r.webpay_matricula_monto ?? 0) || 0,
-    webpay_arancel_alumnos: Number(r.webpay_arancel_alumnos ?? 0) || 0,
-    webpay_arancel_monto: Number(r.webpay_arancel_monto ?? 0) || 0,
-    mol_sin_webpay_matricula: Number(r.mol_sin_webpay_matricula ?? 0) || 0,
+    matriculados_mol: n('matriculados_mol'),
+    matriculados_hoy: n('matriculados_hoy'),
+    matriculados_7d: n('matriculados_7d'),
+    matricula: c('mat'),
+    arancel: c('ara'),
   }
 }
 
+export function medioDe(f: FilaReportePagosRematricula, c: Concepto): MedioPago {
+  return c === 'matricula' ? f.medio_matricula : f.medio_arancel
+}
+
+/** Resumen calculado en cliente (para filtros locales y gráficos). */
+export function resumirConcepto(filas: FilaReportePagosRematricula[], c: Concepto): ResumenConcepto {
+  const out: ResumenConcepto = { webpay: 0, webpay_monto: 0, pagare: 0, pagare_monto: 0, pendiente: 0 }
+  for (const f of filas) {
+    const m = medioDe(f, c)
+    const monto = (c === 'matricula' ? f.monto_matricula : f.monto_arancel) ?? 0
+    if (m === 'webpay') {
+      out.webpay++
+      out.webpay_monto += monto
+    } else if (m === 'pagare') {
+      out.pagare++
+      out.pagare_monto += monto
+    } else out.pendiente++
+  }
+  return out
+}
+
+export type FiltroChip = 'todos' | `${Concepto}:${MedioPago}`
+
+export function aplicaChip(f: FilaReportePagosRematricula, chip: FiltroChip): boolean {
+  if (chip === 'todos') return true
+  const [c, m] = chip.split(':') as [Concepto, MedioPago]
+  return medioDe(f, c) === m
+}
+
+export type FiltroMedio = 'todos' | 'webpay' | 'pagare' | 'pendiente'
+/** Medio en cualquiera de los dos conceptos. */
+export function aplicaMedio(f: FilaReportePagosRematricula, m: FiltroMedio): boolean {
+  return m === 'todos' || f.medio_matricula === m || f.medio_arancel === m
+}
+
+export type PuntoSerie = { fecha: string; dia: number; acumulado: number; acumuladoConMedio: number }
+
+function diaSantiago(iso: string): string | null {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Santiago' })
+}
+
+/** Serie diaria acumulada desde fec_mat. */
+export function serieDiaria(filas: FilaReportePagosRematricula[]): PuntoSerie[] {
+  const porDia = new Map<string, { n: number; m: number }>()
+  for (const f of filas) {
+    if (!f.fec_mat) continue
+    const d = diaSantiago(f.fec_mat)
+    if (!d) continue
+    const e = porDia.get(d) ?? { n: 0, m: 0 }
+    e.n++
+    if (f.medio_matricula !== 'pendiente') e.m++
+    porDia.set(d, e)
+  }
+  let acc = 0
+  let accM = 0
+  return [...porDia.keys()].sort().map((fecha) => {
+    const e = porDia.get(fecha)!
+    acc += e.n
+    accM += e.m
+    return { fecha, dia: e.n, acumulado: acc, acumuladoConMedio: accM }
+  })
+}
+
+export type FilaCarrera = { carrera: string; total: number; webpay: number; pagare: number; pendiente: number }
+
+export function porCarrera(filas: FilaReportePagosRematricula[], c: Concepto, top = 8): FilaCarrera[] {
+  const map = new Map<string, FilaCarrera>()
+  for (const f of filas) {
+    const k = f.nombre_carrera?.trim() || 'Sin carrera'
+    const e = map.get(k) ?? { carrera: k, total: 0, webpay: 0, pagare: 0, pendiente: 0 }
+    e.total++
+    e[medioDe(f, c)]++
+    map.set(k, e)
+  }
+  const arr = [...map.values()].sort((a, b) => b.total - a.total)
+  if (arr.length <= top) return arr
+  const resto = arr.slice(top - 1)
+  const otras: FilaCarrera = { carrera: `Otras (${resto.length})`, total: 0, webpay: 0, pagare: 0, pendiente: 0 }
+  for (const r of resto) {
+    otras.total += r.total
+    otras.webpay += r.webpay
+    otras.pagare += r.pagare
+    otras.pendiente += r.pendiente
+  }
+  return [...arr.slice(0, top - 1), otras]
+}
+
+export const ETIQUETA_MEDIO: Record<MedioPago, string> = {
+  webpay: 'Webpay',
+  pagare: 'Pagaré',
+  pendiente: 'Pendiente',
+}
+
+const COLUMNAS = [
+  'codcli', 'rut', 'nombre', 'carrera', 'fecha_matricula',
+  'medio_matricula', 'monto_matricula', 'fecha_pago_matricula', 'cuotas_matricula', 'buy_order_matricula',
+  'medio_arancel', 'monto_arancel', 'fecha_pago_arancel', 'cuotas_arancel', 'buy_order_arancel',
+  'fecha_inicio_pagare',
+] as const
+
+export function filasReportePagosAMatriz(filas: FilaReportePagosRematricula[]): (string | number)[][] {
+  const rows: (string | number)[][] = [[...COLUMNAS]]
+  for (const f of filas) {
+    rows.push([
+      f.codcli, f.rut ?? '', f.nombre_alumno ?? '', f.nombre_carrera ?? '', f.fec_mat ?? '',
+      ETIQUETA_MEDIO[f.medio_matricula], f.monto_matricula ?? '', f.fecha_pago_matricula ?? '',
+      f.cuotas_matricula ?? '', f.buy_order_matricula ?? '',
+      ETIQUETA_MEDIO[f.medio_arancel], f.monto_arancel ?? '', f.fecha_pago_arancel ?? '',
+      f.cuotas_arancel ?? '', f.buy_order_arancel ?? '', f.fecha_inicio_pagare ?? '',
+    ])
+  }
+  return rows
+}
+
 function csvEscape(value: string): string {
-  if (/[",\n\r]/.test(value)) return `"${value.replace(/"/g, '""')}"`
+  if (/[",\n\r;]/.test(value)) return `"${value.replace(/"/g, '""')}"`
   return value
 }
 
 export function filasReportePagosACsv(filas: FilaReportePagosRematricula[]): string {
-  const header = [
-    'codcli',
-    'rut',
-    'nombre',
-    'carrera',
-    'canal',
-    'pago_matricula',
-    'monto_matricula',
-    'fecha_matricula',
-    'buy_order_matricula',
-    'pago_arancel',
-    'monto_arancel',
-    'fecha_arancel',
-    'buy_order_arancel',
-  ]
-  const lines = [header.join(',')]
-  for (const f of filas) {
-    lines.push(
-      [
-        f.codcli,
-        f.rut ?? '',
-        f.nombre_alumno ?? '',
-        f.nombre_carrera ?? '',
-        f.canal,
-        f.pago_matricula ? 'si' : 'no',
-        f.monto_matricula == null ? '' : String(f.monto_matricula),
-        f.fecha_matricula ?? '',
-        f.buy_order_matricula ?? '',
-        f.pago_arancel ? 'si' : 'no',
-        f.monto_arancel == null ? '' : String(f.monto_arancel),
-        f.fecha_arancel ?? '',
-        f.buy_order_arancel ?? '',
-      ]
-        .map((c) => csvEscape(c))
-        .join(','),
-    )
-  }
-  return lines.join('\n')
+  return filasReportePagosAMatriz(filas)
+    .map((r) => r.map((c) => csvEscape(String(c))).join(','))
+    .join('\n')
 }

@@ -1,18 +1,22 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { Download, GraduationCap, Wallet } from 'lucide-vue-next'
+import { computed, h, onMounted, ref, watch } from 'vue'
+import {
+  FlexRender,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useVueTable,
+  type ColumnDef,
+  type SortingState,
+} from '@tanstack/vue-table'
+import { AlertTriangle, ArrowUpDown, Download, RefreshCw, Search } from 'lucide-vue-next'
+import * as XLSX from 'xlsx'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import EChart from '@/components/reportes/pagos/EChart.vue'
 import {
   fetchKpiReportePagosRematricula,
   listarReportePagosRematricula,
@@ -20,272 +24,478 @@ import {
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 import {
+  aplicaChip,
+  aplicaMedio,
+  ETIQUETA_MEDIO,
   filasReportePagosACsv,
+  filasReportePagosAMatriz,
+  porCarrera,
+  resumirConcepto,
+  serieDiaria,
+  type Concepto,
+  type FiltroChip,
+  type FiltroMedio,
   type FilaReportePagosRematricula,
   type KpiReportePagosRematricula,
+  type MedioPago,
+  type ResumenConcepto,
 } from '@/utils/reportePagosRematricula'
 
-type FiltroCanal = 'todos' | 'MOL' | 'BO'
+const C_WEBPAY = '#059669'
+const C_PAGARE = '#4D98C5'
+const C_PEND = '#f59e0b'
 
 const periodoActivo = usePeriodoActivoStore()
 const loading = ref(false)
 const kpi = ref<KpiReportePagosRematricula | null>(null)
 const filas = ref<FilaReportePagosRematricula[]>([])
-const canal = ref<FiltroCanal>('todos')
+const carrera = ref('')
+const medio = ref<FiltroMedio>('todos')
 const busqueda = ref('')
+const chip = ref<FiltroChip>('todos')
+const conceptoCarrera = ref<Concepto>('matricula')
+const rangoSerie = ref<'14' | 'todo'>('14')
+const actualizado = ref<Date | null>(null)
+const carrerasDisponibles = ref<string[]>([])
 
-const tienePeriodo = computed(
-  () => periodoActivo.anio != null && periodoActivo.semestre != null,
-)
+const tienePeriodo = computed(() => periodoActivo.anio != null && periodoActivo.semestre != null)
 const periodoLabel = computed(() => periodoActivo.label ?? '—')
 
-function fmtMoney(n: number | null | undefined): string {
-  const v = Number(n ?? 0)
-  return new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
-    maximumFractionDigits: 0,
-  }).format(v)
-}
-
-function fmtFecha(iso: string | null): string {
+const fmtMoney = (n: number | null | undefined) =>
+  new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(Number(n ?? 0))
+const fmtFecha = (iso: string | null, conHora = false) => {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString('es-CL', { timeZone: 'America/Santiago' })
+  return conHora
+    ? d.toLocaleString('es-CL', { timeZone: 'America/Santiago', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString('es-CL', { timeZone: 'America/Santiago' })
 }
-
-function canalRpc(): string | null {
-  return canal.value === 'todos' ? null : canal.value
-}
+const pct = (n: number, t: number) => (t > 0 ? Math.round((n * 100) / t) : 0)
 
 async function cargar() {
   if (!tienePeriodo.value) return
   loading.value = true
   try {
     const anio = periodoActivo.anio!
-    const semestre = periodoActivo.semestre!
+    const sem = periodoActivo.semestre!
+    const c = carrera.value || null
     const q = busqueda.value.trim() || null
-    const c = canalRpc()
     const [k, list] = await Promise.all([
-      fetchKpiReportePagosRematricula(anio, semestre, c),
-      listarReportePagosRematricula(anio, semestre, c, q),
+      fetchKpiReportePagosRematricula(anio, sem, c),
+      listarReportePagosRematricula(anio, sem, c, q),
     ])
-    if (k.error) {
-      mostrarErrorRematricula(`Error al cargar totales: ${k.error}`)
-      return
-    }
-    if (list.error) {
-      mostrarErrorRematricula(`Error al cargar listado: ${list.error}`)
-      return
-    }
+    if (k.error) return mostrarErrorRematricula(`Error al cargar totales: ${k.error}`)
+    if (list.error) return mostrarErrorRematricula(`Error al cargar listado: ${list.error}`)
     kpi.value = k.data
     filas.value = list.data
+    if (!c && !q) {
+      carrerasDisponibles.value = [...new Set(list.data.map((f) => f.nombre_carrera ?? '').filter(Boolean))].sort()
+    }
+    actualizado.value = new Date()
   } finally {
     loading.value = false
   }
 }
 
-function exportarCsv() {
-  const csv = filasReportePagosACsv(filas.value)
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+/** Filas tras filtros locales (medio + chip). Gráficos usan filas con filtros de servidor. */
+const filasFiltradas = computed(() =>
+  filas.value.filter((f) => aplicaMedio(f, medio.value) && aplicaChip(f, chip.value)),
+)
+
+const resMat = computed<ResumenConcepto>(() => kpi.value?.matricula ?? resumirConcepto(filas.value, 'matricula'))
+const resAra = computed<ResumenConcepto>(() => kpi.value?.arancel ?? resumirConcepto(filas.value, 'arancel'))
+const total = computed(() => kpi.value?.matriculados_mol ?? filas.value.length)
+
+const chips = computed(() => {
+  const m = resumirConcepto(filas.value, 'matricula')
+  const a = resumirConcepto(filas.value, 'arancel')
+  return [
+    { id: 'todos' as FiltroChip, label: 'Todos', n: filas.value.length },
+    { id: 'matricula:webpay' as FiltroChip, label: 'Matrícula Webpay', n: m.webpay },
+    { id: 'matricula:pagare' as FiltroChip, label: 'Matrícula pagaré', n: m.pagare },
+    { id: 'matricula:pendiente' as FiltroChip, label: 'Matrícula pendiente', n: m.pendiente },
+    { id: 'arancel:webpay' as FiltroChip, label: 'Arancel Webpay', n: a.webpay },
+    { id: 'arancel:pagare' as FiltroChip, label: 'Arancel pagaré', n: a.pagare },
+    { id: 'arancel:pendiente' as FiltroChip, label: 'Arancel pendiente', n: a.pendiente },
+  ]
+})
+
+function irAPendientes() {
+  chip.value = resMat.value.pendiente > 0 ? 'matricula:pendiente' : 'arancel:pendiente'
+  document.getElementById('detalle-pagos')?.scrollIntoView({ behavior: 'smooth' })
+}
+
+function limpiar() {
+  carrera.value = ''
+  medio.value = 'todos'
+  busqueda.value = ''
+  chip.value = 'todos'
+}
+
+// ---------- Gráficos ----------
+const serie = computed(() => {
+  const s = serieDiaria(filas.value)
+  return rangoSerie.value === '14' ? s.slice(-14) : s
+})
+const optSerie = computed(() => ({
+  grid: { left: 36, right: 12, top: 28, bottom: 28 },
+  tooltip: { trigger: 'axis' },
+  legend: { top: 0, left: 0, itemWidth: 14, textStyle: { fontSize: 11, color: '#475569' } },
+  xAxis: {
+    type: 'category',
+    data: serie.value.map((p) => p.fecha.slice(8, 10) + '-' + p.fecha.slice(5, 7)),
+    axisLabel: { fontSize: 10, color: '#94a3b8' },
+    axisLine: { lineStyle: { color: '#e2e8f0' } },
+  },
+  yAxis: { type: 'value', minInterval: 1, axisLabel: { fontSize: 10, color: '#94a3b8' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
+  series: [
+    { name: 'Matriculados', type: 'line', smooth: true, data: serie.value.map((p) => p.acumulado), color: C_PAGARE, areaStyle: { opacity: 0.15 }, symbolSize: 5 },
+    { name: 'Con medio de matrícula', type: 'line', smooth: true, data: serie.value.map((p) => p.acumuladoConMedio), color: C_WEBPAY, lineStyle: { type: 'dashed' }, symbolSize: 4 },
+  ],
+}))
+
+const donut = (r: ResumenConcepto) => ({
+  tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+  series: [
+    {
+      type: 'pie',
+      radius: ['58%', '80%'],
+      label: { show: true, position: 'center', formatter: () => String(r.webpay + r.pagare + r.pendiente), fontSize: 20, fontWeight: 700, color: '#0f172a' },
+      emphasis: { label: { show: true } },
+      data: [
+        { name: 'Webpay', value: r.webpay, itemStyle: { color: C_WEBPAY } },
+        { name: 'Pagaré', value: r.pagare, itemStyle: { color: C_PAGARE } },
+        { name: 'Pendiente', value: r.pendiente, itemStyle: { color: C_PEND } },
+      ],
+    },
+  ],
+})
+const optDonaMat = computed(() => donut(resumirConcepto(filas.value, 'matricula')))
+const optDonaAra = computed(() => donut(resumirConcepto(filas.value, 'arancel')))
+
+const datosCarrera = computed(() => porCarrera(filas.value, conceptoCarrera.value, 8).reverse())
+const optCarrera = computed(() => ({
+  grid: { left: 150, right: 16, top: 24, bottom: 8, containLabel: false },
+  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+  legend: { top: 0, left: 0, itemWidth: 12, textStyle: { fontSize: 11, color: '#475569' } },
+  xAxis: { type: 'value', minInterval: 1, axisLabel: { fontSize: 10, color: '#94a3b8' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
+  yAxis: {
+    type: 'category',
+    data: datosCarrera.value.map((d) => d.carrera),
+    axisLabel: { fontSize: 10, color: '#334155', width: 140, overflow: 'truncate' },
+    axisLine: { lineStyle: { color: '#e2e8f0' } },
+  },
+  series: (['webpay', 'pagare', 'pendiente'] as MedioPago[]).map((m) => ({
+    name: ETIQUETA_MEDIO[m],
+    type: 'bar',
+    stack: 'x',
+    barMaxWidth: 14,
+    color: m === 'webpay' ? C_WEBPAY : m === 'pagare' ? C_PAGARE : C_PEND,
+    data: datosCarrera.value.map((d) => d[m]),
+  })),
+}))
+function clickCarrera(p: { name?: string }) {
+  if (p.name && !p.name.startsWith('Otras') && carrerasDisponibles.value.includes(p.name)) carrera.value = p.name
+}
+
+// ---------- Tabla ----------
+const BADGE: Record<MedioPago, string> = {
+  webpay: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  pagare: 'border-uniacc-blue/30 bg-uniacc-blue/10 text-[#2b6f98]',
+  pendiente: 'border-amber-300 bg-amber-50 text-amber-700',
+}
+function celdaMedio(f: FilaReportePagosRematricula, c: Concepto) {
+  const m = c === 'matricula' ? f.medio_matricula : f.medio_arancel
+  const monto = c === 'matricula' ? f.monto_matricula : f.monto_arancel
+  const fecha = c === 'matricula' ? f.fecha_pago_matricula : f.fecha_pago_arancel
+  const cuotas = c === 'matricula' ? f.cuotas_matricula : f.cuotas_arancel
+  const badge = h('span', { class: `inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${BADGE[m]}` }, ETIQUETA_MEDIO[m])
+  if (m === 'pendiente') return h('div', [badge])
+  const sub =
+    m === 'webpay'
+      ? fmtFecha(fecha, true)
+      : `${cuotas ?? '—'} cuotas${f.fecha_inicio_pagare ? ' · desde ' + fmtFecha(f.fecha_inicio_pagare + 'T12:00:00') : ''}`
+  return h('div', [
+    h('div', { class: 'flex items-center gap-2' }, [badge, h('span', { class: 'text-xs font-semibold tabular-nums' }, fmtMoney(monto))]),
+    h('div', { class: 'mt-0.5 text-[11px] text-muted-foreground' }, sub),
+  ])
+}
+const ordenMedio: Record<MedioPago, number> = { pendiente: 0, pagare: 1, webpay: 2 }
+const sortHeader = (label: string) =>
+  ({ column }: { column: { toggleSorting: (d?: boolean) => void; getIsSorted: () => false | 'asc' | 'desc' } }) =>
+    h('button', { class: 'inline-flex items-center gap-1 hover:text-foreground', onClick: () => column.toggleSorting(column.getIsSorted() === 'asc') }, [
+      label,
+      h(ArrowUpDown, { class: 'h-3 w-3 opacity-60' }),
+    ])
+
+const columns: ColumnDef<FilaReportePagosRematricula>[] = [
+  {
+    id: 'alumno',
+    accessorFn: (f) => f.nombre_alumno ?? '',
+    header: sortHeader('Alumno'),
+    cell: ({ row }) =>
+      h('div', [
+        h('div', { class: 'font-medium' }, row.original.nombre_alumno ?? row.original.codcli),
+        h('div', { class: 'font-mono text-[11px] text-muted-foreground' }, row.original.rut ?? row.original.rut_norm ?? ''),
+      ]),
+  },
+  {
+    id: 'carrera',
+    accessorFn: (f) => f.nombre_carrera ?? '',
+    header: sortHeader('Carrera'),
+    cell: ({ row }) => h('div', { class: 'max-w-[260px] text-sm leading-snug', title: row.original.nombre_carrera ?? '' }, row.original.nombre_carrera ?? '—'),
+  },
+  {
+    id: 'matricula',
+    accessorFn: (f) => ordenMedio[f.medio_matricula] * 1e12 + (f.monto_matricula ?? 0),
+    header: sortHeader('Matrícula'),
+    cell: ({ row }) => celdaMedio(row.original, 'matricula'),
+  },
+  {
+    id: 'arancel',
+    accessorFn: (f) => ordenMedio[f.medio_arancel] * 1e12 + (f.monto_arancel ?? 0),
+    header: sortHeader('Arancel'),
+    cell: ({ row }) => celdaMedio(row.original, 'arancel'),
+  },
+  {
+    id: 'fec_mat',
+    accessorFn: (f) => f.fec_mat ?? '',
+    header: sortHeader('Matriculado'),
+    cell: ({ row }) => h('span', { class: 'text-xs text-muted-foreground tabular-nums' }, fmtFecha(row.original.fec_mat)),
+  },
+]
+
+const sorting = ref<SortingState>([{ id: 'alumno', desc: false }])
+const table = useVueTable({
+  get data() {
+    return filasFiltradas.value
+  },
+  columns,
+  state: {
+    get sorting() {
+      return sorting.value
+    },
+  },
+  onSortingChange: (u) => {
+    sorting.value = typeof u === 'function' ? u(sorting.value) : u
+  },
+  getCoreRowModel: getCoreRowModel(),
+  getSortedRowModel: getSortedRowModel(),
+  getPaginationRowModel: getPaginationRowModel(),
+  initialState: { pagination: { pageSize: 20 } },
+})
+watch([chip, medio, filas], () => table.setPageIndex(0))
+const rango = computed(() => {
+  const { pageIndex, pageSize } = table.getState().pagination
+  const n = filasFiltradas.value.length
+  return n === 0 ? '0 de 0' : `${pageIndex * pageSize + 1}–${Math.min(n, (pageIndex + 1) * pageSize)} de ${n}`
+})
+
+// ---------- Export ----------
+const nombreArchivo = () => `reporte-pagos-mol-${periodoActivo.anio}-${periodoActivo.semestre}`
+function descargar(blob: Blob, nombre: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `reporte-pagos-rematricula-${periodoActivo.anio}-${periodoActivo.semestre}.csv`
+  a.download = nombre
   a.click()
   URL.revokeObjectURL(url)
 }
+function exportarCsv() {
+  descargar(new Blob(['\ufeff' + filasReportePagosACsv(filasFiltradas.value)], { type: 'text/csv;charset=utf-8' }), `${nombreArchivo()}.csv`)
+}
+function exportarExcel() {
+  const ws = XLSX.utils.aoa_to_sheet(filasReportePagosAMatriz(filasFiltradas.value))
+  ws['!cols'] = [10, 14, 32, 34, 22, 10, 12, 22, 8, 18, 10, 12, 22, 8, 18, 12].map((wch) => ({ wch }))
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Pagos MOL')
+  XLSX.writeFile(wb, `${nombreArchivo()}.xlsx`)
+}
 
-let busquedaTimer: ReturnType<typeof setTimeout> | null = null
+let timer: ReturnType<typeof setTimeout> | null = null
 watch(busqueda, () => {
-  if (busquedaTimer) clearTimeout(busquedaTimer)
-  busquedaTimer = setTimeout(() => {
-    void cargar()
-  }, 300)
+  if (timer) clearTimeout(timer)
+  timer = setTimeout(() => void cargar(), 300)
 })
-
-watch(canal, () => {
-  void cargar()
-})
+watch(carrera, () => void cargar())
 
 onMounted(async () => {
   await periodoActivo.ensureLoaded()
   if (tienePeriodo.value) await cargar()
 })
+
+const conceptos = computed(() => [
+  { key: 'matricula', titulo: 'Matrícula', r: resMat.value, barra: 'bg-emerald-600' },
+  { key: 'arancel', titulo: 'Arancel', r: resAra.value, barra: 'bg-uniacc-blue' },
+])
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1200px] space-y-6">
+  <div class="mx-auto max-w-[1200px] space-y-4">
     <Card>
-      <CardHeader>
-        <CardTitle>Pagos rematrícula</CardTitle>
-        <CardDescription>
-          Periodo {{ periodoLabel }}. Matriculados (embudo MOL + BO diario) cruzados con Webpay
-          autorizada.
-        </CardDescription>
-      </CardHeader>
-      <CardContent class="flex flex-wrap items-end gap-3">
-        <div v-if="!tienePeriodo" class="text-sm text-muted-foreground">
-          No hay periodo activo configurado.
+      <CardHeader class="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0">
+        <div>
+          <CardTitle>Pagos rematrícula · Matriculados MOL</CardTitle>
+          <CardDescription class="mt-1">
+            Periodo <b class="text-foreground">{{ periodoLabel }}</b> · Medio de pago por concepto (Webpay / Pagaré)
+            <template v-if="actualizado"> · Actualizado {{ actualizado.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) }}</template>
+            <button type="button" class="ml-1 inline-flex align-middle text-uniacc-orange" :disabled="loading" title="Actualizar" @click="cargar">
+              <RefreshCw class="h-3.5 w-3.5" :class="loading ? 'animate-spin' : ''" />
+            </button>
+          </CardDescription>
         </div>
+        <div v-if="tienePeriodo" class="flex gap-2">
+          <Button variant="outline" size="sm" :disabled="filasFiltradas.length === 0" @click="exportarCsv">
+            <Download class="mr-1.5 h-4 w-4" /> CSV
+          </Button>
+          <Button size="sm" :disabled="filasFiltradas.length === 0" @click="exportarExcel">
+            <Download class="mr-1.5 h-4 w-4" /> Excel
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent class="flex flex-wrap items-center gap-3">
+        <div v-if="!tienePeriodo" class="text-sm text-muted-foreground">No hay periodo activo configurado.</div>
         <template v-else>
-          <div class="space-y-1">
-            <p class="text-xs text-muted-foreground">Canal</p>
-            <select
-              v-model="canal"
-              class="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="todos">Todos</option>
-              <option value="MOL">MOL</option>
-              <option value="BO">BO</option>
-            </select>
+          <select v-model="carrera" class="h-9 min-w-[220px] rounded-md border border-input bg-background px-3 text-sm" aria-label="Carrera">
+            <option value="">Carrera: Todas</option>
+            <option v-for="c in carrerasDisponibles" :key="c" :value="c">{{ c }}</option>
+          </select>
+          <select v-model="medio" class="h-9 rounded-md border border-input bg-background px-3 text-sm" aria-label="Medio de pago">
+            <option value="todos">Medio: Todos</option>
+            <option value="webpay">Webpay</option>
+            <option value="pagare">Pagaré</option>
+            <option value="pendiente">Pendiente</option>
+          </select>
+          <div class="relative min-w-[220px] flex-1">
+            <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input v-model="busqueda" class="pl-8" placeholder="Buscar por RUT o nombre…" />
           </div>
-          <div class="min-w-[220px] flex-1 space-y-1">
-            <p class="text-xs text-muted-foreground">Buscar RUT / nombre / codcli</p>
-            <Input v-model="busqueda" placeholder="Ej. 21055227" />
-          </div>
-          <Button type="button" :disabled="loading" @click="cargar">
-            {{ loading ? 'Cargando…' : 'Actualizar' }}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            :disabled="loading || filas.length === 0"
-            @click="exportarCsv"
-          >
-            <Download class="mr-2 h-4 w-4" aria-hidden="true" />
-            CSV
-          </Button>
+          <Button variant="outline" size="sm" @click="limpiar">Limpiar</Button>
         </template>
       </CardContent>
     </Card>
 
-    <div v-if="tienePeriodo && kpi" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <Card class="overflow-hidden border-uniacc-blue/30">
-        <div class="h-1.5 bg-uniacc-blue" aria-hidden="true" />
-        <CardHeader class="space-y-2">
-          <div class="flex items-center gap-3">
-            <div
-              class="flex h-10 w-10 items-center justify-center rounded-xl bg-uniacc-blue/10 text-uniacc-blue"
-            >
-              <GraduationCap class="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div>
-              <CardTitle class="text-2xl tabular-nums">{{ kpi.matriculados_total }}</CardTitle>
-              <CardDescription>Matriculados</CardDescription>
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-2 text-sm">
-            <div class="rounded-md border px-2 py-1">
-              <p class="text-xs text-muted-foreground">MOL</p>
-              <p class="font-semibold tabular-nums">{{ kpi.matriculados_mol }}</p>
-            </div>
-            <div class="rounded-md border px-2 py-1">
-              <p class="text-xs text-muted-foreground">BO</p>
-              <p class="font-semibold tabular-nums">{{ kpi.matriculados_bo }}</p>
-            </div>
-          </div>
-        </CardHeader>
+    <div v-if="tienePeriodo && kpi" class="grid gap-4 md:grid-cols-2 xl:grid-cols-[0.8fr_1.4fr_1.4fr_0.9fr]">
+      <Card class="relative overflow-hidden p-4">
+        <div class="absolute inset-x-0 top-0 h-1.5 bg-uniacc-blue" />
+        <p class="text-sm text-muted-foreground">Matriculados MOL</p>
+        <p class="text-3xl font-bold tabular-nums">{{ total }}</p>
+        <p class="mt-1 text-xs text-muted-foreground">+{{ kpi.matriculados_hoy }} hoy · +{{ kpi.matriculados_7d }} últimos 7 días</p>
       </Card>
-
-      <Card class="overflow-hidden border-emerald-600/30">
-        <div class="h-1.5 bg-emerald-600" aria-hidden="true" />
-        <CardHeader>
-          <div class="flex items-center gap-3">
-            <div
-              class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600/10 text-emerald-700"
-            >
-              <Wallet class="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div>
-              <CardTitle class="text-2xl tabular-nums">{{ kpi.webpay_matricula_alumnos }}</CardTitle>
-              <CardDescription>Webpay matrícula</CardDescription>
-            </div>
-          </div>
-          <p class="text-sm font-medium tabular-nums text-emerald-800">
-            {{ fmtMoney(kpi.webpay_matricula_monto) }}
-          </p>
-        </CardHeader>
+      <Card v-for="c in conceptos" :key="c.key" class="relative overflow-hidden p-4">
+        <div class="absolute inset-x-0 top-0 h-1.5" :class="c.barra" />
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-muted-foreground">{{ c.titulo }}</span>
+          <b class="tabular-nums">{{ c.r.webpay + c.r.pagare }} de {{ total }} con medio ({{ pct(c.r.webpay + c.r.pagare, total) }}%)</b>
+        </div>
+        <div class="my-2 flex h-2 overflow-hidden rounded-full bg-slate-100">
+          <div class="bg-emerald-600" :style="{ width: pct(c.r.webpay, total) + '%' }" />
+          <div class="bg-uniacc-blue" :style="{ width: pct(c.r.pagare, total) + '%' }" />
+          <div class="bg-amber-500" :style="{ width: pct(c.r.pendiente, total) + '%' }" />
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-xs">
+          <div><span class="text-emerald-600">■</span> Webpay <b>{{ c.r.webpay }}</b><div class="font-semibold tabular-nums text-emerald-700">{{ fmtMoney(c.r.webpay_monto) }}</div></div>
+          <div><span class="text-uniacc-blue">■</span> Pagaré <b>{{ c.r.pagare }}</b><div class="font-semibold tabular-nums text-[#2b6f98]">{{ fmtMoney(c.r.pagare_monto) }}</div></div>
+          <div><span class="text-amber-500">■</span> Pendiente <b>{{ c.r.pendiente }}</b></div>
+        </div>
       </Card>
+      <button
+        type="button"
+        class="relative overflow-hidden rounded-xl border border-orange-300 bg-orange-50 p-4 text-left shadow-sm transition hover:bg-orange-100"
+        @click="irAPendientes"
+      >
+        <div class="absolute inset-x-0 top-0 h-1.5 bg-uniacc-magenta" />
+        <p class="flex items-center gap-1 text-sm font-semibold text-orange-800"><AlertTriangle class="h-4 w-4" /> Pendientes</p>
+        <p class="text-orange-900"><span class="text-3xl font-bold tabular-nums text-orange-700">{{ resMat.pendiente }}</span> sin medio en matrícula</p>
+        <p class="text-sm text-orange-900">{{ resAra.pendiente }} sin medio en arancel</p>
+        <p class="mt-1 text-xs font-semibold text-orange-800 underline">Ver listado →</p>
+      </button>
+    </div>
 
-      <Card class="overflow-hidden border-amber-600/30">
-        <div class="h-1.5 bg-amber-600" aria-hidden="true" />
-        <CardHeader>
-          <div class="flex items-center gap-3">
-            <div
-              class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-600/10 text-amber-800"
-            >
-              <Wallet class="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div>
-              <CardTitle class="text-2xl tabular-nums">{{ kpi.webpay_arancel_alumnos }}</CardTitle>
-              <CardDescription>Webpay arancel</CardDescription>
-            </div>
+    <div v-if="tienePeriodo && filas.length" class="grid gap-4 lg:grid-cols-[1.3fr_1fr_1.3fr]">
+      <Card class="p-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold">Matriculados MOL acumulados por día</h3>
+          <div class="inline-flex rounded-md bg-slate-100 p-0.5 text-xs">
+            <button v-for="r in (['14', 'todo'] as const)" :key="r" type="button" class="rounded px-2 py-1" :class="rangoSerie === r ? 'bg-white font-semibold shadow-sm' : 'text-slate-500'" @click="rangoSerie = r">{{ r === '14' ? '14 días' : 'Todo' }}</button>
           </div>
-          <p class="text-sm font-medium tabular-nums text-amber-900">
-            {{ fmtMoney(kpi.webpay_arancel_monto) }}
-          </p>
-        </CardHeader>
+        </div>
+        <EChart :option="optSerie" />
       </Card>
-
-      <Card class="overflow-hidden border-uniacc-magenta/30">
-        <div class="h-1.5 bg-uniacc-magenta" aria-hidden="true" />
-        <CardHeader>
-          <CardTitle class="text-2xl tabular-nums">{{ kpi.mol_sin_webpay_matricula }}</CardTitle>
-          <CardDescription>MOL sin Webpay matrícula</CardDescription>
-        </CardHeader>
+      <Card class="p-4">
+        <h3 class="text-sm font-semibold">Medio de pago por concepto</h3>
+        <div class="grid grid-cols-2">
+          <div><p class="text-center text-xs font-semibold">Matrícula</p><EChart :option="optDonaMat" height="150px" /></div>
+          <div><p class="text-center text-xs font-semibold">Arancel</p><EChart :option="optDonaAra" height="150px" /></div>
+        </div>
+        <div class="mt-1 flex justify-center gap-4 text-xs">
+          <span><span class="text-emerald-600">■</span> Webpay</span><span><span class="text-uniacc-blue">■</span> Pagaré</span><span><span class="text-amber-500">■</span> Pendiente</span>
+        </div>
+      </Card>
+      <Card class="p-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold">Por carrera <span class="font-normal text-muted-foreground">(clic = filtrar)</span></h3>
+          <div class="inline-flex rounded-md bg-slate-100 p-0.5 text-xs">
+            <button v-for="c in (['matricula', 'arancel'] as const)" :key="c" type="button" class="rounded px-2 py-1" :class="conceptoCarrera === c ? 'bg-white font-semibold shadow-sm' : 'text-slate-500'" @click="conceptoCarrera = c">{{ c === 'matricula' ? 'Matrícula' : 'Arancel' }}</button>
+          </div>
+        </div>
+        <EChart :option="optCarrera" height="240px" @click="clickCarrera" />
       </Card>
     </div>
 
-    <Card v-if="tienePeriodo">
-      <CardHeader>
-        <CardTitle>Detalle</CardTitle>
-        <CardDescription>{{ filas.length }} filas</CardDescription>
+    <Card v-if="tienePeriodo" id="detalle-pagos">
+      <CardHeader class="pb-2">
+        <CardTitle class="text-base">Detalle de alumnos MOL</CardTitle>
+        <div class="flex flex-wrap gap-1.5 pt-2">
+          <button
+            v-for="c in chips"
+            :key="c.id"
+            type="button"
+            class="rounded-full border px-3 py-1 text-xs transition"
+            :class="chip === c.id ? 'border-slate-900 bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'"
+            @click="chip = c.id"
+          >
+            {{ c.label }} <span class="opacity-60">{{ c.n }}</span>
+          </button>
+        </div>
       </CardHeader>
-      <CardContent class="overflow-x-auto">
+      <CardContent class="overflow-x-auto p-0">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>RUT</TableHead>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Carrera</TableHead>
-              <TableHead>Canal</TableHead>
-              <TableHead>Mat. Webpay</TableHead>
-              <TableHead>Monto mat.</TableHead>
-              <TableHead>Arancel Webpay</TableHead>
-              <TableHead>Monto arancel</TableHead>
+            <TableRow v-for="hg in table.getHeaderGroups()" :key="hg.id">
+              <TableHead v-for="hd in hg.headers" :key="hd.id" class="whitespace-nowrap px-4">
+                <FlexRender :render="hd.column.columnDef.header" :props="hd.getContext()" />
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow v-if="loading && filas.length === 0">
-              <TableCell colspan="8" class="text-muted-foreground">Cargando…</TableCell>
+              <TableCell :colspan="columns.length" class="px-4 text-muted-foreground">Cargando…</TableCell>
             </TableRow>
-            <TableRow v-else-if="filas.length === 0">
-              <TableCell colspan="8" class="text-muted-foreground">Sin resultados</TableCell>
+            <TableRow v-else-if="filasFiltradas.length === 0">
+              <TableCell :colspan="columns.length" class="py-12 text-center">
+                <Search class="mx-auto mb-2 h-7 w-7 text-muted-foreground" />
+                <p class="font-semibold">Sin resultados</p>
+                <p class="mb-3 text-sm text-muted-foreground">No hay matriculados MOL en {{ periodoLabel }} que coincidan con la búsqueda y los filtros aplicados.</p>
+                <Button variant="outline" size="sm" @click="limpiar">Limpiar filtros</Button>
+              </TableCell>
             </TableRow>
-            <TableRow v-for="f in filas" :key="f.codcli">
-              <TableCell class="whitespace-nowrap font-mono text-xs">{{ f.rut || f.rut_norm }}</TableCell>
-              <TableCell>{{ f.nombre_alumno }}</TableCell>
-              <TableCell class="max-w-[200px] truncate" :title="f.nombre_carrera ?? ''">
-                {{ f.nombre_carrera }}
-              </TableCell>
-              <TableCell>{{ f.canal }}</TableCell>
-              <TableCell>{{ f.pago_matricula ? 'Sí' : 'No' }}</TableCell>
-              <TableCell class="tabular-nums">
-                <span v-if="f.pago_matricula">{{ fmtMoney(f.monto_matricula) }}</span>
-                <span v-else class="text-muted-foreground">—</span>
-              </TableCell>
-              <TableCell>{{ f.pago_arancel ? 'Sí' : 'No' }}</TableCell>
-              <TableCell class="tabular-nums">
-                <span v-if="f.pago_arancel" :title="fmtFecha(f.fecha_arancel)">
-                  {{ fmtMoney(f.monto_arancel) }}
-                </span>
-                <span v-else class="text-muted-foreground">—</span>
+            <TableRow v-for="row in table.getRowModel().rows" :key="row.id">
+              <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="px-4 py-2.5 align-middle">
+                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
               </TableCell>
             </TableRow>
           </TableBody>
         </Table>
+        <div v-if="filasFiltradas.length" class="flex items-center justify-between px-4 py-3 text-sm text-muted-foreground">
+          <span>Mostrando {{ rango }}</span>
+          <div class="flex items-center gap-2">
+            <Button variant="outline" size="sm" :disabled="!table.getCanPreviousPage()" @click="table.previousPage()">‹</Button>
+            <span class="tabular-nums">Página {{ table.getState().pagination.pageIndex + 1 }} de {{ table.getPageCount() }}</span>
+            <Button variant="outline" size="sm" :disabled="!table.getCanNextPage()" @click="table.nextPage()">›</Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   </div>
