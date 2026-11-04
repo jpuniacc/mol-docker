@@ -354,6 +354,17 @@ const routes = [
           import('../views/dashboard/rematricula/RematriculaKpiView.vue'),
       },
       {
+        path: '/dashboard/reportes-pagos-rematricula',
+        name: 'dashboard-reportes-pagos-rematricula',
+        meta: {
+          requiresAdminAdmision: true,
+          requiresSoloGrupoDvU: true,
+          requiresPerfilUsuarioIn: [1, 2, 3],
+        },
+        component: () =>
+          import('../views/dashboard/reportes/ReportesPagosRematriculaView.vue'),
+      },
+      {
         path: '/dashboard/rematricula-seguimiento',
         name: 'dashboard-rematricula-seguimiento',
         meta: {

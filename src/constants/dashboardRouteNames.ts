@@ -28,6 +28,7 @@ export const DASHBOARD_MENU_ROUTE_NAMES = [
   'dashboard-mantenedor-convenios-excel',
   'dashboard-casos-rematricula',
   'dashboard-rematricula-kpi',
+  'dashboard-reportes-pagos-rematricula',
   'dashboard-rematricula-seguimiento',
   'dashboard-encuesta-discapacidad',
   'dashboard-nps-rematricula',
