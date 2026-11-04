@@ -100,6 +100,13 @@ function fmtSyncedAtCanal(iso: string | null): string {
   if (Number.isNaN(d.getTime())) return 'Sin sincronizar'
   return d.toLocaleString('es-CL', { timeZone: 'America/Santiago' })
 }
+
+/** MOL = embudo (en vivo). BO = batch diario. */
+const matriculadosPorMol = computed(() => Number(kpi.value?.matriculado ?? 0) || 0)
+const matriculadosPorBo = computed(() => Number(kpiCanal.value?.por_bo ?? 0) || 0)
+const matriculadosCarteraTotal = computed(
+  () => matriculadosPorMol.value + matriculadosPorBo.value,
+)
 const etapaAbierta = ref<EtapaProgresoRematricula | null>(null)
 const alumnosPorEtapa = ref<Partial<Record<EtapaProgresoRematricula, MnpProgresoRematriculaRow[]>>>({})
 /** FEC_MAT U+ (solo etapa matriculado). */
@@ -411,7 +418,7 @@ onMounted(async () => {
             </div>
             <div class="min-w-0">
               <CardTitle class="text-3xl tabular-nums text-zinc-900">
-                {{ kpiCanal?.total ?? 0 }}
+                {{ matriculadosCarteraTotal }}
               </CardTitle>
               <CardDescription>Total matriculados cartera</CardDescription>
             </div>
@@ -420,21 +427,18 @@ onMounted(async () => {
             <div class="rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2">
               <p class="text-xs text-muted-foreground">Por MOL</p>
               <p class="text-xl font-semibold tabular-nums text-emerald-800">
-                {{ kpiCanal?.por_mol ?? 0 }}
+                {{ matriculadosPorMol }}
               </p>
             </div>
             <div class="rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2">
               <p class="text-xs text-muted-foreground">Por BO</p>
               <p class="text-xl font-semibold tabular-nums text-amber-900">
-                {{ kpiCanal?.por_bo ?? 0 }}
+                {{ matriculadosPorBo }}
               </p>
             </div>
           </div>
           <p class="text-xs text-muted-foreground">
-            Actualizado {{ fmtSyncedAtCanal(kpiCanal?.synced_at ?? null) }}
-          </p>
-          <p class="text-xs text-muted-foreground">
-            Embudo MOL (etapa matriculado): {{ kpi.matriculado ?? 0 }}
+            BO actualizado {{ fmtSyncedAtCanal(kpiCanal?.synced_at ?? null) }}
           </p>
         </CardHeader>
       </Card>
