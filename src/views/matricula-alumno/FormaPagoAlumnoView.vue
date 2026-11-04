@@ -1007,7 +1007,7 @@ async function entrarSiBecaEstatalOPlan() {
     subPaso.value = 'becas'
     return
   }
-  await guardarReservaMatricula('ESTATAL')
+  await asegurarReservaSiEspera('ESTATAL')
   await abrirCasoEsperaMinisterial()
   subPaso.value = 'verificacion-estatal'
 }
@@ -1021,6 +1021,11 @@ async function correrVerificacionEstatal() {
   }
 }
 
+async function asegurarReservaSiEspera(motivo: 'CAE' | 'ESTATAL') {
+  if (reservaMatricula.value) return
+  await guardarReservaMatricula(motivo)
+}
+
 async function decidirEsperaInicial() {
   if (errorCarteraBeneficios.value) return
   if (!requiereCae.value) {
@@ -1028,7 +1033,7 @@ async function decidirEsperaInicial() {
   } else if (alumnoCtx.verificacionCae?.resultado === 'continua') {
     await entrarSiBecaEstatalOPlan()
   } else if (alumnoCtx.verificacionCae?.resultado === 'pendiente_resolucion') {
-    await guardarReservaMatricula('CAE')
+    await asegurarReservaSiEspera('CAE')
     subPaso.value = 'verificacion-cae'
   } else {
     await correrVerificacionCae()
@@ -1099,7 +1104,7 @@ async function correrVerificacionCae(reintento = false) {
       return
     }
 
-    await guardarReservaMatricula('CAE')
+    await asegurarReservaSiEspera('CAE')
     subPaso.value = 'verificacion-cae'
   } finally {
     verificandoCae.value = false

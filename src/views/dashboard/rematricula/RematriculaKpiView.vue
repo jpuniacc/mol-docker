@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ChevronRight, GraduationCap, Layers, Users } from 'lucide-vue-next'
+import { BookmarkCheck, ChevronRight, GraduationCap, Users } from 'lucide-vue-next'
 import { mostrarErrorRematricula } from '@/stores/errorRematricula'
 
 import { Badge } from '@/components/ui/badge'
@@ -31,6 +31,10 @@ import {
   type KpiMatriculaCarteraCanal,
 } from '@/services/matriculaCarteraCanalApi'
 import {
+  fetchKpiReservaDescuentoMatricula,
+  type KpiReservaDescuentoMatricula,
+} from '@/services/reservaDescuentoKpiApi'
+import {
   fetchKpiProgresoRematricula,
   listarProgresoRematricula,
   listarTimelineMolAlumno,
@@ -39,7 +43,6 @@ import {
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import type {
   EtapaProgresoRematricula,
-  KpiDosCarrerasDetalle,
   KpiProgresoRematricula,
   MnpProgresoRematriculaRow,
   VLogMolSesionTimelineRow,
@@ -89,6 +92,7 @@ const loading = ref(false)
 const refreshing = ref(false)
 const kpi = ref<KpiProgresoRematricula | null>(null)
 const kpiCanal = ref<KpiMatriculaCarteraCanal | null>(null)
+const kpiReserva = ref<KpiReservaDescuentoMatricula | null>(null)
 
 function fmtSyncedAtCanal(iso: string | null): string {
   if (!iso) return 'Sin sincronizar'
@@ -138,18 +142,6 @@ function formatearRut(rut: string): string {
   const cuerpo = match[1].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
   return `${cuerpo}-${match[2]}`
 }
-
-const rutDosCarreras = computed(() => {
-  const raw = kpi.value?.rut_dos_carreras
-  if (!raw) return ''
-  return raw.split(',').map(parte => formatearRut(parte.trim())).join(', ')
-})
-
-const carrerasDobles = computed((): KpiDosCarrerasDetalle[] => {
-  const raw = kpi.value?.detalle_dos_carreras
-  if (!Array.isArray(raw)) return []
-  return raw.filter(item => Boolean(item?.codcli))
-})
 
 const alumnosFiltrados = computed(() => {
   const etapa = etapaAbierta.value
@@ -306,9 +298,10 @@ async function cargarKpi() {
   try {
     const anio = periodoActivo.anio!
     const semestre = periodoActivo.semestre!
-    const [progreso, canal] = await Promise.all([
+    const [progreso, canal, reserva] = await Promise.all([
       fetchKpiProgresoRematricula(anio, semestre),
       fetchKpiMatriculaCarteraCanal(anio, semestre),
+      fetchKpiReservaDescuentoMatricula(anio, semestre),
     ])
     if (progreso.error) {
       mostrarErrorRematricula(`Error al cargar KPI: ${progreso.error}`)
@@ -320,6 +313,12 @@ async function cargarKpi() {
       kpiCanal.value = { total: 0, por_mol: 0, por_bo: 0, synced_at: null }
     } else {
       kpiCanal.value = canal.data
+    }
+    if (reserva.error) {
+      console.warn('[kpi] reserva descuento matrícula:', reserva.error)
+      kpiReserva.value = { total: 0, por_cae: 0, por_beca: 0, por_cae_y_beca: 0 }
+    } else {
+      kpiReserva.value = reserva.data
     }
   } finally {
     loading.value = false
@@ -442,21 +441,39 @@ onMounted(async () => {
 
       <Card class="overflow-hidden border-uniacc-magenta/30">
         <div class="h-1.5 bg-uniacc-magenta" aria-hidden="true" />
-        <CardHeader class="flex-row items-center gap-4">
-          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-uniacc-magenta/10 text-uniacc-magenta">
-            <Layers class="h-5 w-5" aria-hidden="true" />
+        <CardHeader class="space-y-3">
+          <div class="flex flex-row items-center gap-4">
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-uniacc-magenta/10 text-uniacc-magenta">
+              <BookmarkCheck class="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div class="min-w-0">
+              <CardTitle class="text-3xl tabular-nums text-zinc-900">
+                {{ kpiReserva?.total ?? 0 }}
+              </CardTitle>
+              <CardDescription>Alumnos con reserva</CardDescription>
+            </div>
           </div>
-          <div class="min-w-0">
-            <CardTitle class="text-2xl tabular-nums text-zinc-900">{{ rutDosCarreras || 'Ninguno' }}</CardTitle>
-            <CardDescription>Dos carreras vigentes</CardDescription>
+          <div class="grid grid-cols-3 gap-2 text-sm">
+            <div class="rounded-lg border border-sky-200 bg-sky-50/60 px-2 py-2">
+              <p class="text-xs text-muted-foreground">CAE</p>
+              <p class="text-xl font-semibold tabular-nums text-sky-900">
+                {{ kpiReserva?.por_cae ?? 0 }}
+              </p>
+            </div>
+            <div class="rounded-lg border border-violet-200 bg-violet-50/60 px-2 py-2">
+              <p class="text-xs text-muted-foreground">BECA</p>
+              <p class="text-xl font-semibold tabular-nums text-violet-900">
+                {{ kpiReserva?.por_beca ?? 0 }}
+              </p>
+            </div>
+            <div class="rounded-lg border border-fuchsia-200 bg-fuchsia-50/60 px-2 py-2">
+              <p class="text-xs text-muted-foreground">CAE Y BECA</p>
+              <p class="text-xl font-semibold tabular-nums text-fuchsia-900">
+                {{ kpiReserva?.por_cae_y_beca ?? 0 }}
+              </p>
+            </div>
           </div>
         </CardHeader>
-        <CardContent v-if="carrerasDobles.length" class="space-y-3 text-sm">
-          <div v-for="carrera in carrerasDobles" :key="carrera.codcli">
-            <p class="font-medium text-foreground">{{ carrera.nombre_carrera }}</p>
-            <p class="text-muted-foreground">{{ carrera.codcli }}</p>
-          </div>
-        </CardContent>
       </Card>
     </div>
 
