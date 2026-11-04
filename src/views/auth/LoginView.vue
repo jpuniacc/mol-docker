@@ -27,6 +27,7 @@ import {
   tomarAvisoMatriculaBackoffice,
   tomarAvisoSubdere,
 } from '@/constants/carteraOficial'
+import { consultarMatriculaCarteraCanalBo } from '@/services/matriculaCarteraCanalApi'
 import {
   registrarIntentoArancelDiferenciado,
   registrarIntentoNoVigente,
@@ -157,6 +158,21 @@ async function onSubmit() {
           cuerpo: MSG_BECA_SUBDERE,
         })
         return
+      }
+      await periodoActivo.ensureLoaded()
+      const anioBo = periodoActivo.anio
+      const semestreBo = periodoActivo.semestre
+      const rutBo = alumnoMnp.filas[0]?.rut_alumno ?? null
+      if (anioBo != null && semestreBo != null && rutBo) {
+        const bo = await consultarMatriculaCarteraCanalBo(rutBo, anioBo, semestreBo)
+        if (bo.bloqueado) {
+          auth.logout()
+          mostrarBloqueoIngreso({
+            titulo: TITULO_MATRICULA_BACKOFFICE,
+            cuerpo: MSG_MATRICULA_BACKOFFICE,
+          })
+          return
+        }
       }
       if (alumnoMnp.accesoBloqueadoNoVigente) {
         const filas = [...alumnoMnp.filas]
