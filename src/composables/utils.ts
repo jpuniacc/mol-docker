@@ -12,8 +12,10 @@ export function valueUpdater<T>(updaterOrValue: T | ((old: T) => T), ref: Ref<T>
 }
 
 /**
- * Usuario de login: solo `a-z`, `A-Z` y `.` (sin ñ, tildes ni otros caracteres).
+ * Usuario de login: solo `a-z`, `A-Z`, `0-9`, `.` y `-` (sin ñ, tildes ni otros caracteres).
+ * Guión y dígitos forman parte del local-part institucional
+ * (p. ej. thannia.saint-jean, alejandra.valenzuela1).
  */
 export function sanitizeUsernameInput(raw: string): string {
-  return raw.replace(/[^a-zA-Z.]/g, '')
+  return raw.replace(/[^a-zA-Z0-9.-]/g, '')
 }
