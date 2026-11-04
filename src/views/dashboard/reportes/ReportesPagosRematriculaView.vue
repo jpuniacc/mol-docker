@@ -29,6 +29,7 @@ import {
   ETIQUETA_MEDIO,
   filasReportePagosACsv,
   filasReportePagosAMatriz,
+  mensajeEmptyReportePagos,
   porCarrera,
   resumirConcepto,
   serieDiaria,
@@ -249,13 +250,13 @@ const columns: ColumnDef<FilaReportePagosRematricula>[] = [
   {
     id: 'matricula',
     accessorFn: (f) => ordenMedio[f.medio_matricula] * 1e12 + (f.monto_matricula ?? 0),
-    header: sortHeader('Matrícula'),
+    header: sortHeader('Matrícula (medio · monto)'),
     cell: ({ row }) => celdaMedio(row.original, 'matricula'),
   },
   {
     id: 'arancel',
     accessorFn: (f) => ordenMedio[f.medio_arancel] * 1e12 + (f.monto_arancel ?? 0),
-    header: sortHeader('Arancel'),
+    header: sortHeader('Arancel (medio · monto)'),
     cell: ({ row }) => celdaMedio(row.original, 'arancel'),
   },
   {
@@ -341,7 +342,7 @@ const conceptos = computed(() => [
             Periodo <b class="text-foreground">{{ periodoLabel }}</b> · Medio de pago por concepto (Webpay / Pagaré)
             <template v-if="actualizado"> · Actualizado {{ actualizado.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) }}</template>
             <button type="button" class="ml-1 inline-flex align-middle text-uniacc-orange" :disabled="loading" title="Actualizar" @click="cargar">
-              <RefreshCw class="h-3.5 w-3.5" :class="loading ? 'animate-spin' : ''" />
+              <RefreshCw class="h-3.5 w-3.5" :class="loading ? 'motion-safe:animate-spin' : ''" />
             </button>
           </CardDescription>
         </div>
@@ -418,7 +419,17 @@ const conceptos = computed(() => [
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-semibold">Matriculados MOL acumulados por día</h3>
           <div class="inline-flex rounded-md bg-slate-100 p-0.5 text-xs">
-            <button v-for="r in (['14', 'todo'] as const)" :key="r" type="button" class="rounded px-2 py-1" :class="rangoSerie === r ? 'bg-white font-semibold shadow-sm' : 'text-slate-500'" @click="rangoSerie = r">{{ r === '14' ? '14 días' : 'Todo' }}</button>
+            <button
+              v-for="r in (['14', 'todo'] as const)"
+              :key="r"
+              type="button"
+              class="rounded px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-blue"
+              :class="rangoSerie === r ? 'bg-white font-semibold shadow-sm' : 'text-slate-500'"
+              :aria-pressed="rangoSerie === r"
+              @click="rangoSerie = r"
+            >
+              {{ r === '14' ? '14 días' : 'Todo' }}
+            </button>
           </div>
         </div>
         <EChart :option="optSerie" />
@@ -437,7 +448,17 @@ const conceptos = computed(() => [
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-semibold">Por carrera <span class="font-normal text-muted-foreground">(clic = filtrar)</span></h3>
           <div class="inline-flex rounded-md bg-slate-100 p-0.5 text-xs">
-            <button v-for="c in (['matricula', 'arancel'] as const)" :key="c" type="button" class="rounded px-2 py-1" :class="conceptoCarrera === c ? 'bg-white font-semibold shadow-sm' : 'text-slate-500'" @click="conceptoCarrera = c">{{ c === 'matricula' ? 'Matrícula' : 'Arancel' }}</button>
+            <button
+              v-for="c in (['matricula', 'arancel'] as const)"
+              :key="c"
+              type="button"
+              class="rounded px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-blue"
+              :class="conceptoCarrera === c ? 'bg-white font-semibold shadow-sm' : 'text-slate-500'"
+              :aria-pressed="conceptoCarrera === c"
+              @click="conceptoCarrera = c"
+            >
+              {{ c === 'matricula' ? 'Matrícula' : 'Arancel' }}
+            </button>
           </div>
         </div>
         <EChart :option="optCarrera" height="240px" @click="clickCarrera" />
@@ -447,13 +468,15 @@ const conceptos = computed(() => [
     <Card v-if="tienePeriodo" id="detalle-pagos">
       <CardHeader class="pb-2">
         <CardTitle class="text-base">Detalle de alumnos MOL</CardTitle>
-        <div class="flex flex-wrap gap-1.5 pt-2">
+        <div class="flex flex-wrap gap-1.5 pt-2" role="group" aria-label="Filtrar por medio">
           <button
             v-for="c in chips"
             :key="c.id"
             type="button"
-            class="rounded-full border px-3 py-1 text-xs transition"
+            class="rounded-full border px-3 py-1 text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-uniacc-blue"
             :class="chip === c.id ? 'border-slate-900 bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'"
+            :aria-pressed="chip === c.id"
+            :aria-label="`${c.label}, ${c.n}`"
             @click="chip = c.id"
           >
             {{ c.label }} <span class="opacity-60">{{ c.n }}</span>
@@ -475,9 +498,18 @@ const conceptos = computed(() => [
             </TableRow>
             <TableRow v-else-if="filasFiltradas.length === 0">
               <TableCell :colspan="columns.length" class="py-12 text-center">
-                <Search class="mx-auto mb-2 h-7 w-7 text-muted-foreground" />
-                <p class="font-semibold">Sin resultados</p>
-                <p class="mb-3 text-sm text-muted-foreground">No hay matriculados MOL en {{ periodoLabel }} que coincidan con la búsqueda y los filtros aplicados.</p>
+                <Search class="mx-auto mb-2 h-7 w-7 text-muted-foreground" aria-hidden="true" />
+                <p class="font-semibold">Sin resultados{{ busqueda.trim() ? ` para «${busqueda.trim()}»` : '' }}</p>
+                <p class="mb-3 mx-auto max-w-lg text-sm text-muted-foreground">
+                  {{
+                    mensajeEmptyReportePagos({
+                      q: busqueda,
+                      carrera,
+                      medio,
+                      periodoLabel,
+                    })
+                  }}
+                </p>
                 <Button variant="outline" size="sm" @click="limpiar">Limpiar filtros</Button>
               </TableCell>
             </TableRow>

@@ -192,6 +192,22 @@ export const ETIQUETA_MEDIO: Record<MedioPago, string> = {
   pendiente: 'Pendiente',
 }
 
+/** Texto del empty state (wireframe): cita búsqueda y filtros activos. */
+export function mensajeEmptyReportePagos(input: {
+  q: string
+  carrera: string
+  medio: FiltroMedio
+  periodoLabel: string
+}): string {
+  const q = input.q.trim()
+  const partes: string[] = []
+  if (input.carrera.trim()) partes.push(`Carrera: ${input.carrera.trim()}`)
+  if (input.medio !== 'todos') partes.push(ETIQUETA_MEDIO[input.medio])
+  const filtros = partes.length ? ` (${partes.join(' · ')})` : ''
+  const busqueda = q ? ` para «${q}»` : ''
+  return `Sin resultados${busqueda}. No hay matriculados MOL en ${input.periodoLabel} que coincidan con la búsqueda y los filtros${filtros}.`
+}
+
 const COLUMNAS = [
   'codcli', 'rut', 'nombre', 'carrera', 'fecha_matricula',
   'medio_matricula', 'monto_matricula', 'fecha_pago_matricula', 'cuotas_matricula', 'buy_order_matricula',

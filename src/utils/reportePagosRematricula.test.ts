@@ -3,6 +3,7 @@ import {
   aplicaChip,
   aplicaMedio,
   filasReportePagosACsv,
+  mensajeEmptyReportePagos,
   normalizarMedio,
   parseFilaReportePagos,
   parseKpiReportePagos,
@@ -82,5 +83,18 @@ describe('reportePagosRematricula v2', () => {
   it('CSV escapa comas', () => {
     const csv = filasReportePagosACsv([fila({ nombre_alumno: 'Pérez, Ana' })])
     expect(csv.split('\n')[1]).toContain('"Pérez, Ana"')
+  })
+
+  it('arma mensaje empty con búsqueda y filtros', () => {
+    const msg = mensajeEmptyReportePagos({
+      q: 'Gonzalo Inexistente',
+      carrera: 'Psicología',
+      medio: 'pagare',
+      periodoLabel: '2027-1',
+    })
+    expect(msg).toContain('Gonzalo Inexistente')
+    expect(msg).toContain('Carrera: Psicología')
+    expect(msg).toContain('Pagaré')
+    expect(msg).toContain('2027-1')
   })
 })
