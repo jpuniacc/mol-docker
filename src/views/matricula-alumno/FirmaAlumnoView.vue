@@ -617,15 +617,25 @@ async function restaurarFirmaExistente(): Promise<void> {
           return
         }
         aplicarEstadoOk(estado)
-        if (!estado.ready) iniciarPoll(estado.numOperacion)
+        if (decisionMatriculaFirma(estado) === 'esperar') iniciarPoll(estado.numOperacion)
         return
       }
       if (res.created) {
         enlacesFirma.value = {}
         await registrarPasoFirma('enviado', res.numOperacion)
       }
+      // ensure no cierra matrícula: si ya está ready, consultar estado (con matriculaActualizada).
+      if (res.ready) {
+        const estado = await getContratoFirmaEstado(res.numOperacion, identidadFirma())
+        if (unmounted) return
+        if (estado.ok) {
+          aplicarEstadoOk(estado)
+          if (decisionMatriculaFirma(estado) === 'esperar') iniciarPoll(estado.numOperacion)
+          return
+        }
+      }
       aplicarEstadoOk(res)
-      if (!res.ready) iniciarPoll(res.numOperacion)
+      if (decisionMatriculaFirma(res) === 'esperar') iniciarPoll(res.numOperacion)
       return
     }
 
@@ -636,7 +646,7 @@ async function restaurarFirmaExistente(): Promise<void> {
       return
     }
     aplicarEstadoOk(res)
-    if (!res.ready) iniciarPoll(res.numOperacion)
+    if (decisionMatriculaFirma(res) === 'esperar') iniciarPoll(res.numOperacion)
   } finally {
     if (!unmounted) restaurandoFirma.value = false
   }

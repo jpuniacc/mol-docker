@@ -20,4 +20,8 @@ describe('decisionMatriculaFirma', () => {
       }),
     ).toBe('mostrar-error')
   })
+
+  it('espera si ready aún no trae el resultado de matrícula (p. ej. ensure)', () => {
+    expect(decisionMatriculaFirma({ ready: true })).toBe('esperar')
+  })
 })
