@@ -365,6 +365,28 @@ const routes = [
           import('../views/dashboard/reportes/ReportesPagosRematriculaView.vue'),
       },
       {
+        path: '/dashboard/reportes-becas-asignadas',
+        name: 'dashboard-reportes-becas-asignadas',
+        meta: {
+          requiresAdminAdmision: true,
+          requiresSoloGrupoDvU: true,
+          requiresPerfilUsuarioIn: [1, 2, 3],
+        },
+        component: () =>
+          import('../views/dashboard/reportes/ReportesBecasAsignadasView.vue'),
+      },
+      {
+        path: '/dashboard/reportes-tiempos-tramo',
+        name: 'dashboard-reportes-tiempos-tramo',
+        meta: {
+          requiresAdminAdmision: true,
+          requiresSoloGrupoDvU: true,
+          requiresPerfilUsuarioIn: [1, 2, 3],
+        },
+        component: () =>
+          import('../views/dashboard/reportes/ReportesTiemposTramoView.vue'),
+      },
+      {
         path: '/dashboard/rematricula-seguimiento',
         name: 'dashboard-rematricula-seguimiento',
         meta: {

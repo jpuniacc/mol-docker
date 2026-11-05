@@ -1,6 +1,7 @@
 import type { Component } from 'vue'
 import {
   Accessibility,
+  Award,
   Briefcase,
   Calendar,
   CircleDot,
@@ -21,6 +22,7 @@ import {
   School,
   Settings,
   Star,
+  Timer,
   Unlock,
   Users,
   Wallet,
@@ -50,6 +52,8 @@ const ICON_MAP: Record<string, Component> = {
   LayoutDashboard,
   ListOrdered,
   Star,
+  Award,
+  Timer,
 }
 
 export function menuIconFromKey(iconKey: string | null | undefined): Component {
