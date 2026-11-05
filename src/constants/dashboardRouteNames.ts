@@ -35,6 +35,7 @@ export const DASHBOARD_MENU_ROUTE_NAMES = [
   'dashboard-rematricula-seguimiento',
   'dashboard-encuesta-discapacidad',
   'dashboard-nps-rematricula',
+  'dashboard-alumni-mailing',
   'dashboard-mantenedor-desbloqueo-toma-ramos',
   'dashboard-gestion-firmas',
   'dashboard-conciliacion-transbank',

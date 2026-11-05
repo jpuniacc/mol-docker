@@ -431,6 +431,17 @@ const routes = [
           import('../views/dashboard/rematricula/NpsRematriculaView.vue'),
       },
       {
+        path: '/dashboard/alumni-mailing',
+        name: 'dashboard-alumni-mailing',
+        meta: {
+          requiresAdminAdmision: true,
+          requiresSoloGrupoDvU: true,
+          requiresPerfilUsuarioIn: [1, 2, 3],
+        },
+        component: () =>
+          import('../views/dashboard/alumni/AlumniMailingView.vue'),
+      },
+      {
         path: '/dashboard/gestion-firmas',
         name: 'dashboard-gestion-firmas',
         meta: {
