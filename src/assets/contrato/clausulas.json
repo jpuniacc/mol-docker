@@ -8,15 +8,15 @@
   },
   "representantes": {
     "default": {
-      "nombre": "",
-      "rut": ""
+      "nombre": "Carlos Luis Barría Román",
+      "rut": "15.833.057-1"
     },
     "nuevo": {
-      "nombre": "",
-      "rut": ""
+      "nombre": "Carlos Luis Barría Román",
+      "rut": "15.833.057-1"
     }
   },
-  "preambuloIntro": "El Estudiante o Alumno y/o el Sostenedor Financiero antes Individualizados, que en adelante se denominarán \"los Contratantes\", y la Universidad de Artes, Ciencias y Comunicación - UNIACC, RUT N° 71.602.500-4, domiciliada en Av. Salvador 1200, comuna de Providencia, Región Metropolitana, aceptan y acuerdan celebrar el siguiente Contrato de Prestación de Servicios Educacionales:",
+  "preambuloIntro": "El Estudiante o Alumno y/o el Sostenedor Financiero antes Individualizados, que en adelante se denominarán \"los Contratantes\", y la Universidad de Artes, Ciencias y Comunicación - UNIACC, RUT N° 71.602.500-4, representada legalmente para estos efectos por {{representanteNombre}}, cédula de identidad Nº {{representanteRut}}, ambos domiciliados en Av. Salvador 1200, comuna de Providencia, Región Metropolitana, aceptan y acuerdan celebrar el siguiente Contrato de Prestación de Servicios Educacionales:",
   "definiciones": {
     "titulo": "DEFINICIONES:",
     "intro": "Para los efectos del presente Contrato, se entenderá por:",

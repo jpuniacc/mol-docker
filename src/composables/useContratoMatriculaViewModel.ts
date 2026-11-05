@@ -249,8 +249,8 @@ export function useContratoMatriculaViewModel(flow: ContratoMatriculaFlow = 'moc
         ctapagnum: c.ctapagnum,
       })),
       representante: {
-        nombre: '',
-        rut: '',
+        nombre: clausulasFixture.representantes.default.nombre,
+        rut: clausulasFixture.representantes.default.rut,
       },
       asignaturasNuevo,
       bloques,

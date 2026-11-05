@@ -21,9 +21,13 @@ function fill(template: string): string {
     m.emailApoderado && m.emailApoderado !== '—'
       ? ` y/o ${m.emailApoderado}`
       : ''
+  const key = m.asignaturasNuevo ? 'nuevo' : 'default'
+  const fallback = clausulasFixture.representantes[key]
+  const repNombre = m.representante.nombre.trim() || fallback.nombre
+  const repRut = m.representante.rut.trim() || fallback.rut
   return template
-    .replaceAll('{{representanteNombre}}', m.representante.nombre)
-    .replaceAll('{{representanteRut}}', m.representante.rut)
+    .replaceAll('{{representanteNombre}}', repNombre)
+    .replaceAll('{{representanteRut}}', repRut)
     .replaceAll('{{sostenedorNombre}}', m.sostenedor.nombre)
     .replaceAll('{{sostenedorNacionalidad}}', m.sostenedor.nacionalidad)
     .replaceAll('{{sostenedorProfesion}}', m.sostenedor.profesion)

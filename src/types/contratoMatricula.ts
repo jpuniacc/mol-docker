@@ -66,10 +66,10 @@ export type ContratoMatriculaViewModel = {
   cuotas: ContratoCuotaLinea[]
   pagoWebpayMatricula?: PagoWebpayContrato | null
   pagoWebpayArancel?: PagoWebpayContrato | null
+  /** Representante legal UNIACC (preámbulo). No firma en TuFirma. */
   representante: {
     nombre: string
     rut: string
   }
-  /** Representante legal no definido en v1; nombre/rut van vacíos. */
   asignaturasNuevo: boolean
 }
