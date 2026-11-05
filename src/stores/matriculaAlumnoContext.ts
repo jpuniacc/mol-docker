@@ -331,6 +331,8 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
     borradorActualizadoEn: null as string | null,
     borradorPendienteDeSubir: false,
     claveBorrador: null as ClaveBorradorRematricula | null,
+    /** true cuando terminó la última sync remota (éxito o fallo). */
+    hidratacionBorradorLista: false,
   }),
   actions: {
     payloadActual(): StoredAlumnoMatriculaContext {
@@ -417,15 +419,20 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
       return true
     },
 
-    async sincronizarBorradorServidor(clave: ClaveBorradorRematricula) {
+    async sincronizarBorradorServidor(clave: ClaveBorradorRematricula): Promise<boolean> {
+      this.hidratacionBorradorLista = false
       this.claveBorrador = clave
       let consulta: Awaited<ReturnType<typeof consultarMolBorrador>>
       try {
         consulta = await consultarMolBorrador(clave)
       } catch {
-        return
+        this.hidratacionBorradorLista = true
+        return false
       }
-      if (!consulta.ok) return
+      if (!consulta.ok) {
+        this.hidratacionBorradorLista = true
+        return false
+      }
       const remoto = consulta.remoto
       const decision = decidirBorrador({
         sesionTieneAvance: hasAnyProgressPayload(this.payloadActual()),
@@ -438,7 +445,8 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
         this.borradorActualizadoEn = remoto.actualizadoEn
         this.borradorPendienteDeSubir = false
         this.escribirSesion()
-        return
+        this.hidratacionBorradorLista = true
+        return true
       }
       if (decision === 'subir-sesion') {
         if (subidaTimer) clearTimeout(subidaTimer)
@@ -446,6 +454,24 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
         const revision = revisionSubida
         await this.subirBorrador(revision)
       }
+      this.hidratacionBorradorLista = true
+      return true
+    },
+
+    /** Aplica conciliación servidor (Webpay/TuFirma) sin crear cobros. */
+    aplicarParcheRetencion(parche: {
+      medioMatricula?: 'webpay'
+      webpayMatriculaEstado?: 'autorizada'
+      medioArancel?: 'webpay'
+      webpayArancelEstado?: 'autorizada'
+      firmaCompletada?: true
+    }) {
+      if (parche.medioMatricula) this.medioMatricula = parche.medioMatricula
+      if (parche.webpayMatriculaEstado) this.webpayMatriculaEstado = parche.webpayMatriculaEstado
+      if (parche.medioArancel) this.medioArancel = parche.medioArancel
+      if (parche.webpayArancelEstado) this.webpayArancelEstado = parche.webpayArancelEstado
+      if (parche.firmaCompletada === true) this.firmaCompletada = true
+      this.persistToSessionStorage()
     },
 
     aplicarCampos(entrada: object) {
@@ -551,6 +577,7 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
       this.claveBorrador = null
       this.borradorActualizadoEn = null
       this.borradorPendienteDeSubir = false
+      this.hidratacionBorradorLista = false
       this.tycAccepted = false
       this.discapacidad = null
       this.verificacionCae = null

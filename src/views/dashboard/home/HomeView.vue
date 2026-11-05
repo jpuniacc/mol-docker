@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,6 +15,8 @@ import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import AvancePasosAlumno from '@/components/rematricula/AvancePasosAlumno.vue'
 import { claveBorradorValida } from '@/utils/borradorRematriculaSync'
+import { conciliarRetencionAlumno } from '@/composables/useConciliarRetencion'
+import { copyProcesoIncompleto, procesoRematriculaIncompleto } from '@/utils/procesoRematriculaIncompleto'
 import {
   ctaAvanceHome,
   pasosAvanceHome,
@@ -21,6 +24,7 @@ import {
 } from '@/utils/pasoAlumnoRematricula'
 import { Phone, Sparkles } from 'lucide-vue-next'
 
+const router = useRouter()
 const appStore = useAppStore()
 const auth = useAuthStore()
 const datosMnp = useDatosAlumnoMnpStore()
@@ -59,23 +63,67 @@ const avance = computed(() =>
 const pasosCompletados = computed(() => pasosListosHome(avance.value))
 const cta = computed(() => ctaAvanceHome(avance.value))
 
+const retencionIncompleta = computed(() =>
+  procesoRematriculaIncompleto({
+    medioMatricula: alumnoCtx.medioMatricula,
+    medioArancel: alumnoCtx.medioArancel,
+    webpayMatriculaEstado: alumnoCtx.webpayMatriculaEstado,
+    webpayArancelEstado: alumnoCtx.webpayArancelEstado,
+    pagoMatricula: alumnoCtx.pagoMatricula,
+    firmaCompletada: alumnoCtx.firmaCompletada,
+    arancelPorPagar: alumnoCtx.webpayMontoArancel,
+    periodoActivo: periodoActivo.anio != null && periodoActivo.semestre != null,
+  }),
+)
+
+const copyRetencion = computed(() =>
+  copyProcesoIncompleto({
+    medioMatricula: alumnoCtx.medioMatricula,
+    medioArancel: alumnoCtx.medioArancel,
+    webpayMatriculaEstado: alumnoCtx.webpayMatriculaEstado,
+    webpayArancelEstado: alumnoCtx.webpayArancelEstado,
+    pagoMatricula: alumnoCtx.pagoMatricula,
+    firmaCompletada: alumnoCtx.firmaCompletada,
+    arancelPorPagar: alumnoCtx.webpayMontoArancel,
+  }),
+)
+
+const conciliando = ref(false)
+const rutaRetomar = ref<string | null>(null)
+
+async function retomarRematricula(): Promise<void> {
+  if (rutaRetomar.value) {
+    await router.push({ name: rutaRetomar.value })
+    return
+  }
+  await router.push({ name: 'matricula-alumno-retomar' })
+}
+
 watch(
   () =>
     [
       esAlumnoPixarron.value,
       datosMnp.primeraFila?.codcli,
+      datosMnp.primeraFila?.rut,
       periodoActivo.anio,
       periodoActivo.semestre,
     ] as const,
-  () => {
+  async () => {
     if (!esAlumnoPixarron.value) return
-    const clave = claveBorradorValida(
-      datosMnp.primeraFila?.codcli,
-      periodoActivo.anio,
-      periodoActivo.semestre,
-    )
-    if (!clave) return
-    void alumnoCtx.sincronizarBorradorServidor(clave)
+    const codcli = datosMnp.primeraFila?.codcli
+    const rut = datosMnp.primeraFila?.rut
+    const clave = claveBorradorValida(codcli, periodoActivo.anio, periodoActivo.semestre)
+    if (!clave || !codcli || !rut) return
+    conciliando.value = true
+    try {
+      const r = await conciliarRetencionAlumno({ rut, codcli })
+      rutaRetomar.value = r.ruta
+      if (r.incompleto && r.ruta) {
+        // Banner visible; no forzar redirect automático para no sorprender en home.
+      }
+    } finally {
+      conciliando.value = false
+    }
   },
   { immediate: true },
 )
@@ -142,6 +190,33 @@ watch(
           <TextoPortalSolicitudes :texto="MSG_FUERA_CARTERA_OFICIAL" />
         </AlertDescription>
       </Alert>
+
+      <section
+        v-else-if="retencionIncompleta"
+        class="overflow-hidden rounded-2xl border-2 border-[#FF5B00] bg-white shadow-lg ring-1 ring-orange-200"
+        aria-labelledby="retencion-banner-title"
+      >
+        <div class="bg-[#FF5B00] px-4 py-2 text-center text-sm font-semibold text-white">
+          Avance recuperado de forma segura
+        </div>
+        <div class="space-y-4 p-5 md:p-6">
+          <h2 id="retencion-banner-title" class="text-xl font-bold text-zinc-900 md:text-2xl">
+            Tu matrícula ya está pagada. Retomemos donde quedaste.
+          </h2>
+          <p class="text-sm leading-relaxed text-zinc-600 md:text-base">
+            {{ copyRetencion }} No necesitas volver a pagar la matrícula.
+          </p>
+          <Button
+            type="button"
+            class="h-12 w-full cursor-pointer rounded-full bg-[#FF5B00] text-base font-semibold hover:bg-[#FF5B00]/90 md:w-auto md:px-8"
+            :disabled="conciliando"
+            @click="retomarRematricula"
+          >
+            Retomar mi rematrícula →
+          </Button>
+          <p class="text-sm text-zinc-500">Te llevamos al paso pendiente.</p>
+        </div>
+      </section>
 
       <section
         v-else

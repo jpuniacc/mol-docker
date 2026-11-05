@@ -28,6 +28,8 @@ import {
   leerDesbloqueoProximamente,
   redireccionProximamente,
 } from '@/utils/proximamenteGate'
+import { useRetencionRematricula } from '@/composables/useRetencionRematricula'
+import { emitirRetencionAudit } from '@/services/retencionAuditLog'
 
 const MOCK_SELECCION_ROUTE = 'matricula-mock-seleccion-alumno'
 const MOCK_DATOS_ROUTE = 'matricula-mock-datos'
@@ -114,6 +116,12 @@ const routes = [
     path: '/webpay-qa/retorno',
     name: 'webpay-qa-retorno',
     component: () => import('../views/webpay-qa/WebpayQaRetornoView.vue'),
+  },
+  {
+    path: '/retomar',
+    name: 'matricula-alumno-retomar',
+    component: () => import('../views/matricula-alumno/RetomarRematriculaView.vue'),
+    meta: { requiresAuth: true },
   },
   {
     path: '/dashboard',
@@ -555,7 +563,7 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach(async (to) => {
+router.beforeEach(async (to, from) => {
   const auth = useAuthStore()
   const datosMnp = useDatosAlumnoMnpStore()
   const canonica = rutaBajoDashboard(to.path)
@@ -563,7 +571,8 @@ router.beforeEach(async (to) => {
     return { path: canonica, query: to.query, hash: to.hash, replace: true }
   }
 
-  const needsAuth = to.path.startsWith('/dashboard')
+  const needsAuth =
+    to.path.startsWith('/dashboard') || to.name === 'matricula-alumno-retomar'
 
   if (!auth.isAuthenticated && to.name === 'NotFound') {
     return { name: 'login', replace: true }
@@ -578,7 +587,9 @@ router.beforeEach(async (to) => {
       useDashboardMenuStore().ensureLoaded(),
       usePeriodoActivoStore().ensureLoaded(),
       useContactoOtpConfigStore().ensureLoaded(
-        isMockFlowRoute(to.name) || isAlumnoFlowRoute(to.name),
+        isMockFlowRoute(to.name) ||
+          isAlumnoFlowRoute(to.name) ||
+          to.name === 'matricula-alumno-retomar',
       ),
     ])
   }
@@ -696,6 +707,21 @@ router.beforeEach(async (to) => {
     }
     if (to.name === 'matricula-mock-resumen' && !mockCtx.firmaCompletada) {
       return { name: 'matricula-mock-firma', replace: true }
+    }
+  }
+
+  if (
+    auth.isAuthenticated &&
+    isAlumnoFlowRoute(from.name) &&
+    !isAlumnoFlowRoute(to.name)
+  ) {
+    const retencion = useRetencionRematricula()
+    if (!retencion.consumirBypassSalida() && retencion.esIncompleto.value) {
+      emitirRetencionAudit({ accion: 'modal_mostrado' })
+      retencion.abrirModalSalida({
+        name: typeof to.name === 'string' ? to.name : 'dashboard-home',
+      })
+      return false
     }
   }
 
