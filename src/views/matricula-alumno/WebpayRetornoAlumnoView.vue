@@ -24,7 +24,11 @@ import {
 } from '@/stores/matriculaAlumnoContext'
 import { registrarWebpayAudit, type RegistrarWebpayAuditParams } from '@/services/webpayAuditLog'
 import { detalleDesdeWebpay } from '@/utils/webpayPagoDetalle'
-import { destinoDesdePaso, motivoContinuarError } from '@/utils/webpayRetornoContinuar'
+import {
+  destinoDesdePaso,
+  montoCrearSiguienteWebpay,
+  motivoContinuarError,
+} from '@/utils/webpayRetornoContinuar'
 import { siguientePaso, type MedioConcepto } from '@/utils/webpaySiguientePaso'
 import VoucherWebpayDialog from '@/components/matricula/VoucherWebpayDialog.vue'
 import { armarVoucherWebpay, type VoucherWebpay } from '@/utils/voucherWebpay'
@@ -57,7 +61,8 @@ function estadoPersistible(estado: FilaPublica['estado']): WebpayConceptoEstado 
   return null
 }
 
-function guardarEstadoConcepto(fila: FilaPublica): void {
+/** Persiste estado Webpay en contexto y fuerza upload a BD (no solo sessionStorage). */
+async function guardarEstadoConcepto(fila: FilaPublica): Promise<boolean> {
   const estado = estadoPersistible(fila.estado)
   const detalle =
     estado === 'autorizada'
@@ -76,6 +81,18 @@ function guardarEstadoConcepto(fila: FilaPublica): void {
     alumnoCtx.setWebpayArancelEstado(estado)
     alumnoCtx.setWebpayArancelDetalle(detalle)
   }
+  return alumnoCtx.flushBorrador()
+}
+
+async function asegurarBorradorPersistido(fila: FilaPublica): Promise<boolean> {
+  const ok = await alumnoCtx.flushBorrador()
+  if (ok) return true
+  auditarContinuarError(fila, motivoContinuarError('persistencia'))
+  mostrarErrorRematricula(
+    'No pudimos guardar el avance del pago. Revisa tu conexión e intenta Continuar de nuevo.',
+  )
+  mostrarReintentar.value = true
+  return false
 }
 
 const ESPERA_AUDIT_ANTES_WEBPAY_MS = 1_000
@@ -179,6 +196,8 @@ function irAFormaPago(plan?: ConceptoWebpay, aviso?: 'abortada' | 'rechazada'): 
 }
 
 async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
+  if (!(await asegurarBorradorPersistido(fila))) return
+
   const medioMatricula = alumnoCtx.medioMatricula
   const medioArancel: MedioConcepto | null = alumnoCtx.medioArancel
   if (medioMatricula == null) {
@@ -198,9 +217,12 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
   })
 
   if (paso.tipo === 'webpay') {
-    const monto =
-      paso.concepto === 'matricula' ? alumnoCtx.webpayMontoMatricula : alumnoCtx.webpayMontoArancel
-    if (monto == null || !Number.isInteger(monto) || monto <= 0) {
+    const monto = montoCrearSiguienteWebpay({
+      concepto: paso.concepto,
+      webpayMontoMatricula: alumnoCtx.webpayMontoMatricula,
+      webpayMontoArancel: alumnoCtx.webpayMontoArancel,
+    })
+    if (monto == null) {
       auditarContinuarError(fila, motivoContinuarError('monto_invalido'))
       mostrarErrorRematricula('No encontramos el monto del siguiente pago.')
       mostrarReintentar.value = true
@@ -229,6 +251,7 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
       mostrarReintentar.value = true
       return
     }
+    if (!(await asegurarBorradorPersistido(fila))) return
     await auditarContinuarOkAntesDeWebpay(fila, destinoDesdePaso(paso))
     redirigiendo.value = true
     redirigirAWebpay(creado.url, creado.token)
@@ -250,6 +273,7 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
   if (paso.tipo === 'firma') {
     auditarContinuarOk(fila, destinoDesdePaso(paso))
     alumnoCtx.marcarPasoAlcanzado(3)
+    if (!(await asegurarBorradorPersistido(fila))) return
     void router.push({ name: 'matricula-alumno-firma' })
     return
   }
@@ -302,7 +326,7 @@ onMounted(async () => {
     let filaInvalida: FilaPublica | null = null
     if (buyOrder) {
       filaInvalida = await obtenerWebpay(buyOrder)
-      if (filaInvalida) guardarEstadoConcepto(filaInvalida)
+      if (filaInvalida) await guardarEstadoConcepto(filaInvalida)
     }
     auditarRetorno(buyOrder, errorQuery, filaInvalida)
     cargando.value = false
@@ -326,7 +350,10 @@ onMounted(async () => {
     return
   }
 
-  guardarEstadoConcepto(fila)
+  const persistido = await guardarEstadoConcepto(fila)
+  if (!persistido) {
+    console.warn('[WebpayRetorno] No se pudo flush del borrador tras guardar estado')
+  }
 
   const armado = armarVoucherWebpay(fila)
   if (!armado) {
