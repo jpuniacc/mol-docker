@@ -115,10 +115,10 @@ const chips = computed(() => {
     { id: 'todos' as FiltroChip, label: 'Todos', n: filas.value.length },
     { id: 'matricula:webpay' as FiltroChip, label: 'Matrícula Webpay', n: m.webpay },
     { id: 'matricula:pagare' as FiltroChip, label: 'Matrícula pagaré', n: m.pagare },
-    { id: 'matricula:pendiente' as FiltroChip, label: 'Matrícula pendiente', n: m.pendiente },
+    { id: 'matricula:pendiente' as FiltroChip, label: 'Matrícula sin definir', n: m.pendiente },
     { id: 'arancel:webpay' as FiltroChip, label: 'Arancel Webpay', n: a.webpay },
     { id: 'arancel:pagare' as FiltroChip, label: 'Arancel pagaré', n: a.pagare },
-    { id: 'arancel:pendiente' as FiltroChip, label: 'Arancel pendiente', n: a.pendiente },
+    { id: 'arancel:pendiente' as FiltroChip, label: 'Arancel sin definir', n: a.pendiente },
   ]
 })
 
@@ -152,7 +152,7 @@ const optSerie = computed(() => ({
   yAxis: { type: 'value', minInterval: 1, axisLabel: { fontSize: 10, color: '#94a3b8' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
   series: [
     { name: 'Matriculados', type: 'line', smooth: true, data: serie.value.map((p) => p.acumulado), color: C_PAGARE, areaStyle: { opacity: 0.15 }, symbolSize: 5 },
-    { name: 'Con medio de matrícula', type: 'line', smooth: true, data: serie.value.map((p) => p.acumuladoConMedio), color: C_WEBPAY, lineStyle: { type: 'dashed' }, symbolSize: 4 },
+    { name: 'Matrícula con pago', type: 'line', smooth: true, data: serie.value.map((p) => p.acumuladoConMedio), color: C_WEBPAY, lineStyle: { type: 'dashed' }, symbolSize: 4 },
   ],
 }))
 
@@ -165,9 +165,9 @@ const donut = (r: ResumenConcepto) => ({
       label: { show: true, position: 'center', formatter: () => String(r.webpay + r.pagare + r.pendiente), fontSize: 20, fontWeight: 700, color: '#0f172a' },
       emphasis: { label: { show: true } },
       data: [
-        { name: 'Webpay', value: r.webpay, itemStyle: { color: C_WEBPAY } },
-        { name: 'Pagaré', value: r.pagare, itemStyle: { color: C_PAGARE } },
-        { name: 'Pendiente', value: r.pendiente, itemStyle: { color: C_PEND } },
+        { name: ETIQUETA_MEDIO.webpay, value: r.webpay, itemStyle: { color: C_WEBPAY } },
+        { name: ETIQUETA_MEDIO.pagare, value: r.pagare, itemStyle: { color: C_PAGARE } },
+        { name: ETIQUETA_MEDIO.pendiente, value: r.pendiente, itemStyle: { color: C_PEND } },
       ],
     },
   ],
@@ -250,19 +250,19 @@ const columns: ColumnDef<FilaReportePagosRematricula>[] = [
   {
     id: 'matricula',
     accessorFn: (f) => ordenMedio[f.medio_matricula] * 1e12 + (f.monto_matricula ?? 0),
-    header: sortHeader('Matrícula (medio · monto)'),
+    header: sortHeader('Pago matrícula'),
     cell: ({ row }) => celdaMedio(row.original, 'matricula'),
   },
   {
     id: 'arancel',
     accessorFn: (f) => ordenMedio[f.medio_arancel] * 1e12 + (f.monto_arancel ?? 0),
-    header: sortHeader('Arancel (medio · monto)'),
+    header: sortHeader('Pago arancel'),
     cell: ({ row }) => celdaMedio(row.original, 'arancel'),
   },
   {
     id: 'fec_mat',
     accessorFn: (f) => f.fec_mat ?? '',
-    header: sortHeader('Matriculado'),
+    header: sortHeader('Fecha matrícula'),
     cell: ({ row }) => h('span', { class: 'text-xs text-muted-foreground tabular-nums' }, fmtFecha(row.original.fec_mat)),
   },
 ]
@@ -337,7 +337,7 @@ const conceptos = computed(() => [
     <Card>
       <CardHeader class="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0">
         <div>
-          <CardTitle>Pagos rematrícula · Matriculados MOL</CardTitle>
+          <CardTitle>Pagos · Matriculados online (MOL)</CardTitle>
           <CardDescription class="mt-1">
             Periodo <b class="text-foreground">{{ periodoLabel }}</b> · Medio de pago por concepto (Webpay / Pagaré)
             <template v-if="actualizado"> · Actualizado {{ actualizado.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) }}</template>
@@ -366,7 +366,7 @@ const conceptos = computed(() => [
             <option value="todos">Medio: Todos</option>
             <option value="webpay">Webpay</option>
             <option value="pagare">Pagaré</option>
-            <option value="pendiente">Pendiente</option>
+            <option value="pendiente">Sin definir</option>
           </select>
           <div class="relative min-w-[220px] flex-1">
             <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -388,7 +388,7 @@ const conceptos = computed(() => [
         <div class="absolute inset-x-0 top-0 h-1.5" :class="c.barra" />
         <div class="flex items-center justify-between text-sm">
           <span class="text-muted-foreground">{{ c.titulo }}</span>
-          <b class="tabular-nums">{{ c.r.webpay + c.r.pagare }} de {{ total }} con medio ({{ pct(c.r.webpay + c.r.pagare, total) }}%)</b>
+          <b class="tabular-nums">{{ c.r.webpay + c.r.pagare }} de {{ total }} con pago definido ({{ pct(c.r.webpay + c.r.pagare, total) }}%)</b>
         </div>
         <div class="my-2 flex h-2 overflow-hidden rounded-full bg-slate-100">
           <div class="bg-emerald-600" :style="{ width: pct(c.r.webpay, total) + '%' }" />
@@ -398,7 +398,7 @@ const conceptos = computed(() => [
         <div class="grid grid-cols-3 gap-2 text-xs">
           <div><span class="text-emerald-600">■</span> Webpay <b>{{ c.r.webpay }}</b><div class="font-semibold tabular-nums text-emerald-700">{{ fmtMoney(c.r.webpay_monto) }}</div></div>
           <div><span class="text-uniacc-blue">■</span> Pagaré <b>{{ c.r.pagare }}</b><div class="font-semibold tabular-nums text-[#2b6f98]">{{ fmtMoney(c.r.pagare_monto) }}</div></div>
-          <div><span class="text-amber-500">■</span> Pendiente <b>{{ c.r.pendiente }}</b></div>
+          <div><span class="text-amber-500">■</span> Sin definir <b>{{ c.r.pendiente }}</b></div>
         </div>
       </Card>
       <button
@@ -407,9 +407,9 @@ const conceptos = computed(() => [
         @click="irAPendientes"
       >
         <div class="absolute inset-x-0 top-0 h-1.5 bg-uniacc-magenta" />
-        <p class="flex items-center gap-1 text-sm font-semibold text-orange-800"><AlertTriangle class="h-4 w-4" /> Pendientes</p>
-        <p class="text-orange-900"><span class="text-3xl font-bold tabular-nums text-orange-700">{{ resMat.pendiente }}</span> sin medio en matrícula</p>
-        <p class="text-sm text-orange-900">{{ resAra.pendiente }} sin medio en arancel</p>
+        <p class="flex items-center gap-1 text-sm font-semibold text-orange-800"><AlertTriangle class="h-4 w-4" /> Sin pago definido</p>
+        <p class="text-orange-900"><span class="text-3xl font-bold tabular-nums text-orange-700">{{ resMat.pendiente }}</span> sin pago de matrícula definido</p>
+        <p class="text-sm text-orange-900">{{ resAra.pendiente }} sin pago de arancel definido</p>
         <p class="mt-1 text-xs font-semibold text-orange-800 underline">Ver listado →</p>
       </button>
     </div>
@@ -441,7 +441,7 @@ const conceptos = computed(() => [
           <div><p class="text-center text-xs font-semibold">Arancel</p><EChart :option="optDonaAra" height="150px" /></div>
         </div>
         <div class="mt-1 flex justify-center gap-4 text-xs">
-          <span><span class="text-emerald-600">■</span> Webpay</span><span><span class="text-uniacc-blue">■</span> Pagaré</span><span><span class="text-amber-500">■</span> Pendiente</span>
+          <span><span class="text-emerald-600">■</span> Webpay</span><span><span class="text-uniacc-blue">■</span> Pagaré</span><span><span class="text-amber-500">■</span> Sin definir</span>
         </div>
       </Card>
       <Card class="p-4">

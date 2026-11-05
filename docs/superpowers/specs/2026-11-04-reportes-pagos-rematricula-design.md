@@ -98,7 +98,7 @@ Front ReportesPagosRematriculaView
 Helpers reportePagosRematricula.ts (serie, donas, carrera, filtros, export)
 ```
 
-- Migraciones: `20261104180000_reporte_pagos_rematricula.sql` (v1) y `20261104200000_reporte_pagos_rematricula_v2_mol_medios.sql` (v2 vigente).
+- Migraciones: `20261104180000` (v1), `20261104200000` (v2 medios), `20261105120000` (fallback Webpay autorizada; vigente).
 - Servicio: `reportesPagosRematriculaApi.ts`.
 - Tests unitarios de helpers de clasificación / serie / export.
 
@@ -106,6 +106,7 @@ Helpers reportePagosRematricula.ts (serie, donas, carrera, filtros, export)
 
 - Pagaré sin borrador persistido → **pendiente** aunque exista en U+.
 - Webpay elegido sin tx autorizada → **pendiente**.
+- Tx Webpay autorizada del concepto → **webpay** aunque `medioMatricula` / `medioArancel` del borrador sea null o desfasado (p. ej. cuenta grabada y borrador sin `medioArancel`).
 - Medio «caja» u otros ERP → no modelados.
 - Desfase vs grabado U+ / TuFirma → aceptado; Gestión de firmas y conciliación Transbank siguen en sus pantallas.
 

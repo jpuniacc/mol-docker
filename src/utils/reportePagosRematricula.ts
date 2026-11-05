@@ -50,6 +50,19 @@ export function normalizarMedio(v: unknown): MedioPago {
   return s === 'webpay' || s === 'pagare' ? s : 'pendiente'
 }
 
+/**
+ * Misma regla que listar_reporte_pagos_rematricula:
+ * pagaré declarado manda; si no, tx Webpay autorizada → webpay (aunque el borrador no tenga medio).
+ */
+export function resolverMedioReporte(
+  medioBorrador: unknown,
+  tieneWebpayAutorizada: boolean,
+): MedioPago {
+  if (String(medioBorrador ?? '').toLowerCase() === 'pagare') return 'pagare'
+  if (tieneWebpayAutorizada) return 'webpay'
+  return 'pendiente'
+}
+
 export function parseFilaReportePagos(raw: unknown): FilaReportePagosRematricula | null {
   if (!raw || typeof raw !== 'object') return null
   const r = raw as Record<string, unknown>
@@ -189,7 +202,7 @@ export function porCarrera(filas: FilaReportePagosRematricula[], c: Concepto, to
 export const ETIQUETA_MEDIO: Record<MedioPago, string> = {
   webpay: 'Webpay',
   pagare: 'Pagaré',
-  pendiente: 'Pendiente',
+  pendiente: 'Sin definir',
 }
 
 /** Texto del empty state (wireframe): cita búsqueda y filtros activos. */

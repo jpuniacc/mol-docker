@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   aplicaChip,
   aplicaMedio,
+  ETIQUETA_MEDIO,
   filasReportePagosACsv,
   mensajeEmptyReportePagos,
   normalizarMedio,
   parseFilaReportePagos,
   parseKpiReportePagos,
   porCarrera,
+  resolverMedioReporte,
   resumirConcepto,
   serieDiaria,
   type FilaReportePagosRematricula,
@@ -22,6 +24,14 @@ describe('reportePagosRematricula v2', () => {
     expect(normalizarMedio('PAGARE')).toBe('pagare')
     expect(normalizarMedio(null)).toBe('pendiente')
     expect(normalizarMedio('toku')).toBe('pendiente')
+  })
+
+  it('resuelve medio: tx autorizada cubre borrador null (caso Vladimir)', () => {
+    expect(resolverMedioReporte(null, true)).toBe('webpay')
+    expect(resolverMedioReporte('webpay', true)).toBe('webpay')
+    expect(resolverMedioReporte('webpay', false)).toBe('pendiente')
+    expect(resolverMedioReporte('pagare', true)).toBe('pagare')
+    expect(resolverMedioReporte(null, false)).toBe('pendiente')
   })
 
   it('parsea fila y descarta sin codcli', () => {
@@ -96,5 +106,9 @@ describe('reportePagosRematricula v2', () => {
     expect(msg).toContain('Carrera: Psicología')
     expect(msg).toContain('Pagaré')
     expect(msg).toContain('2027-1')
+  })
+
+  it('etiqueta pendiente como Sin definir', () => {
+    expect(ETIQUETA_MEDIO.pendiente).toBe('Sin definir')
   })
 })
