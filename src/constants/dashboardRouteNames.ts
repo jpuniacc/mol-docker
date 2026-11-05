@@ -31,6 +31,7 @@ export const DASHBOARD_MENU_ROUTE_NAMES = [
   'dashboard-reportes-pagos-rematricula',
   'dashboard-reportes-becas-asignadas',
   'dashboard-reportes-tiempos-tramo',
+  'dashboard-reportes-grabado-up',
   'dashboard-rematricula-seguimiento',
   'dashboard-encuesta-discapacidad',
   'dashboard-nps-rematricula',

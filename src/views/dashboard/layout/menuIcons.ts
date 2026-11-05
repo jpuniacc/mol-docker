@@ -5,6 +5,7 @@ import {
   Briefcase,
   Calendar,
   CircleDot,
+  Database,
   DollarSign,
   FileCheck,
   FileSignature,
@@ -26,6 +27,7 @@ import {
   Unlock,
   Users,
   Wallet,
+  Wrench,
 } from 'lucide-vue-next'
 
 const ICON_MAP: Record<string, Component> = {
@@ -54,6 +56,8 @@ const ICON_MAP: Record<string, Component> = {
   Star,
   Award,
   Timer,
+  Wrench,
+  Database,
 }
 
 export function menuIconFromKey(iconKey: string | null | undefined): Component {

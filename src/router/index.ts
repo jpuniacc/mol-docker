@@ -387,6 +387,17 @@ const routes = [
           import('../views/dashboard/reportes/ReportesTiemposTramoView.vue'),
       },
       {
+        path: '/dashboard/reportes-grabado-up',
+        name: 'dashboard-reportes-grabado-up',
+        meta: {
+          requiresAdminAdmision: true,
+          requiresSoloGrupoDvU: true,
+          requiresPerfilUsuarioIn: [1, 2, 3],
+        },
+        component: () =>
+          import('../views/dashboard/reportes/ReportesGrabadoUpView.vue'),
+      },
+      {
         path: '/dashboard/rematricula-seguimiento',
         name: 'dashboard-rematricula-seguimiento',
         meta: {
