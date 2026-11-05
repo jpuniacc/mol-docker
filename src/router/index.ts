@@ -409,6 +409,17 @@ const routes = [
           import('../views/dashboard/rematricula/RematriculaSeguimientoView.vue'),
       },
       {
+        path: '/dashboard/gestion-pagos',
+        name: 'dashboard-gestion-pagos',
+        meta: {
+          requiresAdminAdmision: true,
+          requiresSoloGrupoDvU: true,
+          requiresPerfilUsuarioIn: [1, 2, 3],
+        },
+        component: () =>
+          import('../views/dashboard/rematricula/GestionPagosView.vue'),
+      },
+      {
         path: '/dashboard/encuesta-discapacidad',
         name: 'dashboard-encuesta-discapacidad',
         meta: {
