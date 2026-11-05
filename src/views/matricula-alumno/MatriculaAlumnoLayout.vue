@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useMatriculaAlumnoContextStore } from '@/stores/matriculaAlumnoContext'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
+import { useRetencionRematricula } from '@/composables/useRetencionRematricula'
+import { emitirRetencionAudit } from '@/services/retencionAuditLog'
+import RetencionSalidaDialog from '@/components/matricula/RetencionSalidaDialog.vue'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -56,6 +59,18 @@ const auth = useAuthStore()
 const alumnoCtx = useMatriculaAlumnoContextStore()
 const fuente = useAlumnoRematriculaFuente()
 const periodoActivo = usePeriodoActivoStore()
+const retencion = useRetencionRematricula()
+const {
+  modalSalidaAbierto,
+  copySalida,
+  esIncompleto,
+  pasoPendiente,
+  onBeforeUnload,
+  abrirModalSalida,
+  cerrarModalSalida,
+  marcarBypassSalida,
+  tomarDestinoSalida,
+} = retencion
 
 watch(
   () => [fuente.codcliMostrado.value, periodoActivo.anio, periodoActivo.semestre] as const,
@@ -70,6 +85,13 @@ watch(
   },
   { immediate: true },
 )
+
+onMounted(() => {
+  window.addEventListener('beforeunload', onBeforeUnload)
+})
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', onBeforeUnload)
+})
 
 function routeNameToStep(name: string | symbol | null | undefined): number {
   const idx = STEP_NAMES.indexOf(name as (typeof STEP_NAMES)[number])
@@ -121,19 +143,68 @@ const headerNombre = computed(() => fuente.nombreMostrado.value)
 const tituloRematricula = computed(() => periodoActivo.tituloRematricula)
 const periodoLabel = computed(() => periodoActivo.anio)
 
+function pedirSalida(destino: { name?: string; logout?: boolean }): void {
+  if (!esIncompleto.value) {
+    if (destino.logout) {
+      auth.logout()
+      void router.replace({ name: 'login' })
+      toast.success('Sesión cerrada correctamente.')
+      return
+    }
+    void router.push({ name: destino.name ?? 'dashboard-home' })
+    return
+  }
+  emitirRetencionAudit({ accion: 'modal_mostrado' })
+  abrirModalSalida(destino)
+}
+
 function salirAlDashboard() {
-  void router.push({ name: 'dashboard-home' })
+  pedirSalida({ name: 'dashboard-home' })
 }
 
 function cerrarSesion() {
-  auth.logout()
-  void router.replace({ name: 'login' })
-  toast.success('Sesión cerrada correctamente.')
+  pedirSalida({ name: 'login', logout: true })
+}
+
+async function alCompletarAhora(): Promise<void> {
+  emitirRetencionAudit({ accion: 'completar_ahora' })
+  cerrarModalSalida()
+  const paso = pasoPendiente.value
+  if (paso.tipo === 'firma') {
+    await router.push({ name: 'matricula-alumno-firma' })
+    return
+  }
+  await router.push({ name: 'matricula-alumno-forma-pago' })
+}
+
+async function alSalirIgual(): Promise<void> {
+  emitirRetencionAudit({ accion: 'salir_igual' })
+  const { destino, logout } = tomarDestinoSalida()
+  marcarBypassSalida()
+  await alumnoCtx.flushBorrador()
+  if (logout) {
+    auth.logout()
+    void router.replace({ name: 'login' })
+    toast.success('Sesión cerrada correctamente.')
+    return
+  }
+  if (destino?.name) {
+    void router.push({ name: destino.name })
+    return
+  }
+  void router.push({ name: 'dashboard-home' })
 }
 </script>
 
 <template>
   <div class="relative min-h-svh bg-zinc-100 pb-28 md:pb-24">
+    <RetencionSalidaDialog
+      :open="modalSalidaAbierto"
+      :copy-cuerpo="copySalida"
+      @update:open="(v) => (v ? null : cerrarModalSalida())"
+      @completar="alCompletarAhora"
+      @salir="alSalirIgual"
+    />
     <div class="sticky top-0 z-30 border-b border-zinc-200/80 bg-zinc-100/95 backdrop-blur supports-[backdrop-filter]:bg-zinc-100/80">
       <header class="border-b border-zinc-200 bg-white shadow-sm md:hidden">
         <div class="flex items-center justify-between px-2 py-1">
@@ -174,13 +245,13 @@ function cerrarSesion() {
           class="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6 md:py-4"
         >
           <div class="flex items-center gap-4">
-            <RouterLink :to="{ name: 'dashboard-home' }">
+            <button type="button" class="cursor-pointer" @click="salirAlDashboard">
               <img
                 src="/Logo/logoUniaccNew.svg"
                 alt="Universidad UNIACC"
                 class="h-9 w-auto md:h-10"
               />
-            </RouterLink>
+            </button>
           </div>
           <div class="hidden text-right md:block">
             <p class="text-lg font-bold tracking-tight text-zinc-900">
