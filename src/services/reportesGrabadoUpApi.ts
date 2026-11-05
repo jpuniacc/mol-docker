@@ -97,6 +97,7 @@ export async function detalleReporteGrabadoUp(input: {
       rutCodcli: b.rutCodcli == null ? null : String(b.rutCodcli),
       numOperacion: b.numOperacion == null ? null : String(b.numOperacion),
       semaforo: asSemaforo(b.semaforo),
+      alumno: Array.isArray(b.alumno) ? (b.alumno as Record<string, unknown>[]) : [],
       control: Array.isArray(b.control) ? (b.control as Record<string, unknown>[]) : [],
       ctapag: Array.isArray(b.ctapag) ? (b.ctapag as Record<string, unknown>[]) : [],
       ctadep: Array.isArray(b.ctadep) ? (b.ctadep as Record<string, unknown>[]) : [],

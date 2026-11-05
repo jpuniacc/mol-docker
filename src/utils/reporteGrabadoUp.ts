@@ -30,6 +30,7 @@ export type DetalleGrabadoUp = {
   rutCodcli: string | null
   numOperacion: string | null
   semaforo: SemaforoGrabadoUp
+  alumno: Record<string, unknown>[]
   control: Record<string, unknown>[]
   ctapag: Record<string, unknown>[]
   ctadep: Record<string, unknown>[]

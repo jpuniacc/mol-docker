@@ -296,6 +296,7 @@ const bloquesDetalle = computed(() => {
   const d = detalle.value
   if (!d) return []
   return [
+    { id: 'alumno', titulo: 'MT_ALUMNO (matrícula)', rows: d.alumno },
     { id: 'control', titulo: 'MT_CONTROL_MATRICULA', rows: d.control },
     { id: 'ctapag', titulo: 'MT_CTAPAG', rows: d.ctapag },
     { id: 'ctadep', titulo: 'MT_CTADEP', rows: d.ctadep },
