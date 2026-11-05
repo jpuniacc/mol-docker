@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { mostrarErrorRematricula } from '@/stores/errorRematricula'
+import { useTablaPaginada } from '@/composables/useTablaPaginada'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,9 +30,13 @@ import {
   listContratoFirmas,
   type ContratoFirmaFirmanteEstado,
   type ContratoFirmaListRow,
+  type MedioFirmaArancel,
+  type MedioFirmaMatricula,
 } from '@/services/contratoFirmaApi'
 
 type FiltroEstado = 'todos' | 'pendiente' | 'firmado'
+
+const PAGE_SIZE = 10
 
 const rows = ref<ContratoFirmaListRow[]>([])
 const loading = ref(false)
@@ -57,8 +63,40 @@ const filasVisibles = computed(() => {
   })
 })
 
+const {
+  page,
+  totalPages,
+  pageItems: filasPagina,
+  rangoDesde,
+  rangoHasta,
+  resetPage,
+  irAPaginaAnterior,
+  irAPaginaSiguiente,
+} = useTablaPaginada(filasVisibles, PAGE_SIZE)
+
+watch([filtroEstado, busqueda], resetPage)
+
 function quienFalta(firmantes: ContratoFirmaFirmanteEstado[]): string {
   return firmantes.filter((f) => !f.ready).map((f) => f.rol).join(', ') || '—'
+}
+
+function formatoGenerado(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = d.getFullYear()
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mi = String(d.getMinutes()).padStart(2, '0')
+  return `${dd}/${mm}/${yyyy} ${hh}:${mi}`
+}
+
+function etiquetaMedio(medio: MedioFirmaMatricula | MedioFirmaArancel | undefined): string {
+  if (medio === 'webpay') return 'Webpay'
+  if (medio === 'pagare') return 'Pagaré'
+  if (medio === 'cubierto') return 'Cubierto'
+  return '—'
 }
 
 function revokePdfUrl(): void {
@@ -172,7 +210,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1200px] space-y-6">
+  <div class="mx-auto max-w-[1400px] space-y-6">
     <Card>
       <CardHeader>
         <CardTitle>Gestión de firmas</CardTitle>
@@ -203,40 +241,94 @@ onUnmounted(() => {
     </Card>
 
     <Card>
-      <CardContent class="pt-6">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>RUT</TableHead>
-              <TableHead>Alumno</TableHead>
-              <TableHead>Carrera</TableHead>
-              <TableHead>N° operación</TableHead>
-              <TableHead>Quién falta</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in filasVisibles" :key="row.num_operacion">
-              <TableCell>{{ row.rut ?? '—' }}</TableCell>
-              <TableCell>{{ row.nombre ?? row.codcli ?? '—' }}</TableCell>
-              <TableCell>{{ row.carrera ?? '—' }}</TableCell>
-              <TableCell>{{ row.num_operacion }}</TableCell>
-              <TableCell>{{ quienFalta(row.firmantes ?? []) }}</TableCell>
-              <TableCell>
-                <Badge variant="outline">{{ row.ready ? 'Firmado' : 'Pendiente' }}</Badge>
-              </TableCell>
-              <TableCell>
-                <Button type="button" size="sm" variant="outline" @click="abrirDetalle(row)">
-                  Ver
-                </Button>
-              </TableCell>
-            </TableRow>
-            <TableRow v-if="!loading && filasVisibles.length === 0">
-              <TableCell colspan="7" class="text-muted-foreground">Sin firmas.</TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+      <CardContent class="space-y-4 pt-6">
+        <div class="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>RUT</TableHead>
+                <TableHead>Alumno</TableHead>
+                <TableHead>Carrera</TableHead>
+                <TableHead>N° operación</TableHead>
+                <TableHead>Generado</TableHead>
+                <TableHead>Matrícula</TableHead>
+                <TableHead>Arancel</TableHead>
+                <TableHead>Quién falta</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="row in filasPagina" :key="row.num_operacion">
+                <TableCell>{{ row.rut ?? '—' }}</TableCell>
+                <TableCell>{{ row.nombre ?? row.codcli ?? '—' }}</TableCell>
+                <TableCell>{{ row.carrera ?? '—' }}</TableCell>
+                <TableCell>{{ row.num_operacion }}</TableCell>
+                <TableCell class="whitespace-nowrap text-sm">
+                  {{ formatoGenerado(row.created_at) }}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline">{{ etiquetaMedio(row.medio_matricula) }}</Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline">{{ etiquetaMedio(row.medio_arancel) }}</Badge>
+                </TableCell>
+                <TableCell>{{ quienFalta(row.firmantes ?? []) }}</TableCell>
+                <TableCell>
+                  <Badge variant="outline">{{ row.ready ? 'Firmado' : 'Pendiente' }}</Badge>
+                </TableCell>
+                <TableCell>
+                  <Button type="button" size="sm" variant="outline" @click="abrirDetalle(row)">
+                    Ver
+                  </Button>
+                </TableCell>
+              </TableRow>
+              <TableRow v-if="!loading && filasVisibles.length === 0">
+                <TableCell colspan="10" class="text-muted-foreground">Sin firmas.</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+
+        <div
+          v-if="filasVisibles.length > 0"
+          class="flex flex-col gap-3 rounded-lg border bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p class="text-xs text-muted-foreground">
+            Mostrando
+            <span class="font-semibold text-foreground">{{ rangoDesde }}</span>
+            –
+            <span class="font-semibold text-foreground">{{ rangoHasta }}</span>
+            de
+            <span class="font-semibold text-foreground">{{ filasVisibles.length }}</span>
+          </p>
+          <div class="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              :disabled="page === 1"
+              @click="irAPaginaAnterior"
+            >
+              <ChevronLeft class="mr-1 h-4 w-4" />
+              Anterior
+            </Button>
+            <div class="rounded-md border bg-background px-3 py-1.5 text-sm">
+              <span class="font-semibold">{{ page }}</span>
+              <span class="text-muted-foreground"> / {{ totalPages }}</span>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              :disabled="page >= totalPages"
+              @click="irAPaginaSiguiente"
+            >
+              Siguiente
+              <ChevronRight class="ml-1 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
 

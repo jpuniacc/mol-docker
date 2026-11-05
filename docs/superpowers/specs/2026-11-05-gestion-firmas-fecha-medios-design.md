@@ -1,7 +1,7 @@
 # Gestión de firmas — fecha de generación + medios de pago
 
 **Fecha:** 2026-11-05  
-**Estado:** pendiente revisión usuario  
+**Estado:** aprobado / implementado  
 **Proyectos:** uniacc-api-docker + mol-docker  
 **Rollout:** mol-dev / api-dev → prod cuando se indique
 

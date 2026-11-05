@@ -27,6 +27,9 @@ export type ContratoFirmaEstadoResponse =
     }
   | { ok: false; error: string }
 
+export type MedioFirmaMatricula = 'webpay' | 'pagare' | null
+export type MedioFirmaArancel = 'webpay' | 'pagare' | 'cubierto' | null
+
 export type ContratoFirmaListRow = {
   num_operacion: string
   document_id: string
@@ -38,6 +41,8 @@ export type ContratoFirmaListRow = {
   created_at: string
   ready: boolean
   firmantes: ContratoFirmaFirmanteEstado[]
+  medio_matricula?: MedioFirmaMatricula
+  medio_arancel?: MedioFirmaArancel
 }
 
 const TIMEOUT_MS = 90_000
