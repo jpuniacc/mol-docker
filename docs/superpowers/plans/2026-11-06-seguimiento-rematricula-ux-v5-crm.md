@@ -22,6 +22,8 @@
 - No composer / envíos / scheduler (Corte 2).
 - Board: **8 columnas siempre** con datos de la cartera filtrada; el filtro etapa del sidebar aplica a **Lista**; en Board solo **enfatiza** la columna (borde/scroll), no oculta las demás (fidelidad frame 02).
 - Cartera: perfil 3 = mía; 1/2 = Mi/Todas + select ejecutivo si Todas (`filtroEjecutivo===''` = Ver todas).
+- **Fuera de este PR:** hotfix progreso (`forma_pago_ok` / Webpay). Solo conservar el `refreshProgresoRematricula` al abrir bandeja; no mezclar SQL/lógica de progreso.
+- **T5 (hooks Webpay/TuFirma):** riesgo alto — idempotencia estricta + commits aparte. Si se complica, **defer T5** y cerrar smoke (T6) con T1–T4.
 
 ## File map
 
@@ -38,7 +40,7 @@
 | `mol-docker/src/components/seguimiento/SeguimientoBoard.vue` | 8 columnas |
 | `mol-docker/src/components/seguimiento/SeguimientoCasoDrawer.vue` | drawer CRM |
 | `mol-docker/src/views/dashboard/rematricula/BandejaSeguimientoRematriculaView.vue` | shell: header + toggle + orquesta |
-| Hooks Webpay / TuFirma / matricular | insert evento sistema (Task 4) |
+| Hooks Webpay / TuFirma / matricular | insert evento sistema (Task 5; deferible) |
 
 ---
 
@@ -90,13 +92,13 @@ export async function enriquecerCasoSeguimiento(
 - Modify: `seguimientoRematriculaApi.ts` (tipos caso enriquecido)
 
 **UI rules:**
-- Sidebar 220px: Cartera · Etapa 1–8 (conteos KPI) · Alertas (conteos; click aún no filtra hasta Task 3 — mostrar números, `cursor-pointer` preparado).
+- Sidebar 220px: Cartera · Etapa 1–8 (conteos KPI) · Alertas (conteos; click aún no filtra hasta **Task 4** — mostrar números, `cursor-pointer` preparado).
 - Header: título «Seguimiento rematrícula» · subtítulo CRM · Cartera · buscar · Actualizar · toggle Lista|Board (Board disabled o placeholder hasta Task 3 si aún no hay API — preferible mostrar toggle; Board toast «Cargando…» solo tras Task 3).
 - Tabla lean columnas del wireframe 01.
 - Drawer Teleport body z-50/51; chip≠matriculado → Contactar disabled «Próximamente» + Agregar nota; chip matriculado → solo nota + copy cerrado.
 - Propiedades: mostrar valor API o «—» **solo** si null real.
 - Recordatorios: si `mat_webpay_fecha` && !`firma_completa` mostrar mail/sms estados; else «No aplican…».
-- Mantener `refreshProgresoRematricula` antes de cargar (hotfix).
+- Mantener `refreshProgresoRematricula` antes de cargar (solo refresh; **no** mezclar hotfix `forma_pago_ok`).
 
 - [ ] **Step 1:** Extraer sidebar/lista/drawer; cablear estado chipActivo / q / filtro ejecutivo.
 - [ ] **Step 2:** Drawer usa `fetchSeguimientoCaso` enriquecido + bitácora + dialog nota existente.
@@ -171,7 +173,9 @@ export type FiltroAuxSeguimiento = 'sin_contactar_7d' | 'mail_2h_pdte' | 'sms_24
 
 ---
 
-### Task 5: Timeline sistema persistido
+### Task 5: Timeline sistema persistido ⚠️ riesgo
+
+> **Riesgo:** hooks en caminos Webpay/TuFirma/matricular. Exigir **idempotencia estricta** (mismo hito no duplica el mismo día) y **commits aparte** del shell CRM. Si se complica (regresión pago/firma, alcance poco claro), **dejar T5 como follow-up** y cerrar smoke T6 con T1–T4 (timeline solo manual / existente).
 
 **Files:**
 - Create: `mol-docker/supabase/migrations/20261106200000_seguimiento_v5_crm.sql`  
@@ -186,11 +190,12 @@ export type FiltroAuxSeguimiento = 'sin_contactar_7d' | 'mail_2h_pdte' | 'sms_24
 - Opcional: script SQL backfill 1 RUT smoke (Florencia) documentado en plan notes, no obligatorio en CI.
 
 - [ ] **Step 1:** Migración apply mol-dev.
-- [ ] **Step 2:** Helper + test insert/idempotencia simple (mismo hito no duplicar el mismo día: unique parcial opcional o check previo).
-- [ ] **Step 3:** Hooks en 1–2 puntos reales (Webpay + matricular).
+- [ ] **Step 2:** Helper + test insert/idempotencia estricta (mismo hito no duplicar el mismo día: check previo obligatorio antes de INSERT).
+- [ ] **Step 3:** Hooks en 1–2 puntos reales (Webpay + matricular) en commit **aparte**.
 - [ ] **Step 4:** Drawer timeline muestra sistema + manual.
 - [ ] **Step 5:** Commit  
-  `feat(seguimiento): eventos sistema en bitácora CRM v5`
+  `feat(seguimiento): eventos sistema en bitácora CRM v5`  
+  (o documentar defer en smoke notes si se aplaza)
 
 ---
 
