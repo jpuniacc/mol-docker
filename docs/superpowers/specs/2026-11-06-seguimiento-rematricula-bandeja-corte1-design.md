@@ -27,12 +27,14 @@ Bandeja staff de **toda la cartera del embudo** (no solo Pagos+Firmas): KPI clic
 | Vista logs | **No** reutilizar `RematriculaSeguimientoView` |
 | Embudo datos | Mantener **7** etapas en `mnp_progreso_rematricula`; **mapear** 8 chips en UI |
 | Chip «Firmado · pdte U+» | Etapa actual `firma` (`firmaOk` && !matriculado) |
-| Chip «Contrato / firma pendiente» | Señal real de “pendiente de firmar” ya usada en firmas/KPI (sin inventar estado BD) |
+| Chip «Contrato / firma pendiente» | Partición exclusiva vs chip 5; predicado “listo para firmar” anclado a hitos reales (Firmas/KPI) — **obligatorio clavar en writing-plans** + tests `5∩6=∅`, `6∩7=∅` |
 | Cartera | Mismo criterio que firmas/avisos: `email_ejecutivo` |
 | Permisos | `alcanceCartera`: perfil **3** = solo su cartera; perfiles **1/2** = completa + «Ver todas» + filtro ejecutivo |
 | Retención P | M = matrícula Webpay autorizada && !F (firma incompleta) |
-| Outbox | **Crear esquema** `mnp_retencion_outbox` en este corte; **sin** scheduler |
-| Envío UI | Botones correo/SMS/WhatsApp deshabilitados o «próximamente»; **Agregar nota** sí |
+| Outbox | **Crear esquema** `mnp_retencion_outbox`; **sin** scheduler ni enqueue al autorizar Webpay en CORTE 1 |
+| Indicadores Mail 2h / SMS 24h | En CORTE 1 quedan casi siempre **`n/a`** (sin fila outbox). Ver `pdte`/`enviado` reales = CORTE 2. Smoke puede usar seed SQL manual puntual, no lógica de producto |
+| Bitácora manual | `origen=manual`; **`canal` elegido en el form** (default `llamada` o `nota`); no hardcodear solo `nota` |
+| Envío UI | Botones correo/SMS/WhatsApp deshabilitados o «próximamente»; **Agregar contacto/nota** sí |
 | From automáticos | Diferido a CORTE 2 (DVU institucional propuesto vs ejecutivo) |
 
 ## Datos
@@ -77,8 +79,8 @@ RLS / acceso solo staff. Sin UPDATE/DELETE de negocio (append-only).
 
 - Unique `(rut_norm, anio_periodo, semestre_periodo, tipo)` con `tipo` ∈ `mail_2h|sms_24h`
 - `due_at`, `estado` ∈ `pendiente|enviado|cancelado|error`, `sent_at`, `provider_id`, `error`
-- Lectura en bandeja/panel: `enviado`+fecha / `pendiente` / `n/a` si !P
-- Scheduler de envío = CORTE 2
+- Lectura en bandeja/panel: `enviado`+fecha / `pendiente` / **`n/a`** si !P **o** no hay fila
+- **Quién crea filas en CORTE 1:** nadie en el flujo de producto. Sin enqueue al autorizar Webpay y sin scheduler. Los indicadores de retención en UI se documentan como **vacíos/`n/a` hasta CORTE 2** (enqueue + despacho). Un seed SQL manual en mol-dev es opcional solo para demos, no parte del entregable automático.
 
 ### Derivados de fila
 
@@ -101,10 +103,10 @@ Auth: mismo gate staff que reportes rematrícula (`requiresAdminAdmision` / equi
 1. `GET /kpi?anio&semestre[&emailEjecutivo]` — conteos embudo + subchips + auxiliares.
 2. `GET /bandeja?anio&semestre&etapa?&subetapa?&q?&filtroAux?&emailEjecutivo?&limit&offset` — filas tabla.
 3. `GET /casos/:codcli?anio&semestre` — resumen panel (contacto, medios, firmantes, ejecutivo, retención auto, bitácora reciente, outbox).
-4. `POST /casos/:codcli/notas` — insert append-only (`canal=nota`, `origen=manual`).
+4. `POST /casos/:codcli/contactos` (o `/notas`) — insert append-only con `origen=manual` y **`canal` en el body** (`llamada|whatsapp|correo|sms|presencial|nota`; default acordado en UI: `llamada` o `nota`). Campos: `canal`, `nota`, `resultado?`, `proxima_accion?`, `proxima_accion_en?`.
 5. `GET /casos/:codcli/bitacora` — timeline paginado.
 
-No en CORTE 1: POST correo/SMS/WhatsApp, despacho outbox.
+No en CORTE 1: POST correo/SMS/WhatsApp, enqueue outbox, despacho outbox.
 
 ## UI (`mol-docker`)
 
@@ -112,6 +114,7 @@ No en CORTE 1: POST correo/SMS/WhatsApp, despacho outbox.
 - Ruta nueva (no colisionar con logs de `RematriculaSeguimientoView`).
 - Menú: **Seguimiento rematrícula** junto a Gestión Pagos y Gestión Firmas.
 - Layout alineado a wireframes `01`–`03`: chips, subchips, auxiliares, cartera, búsqueda, tabla, panel sheet/drawer, bitácora.
+- Dialog **Agregar contacto**: selector de **canal** (llamada / correo / presencial / whatsapp / sms / nota) + texto + próxima acción opcional; `origen=manual` fijo.
 - Tokens: `#FF5B00`, navy; shadcn-vue + Tailwind; Composition API + TypeScript.
 - Periodo: periodo activo (mismo patrón que Gestión Pagos / KPI), salvo que el plan justifique selector.
 
@@ -119,15 +122,16 @@ No en CORTE 1: POST correo/SMS/WhatsApp, despacho outbox.
 
 ### Automatizados
 
-- API: cartera ejecutivo vs supervisor (403 cruzado); KPI/listado por etapa/subetapa; POST nota + GET bitácora; outbox → enviado/pdte/n/a según P.
+- API: cartera ejecutivo vs supervisor (403 cruzado); KPI/listado por etapa/subetapa; POST contacto con `canal` variable + GET bitácora; outbox ausente → `n/a` (y con fila seed → pdte/enviado si se testea el mapper).
 - Front: mapeo 7→8 chips; `alcanceCartera`; parse estados mail/sms de fila.
+- **Obligatorio en writing-plans:** predicado chip 5 vs 6 con hitos Gestión Firmas/KPI + tests `5∩6=∅` y `6∩7=∅` (misma cartera/periodo).
 
 ### Smoke mol-dev
 
 1. Ejecutivo (perfil 3): solo su cartera.
 2. Supervisor (1/2): Ver todas + filtro ejecutivo.
-3. Filtrar Forma de pago → CAE → Abrir → Agregar nota → visible en bitácora.
-4. Caso P: bloque retención con outbox o stub; botones envío deshabilitados.
+3. Filtrar Forma de pago → CAE → Abrir → Agregar contacto (p. ej. canal `llamada`) → visible en bitácora con ese canal.
+4. Caso P: bloque retención muestra **`n/a`** (sin outbox); botones envío deshabilitados. (Opcional demo: seed SQL de outbox `pendiente`.)
 5. Menú: nueva entrada + Pagos + Firmas.
 6. Sin envíos reales ni tocado a prod.
 
@@ -144,9 +148,9 @@ No en CORTE 1: POST correo/SMS/WhatsApp, despacho outbox.
 
 ## Riesgos / notas
 
-- Split chip 5/6: hoy `formaPagoOk && !firmaOk` sigue en `forma_pago` en el resolver; el plan debe definir el predicado “listo para firmar” con hitos existentes (sin inventar) y tests de exclusión mutua 5∩6=∅, 6∩7=∅.
+- **Chip 5 vs 6 (riesgo principal):** hoy quien ya puede firmar pero `!firmaOk` suele seguir en `forma_pago`. Writing-plans debe clavar el predicado “listo para firmar” con hitos ya usados en Gestión Firmas/KPI (sin inventar) y tests `5∩6=∅`, `6∩7=∅`.
 - Volumen cartera completa: paginación server-side en bandeja desde el día 1.
-- Outbox vacío al inicio → indicadores en `n/a` o `pdte` stub sin inventar envíos.
+- Outbox sin filas en CORTE 1 es **esperado**; no confundir con bug de UI.
 
 ## Entregables de implementación (post–writing-plans)
 
