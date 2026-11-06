@@ -30,12 +30,18 @@ Hitos existentes (sin inventar etapa BD):
 | Chip UI | Condición |
 |---------|-----------|
 | `forma_pago` (5) | `etapa_actual = 'forma_pago'` **y** **no** hay TuFirma del periodo con `ready = false` |
-| `contrato_pdte` (6) | `etapa_actual = 'forma_pago'` **y** existe operación TuFirma del periodo **enviada** con `ready = false` (misma noción que pendientes en Gestión Firmas) |
+| `contrato_pdte` (6) | `etapa_actual = 'forma_pago'` **y** existe operación TuFirma del periodo **enviada** con `ready = false` (cola Gestión Firmas) |
 | `firmado_pdte_u` (7) | `etapa_actual = 'firma'` |
 | `matriculado` (8) | `etapa_actual = 'matriculado'` |
 | 1–4 | `sin_ingreso` / `ingreso` / `tyc` / `datos` 1:1 |
 
+**Matiz chip 6 (2026-11-06):** quien ya “puede firmar” pero **aún no** tiene contrato TuFirma enviado permanece en **chip 5** (subetapas). No usar `forma_pago_ok && !firmaOk` como chip 6: en progreso ese hito es demasiado amplio y vaciaría el chip 5. Chip 6 = cola Firmas explícita.
+
 Tests obligatorios: sobre un set sintético, `5∩6=∅` y `6∩7=∅`.
+
+**Matiz cartera API:** el controller recibe `codigoPerfil` + `emailSesion` (headers `X-Mol-Codigo-Perfil`, `X-Mol-Email` desde la sesión MOL). Si `codigoPerfil === 3`, **ignora** `emailEjecutivo` del query y fuerza `emailSesion`; si el query trae otro email → **403**. Perfil 1/2: `emailEjecutivo` opcional (filtro supervisor).
+
+**Matiz menú:** `bo_menu_item_grupo` solo `codigo_grupo = 1` (DVU), igual que Gestión Pagos / Firmas. Grupo TI (3) ve todo el menú por regla de `buildDashboardMenu`. No hace falta fila por `codigo_perfil_usuario` 3.
 
 ## File map
 

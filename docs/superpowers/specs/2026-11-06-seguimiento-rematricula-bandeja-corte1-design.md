@@ -27,7 +27,7 @@ Bandeja staff de **toda la cartera del embudo** (no solo Pagos+Firmas): KPI clic
 | Vista logs | **No** reutilizar `RematriculaSeguimientoView` |
 | Embudo datos | Mantener **7** etapas en `mnp_progreso_rematricula`; **mapear** 8 chips en UI |
 | Chip «Firmado · pdte U+» | Etapa actual `firma` (`firmaOk` && !matriculado) |
-| Chip «Contrato / firma pendiente» | Partición exclusiva vs chip 5; predicado “listo para firmar” anclado a hitos reales (Firmas/KPI) — **obligatorio clavar en writing-plans** + tests `5∩6=∅`, `6∩7=∅` |
+| Chip «Contrato / firma pendiente» | `forma_pago` + TuFirma enviada `!ready` (cola Firmas). Sin contrato enviado → chip 5. No usar `forma_pago_ok && !firmaOk` (demasiado amplio). Tests `5∩6=∅`, `6∩7=∅` |
 | Cartera | Mismo criterio que firmas/avisos: `email_ejecutivo` |
 | Permisos | `alcanceCartera`: perfil **3** = solo su cartera; perfiles **1/2** = completa + «Ver todas» + filtro ejecutivo |
 | Retención P | M = matrícula Webpay autorizada && !F (firma incompleta) |
@@ -94,9 +94,10 @@ Auth: mismo gate staff que reportes rematrícula (`requiresAdminAdmision` / equi
 
 ### Cartera (servidor, obligatorio)
 
-- Perfil 3: fuerza filtro `email_ejecutivo` = email de sesión (403 si pide otra).
+- Headers de sesión MOL: `X-Mol-Codigo-Perfil`, `X-Mol-Email` (además del query opcional).
+- Perfil 3: **fuerza** `email_ejecutivo` = email de sesión; ignora/niega otro `emailEjecutivo` en query (**403**).
 - Perfil 1/2: cartera completa; query opcional `emailEjecutivo` (o “sin asignar”).
-- El front no es la única barrera.
+- El front no es la única barrera: el recorte de ejecutivo se aplica en API.
 
 ### Endpoints CORTE 1
 
