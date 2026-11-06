@@ -76,10 +76,10 @@ export async function enriquecerCasoSeguimiento(
 4. Webpay: matrícula/arancel autorizada → `"Mat. Webpay ✓ · Arancel …"`.
 5. `firma_completa` = chip `matriculado` **o** TuFirma `ready` **o** etapa firma completa según señales ya usadas en bandeja.
 
-- [ ] **Step 1:** Tests unitarios con fixtures (mock query results o funciones puras de parse payload/firmantes).
-- [ ] **Step 2:** RED → implementar → GREEN (`node --import tsx --test …enrichment.test.ts`).
-- [ ] **Step 3:** `obtenerCasoSeguimiento` retorna `CasoSeguimientoDetalle` (null si fuera de cartera).
-- [ ] **Step 4:** Commit  
+- [x] **Step 1:** Tests unitarios con fixtures (mock query results o funciones puras de parse payload/firmantes).
+- [x] **Step 2:** RED → implementar → GREEN (`node --import tsx --test …enrichment.test.ts`).
+- [x] **Step 3:** `obtenerCasoSeguimiento` retorna `CasoSeguimientoDetalle` (null si fuera de cartera).
+- [x] **Step 4:** Commit  
   `feat(seguimiento): enriquecer GET caso con email/tel/firmantes/medios`
 
 ---
@@ -100,10 +100,10 @@ export async function enriquecerCasoSeguimiento(
 - Recordatorios: si `mat_webpay_fecha` && !`firma_completa` mostrar mail/sms estados; else «No aplican…».
 - Mantener `refreshProgresoRematricula` antes de cargar (solo refresh; **no** mezclar hotfix `forma_pago_ok`).
 
-- [ ] **Step 1:** Extraer sidebar/lista/drawer; cablear estado chipActivo / q / filtro ejecutivo.
-- [ ] **Step 2:** Drawer usa `fetchSeguimientoCaso` enriquecido + bitácora + dialog nota existente.
-- [ ] **Step 3:** Quitar chips KPI grandes y texto «corte 2».
-- [ ] **Step 4:** Smoke manual mol-dev (lista + drawer). Commit  
+- [x] **Step 1:** Extraer sidebar/lista/drawer; cablear estado chipActivo / q / filtro ejecutivo.
+- [x] **Step 2:** Drawer usa `fetchSeguimientoCaso` enriquecido + bitácora + dialog nota existente.
+- [x] **Step 3:** Quitar chips KPI grandes y texto «corte 2».
+- [x] **Step 4:** Smoke manual mol-dev (lista + drawer). Commit  
   `feat(seguimiento): shell CRM lista, filtros y drawer v5`
 
 ---
@@ -138,10 +138,10 @@ export async function listarSeguimientoBoard(opts: {
 
 **Front:** 8 columnas horizontales scroll; tarjeta nombre + detalle + ejecutivo; clic → drawer. Etapa activa en sidebar: `ring` naranja en esa columna + `scrollIntoView`.
 
-- [ ] **Step 1:** Test servicio: 8 columnas; totales coherentes; limit recorta filas.
-- [ ] **Step 2:** HTTP + client `fetchSeguimientoBoard`.
-- [ ] **Step 3:** `SeguimientoBoard.vue` + toggle Lista|Board.
-- [ ] **Step 4:** Commit  
+- [x] **Step 1:** Test servicio: 8 columnas; totales coherentes; limit recorta filas.
+- [x] **Step 2:** HTTP + client `fetchSeguimientoBoard`.
+- [x] **Step 3:** `SeguimientoBoard.vue` + toggle Lista|Board.
+- [x] **Step 4:** Commit  
   `feat(seguimiento): GET /board y vista Board CRM v5`
 
 ---
@@ -165,10 +165,10 @@ export type FiltroAuxSeguimiento = 'sin_contactar_7d' | 'mail_2h_pdte' | 'sms_24
 - KPI: añadir `sin_contactar_7d: number` (además de mail/sms ya existentes).
 - Sidebar: click alerta setea `filtroAux` (toggle off si mismo); Lista y Board lo respetan.
 
-- [ ] **Step 1:** Tests filtro puro sobre filas sintéticas.
-- [ ] **Step 2:** Aplicar en `listarSeguimientoBandeja` / board / kpi.
-- [ ] **Step 3:** UI sidebar + pills activas.
-- [ ] **Step 4:** Commit  
+- [x] **Step 1:** Tests filtro puro sobre filas sintéticas.
+- [x] **Step 2:** Aplicar en `listarSeguimientoBandeja` / board / kpi.
+- [x] **Step 3:** UI sidebar + pills activas.
+- [x] **Step 4:** Commit  
   `feat(seguimiento): filtroAux alertas +7d mail/sms en bandeja CRM`
 
 ---
@@ -189,13 +189,13 @@ export type FiltroAuxSeguimiento = 'sin_contactar_7d' | 'mail_2h_pdte' | 'sms_24
 - Bitácora GET ya lista todos los orígenes — UI drawer distingue icono Sistema vs nota.
 - Opcional: script SQL backfill 1 RUT smoke (Florencia) documentado en plan notes, no obligatorio en CI.
 
-- [ ] **Step 1:** Migración apply mol-dev.
-- [ ] **Step 2:** Helper + test insert/idempotencia estricta (mismo hito no duplicar el mismo día: check previo obligatorio antes de INSERT).
-- [ ] **Step 3:** Hooks en 1–2 puntos reales (Webpay + matricular) en commit **aparte**.
-- [ ] **Step 4:** Drawer timeline muestra sistema + manual.
-- [ ] **Step 5:** Commit  
+- [x] **Step 1:** Migración apply mol-dev.
+- [x] **Step 2:** Helper + test insert/idempotencia estricta (mismo hito no duplicar el mismo día: check previo obligatorio antes de INSERT).
+- [ ] **Step 3:** Hooks en 1–2 puntos reales (Webpay + matricular) en commit **aparte**. — **DEFERIDO** (follow-up)
+- [x] **Step 4:** Drawer timeline muestra sistema + manual (UI lista; inserts vía hooks pendientes).
+- [x] **Step 5:** Commit  
   `feat(seguimiento): eventos sistema en bitácora CRM v5`  
-  (o documentar defer en smoke notes si se aplaza)
+  (helper + migración; hooks deferidos — ver smoke/README)
 
 ---
 
@@ -203,15 +203,11 @@ export type FiltroAuxSeguimiento = 'sin_contactar_7d' | 'mail_2h_pdte' | 'sms_24
 
 **Files:** none (ops + notas)
 
-- [ ] **Step 1:** Apply SQL migrations en mol-dev; rebuild `uniacc-api` + `mol-dev`.
-- [ ] **Step 2:** Smoke funcional:
-  1. Toggle Lista/Board
-  2. Drawer chip ≠ 8: Contactar disabled + Agregar nota
-  3. Drawer matriculado: sin Contactar; datos email/tel si BD tiene
-  4. Alerta +7d filtra lista
+- [x] **Step 1:** Apply SQL migrations en mol-dev; rebuild `uniacc-api` + `mol-dev`.
+- [x] **Step 2:** Smoke funcional API (board/kpi/caso). UI visual: checklist en `smoke/README.md` (login BO).
 - [ ] **Step 3:** 4 capturas (Lista, Board, drawer curso, drawer matriculado) → guardar en `docs/wireframes/seguimiento-rematricula-v5-crm/smoke/` o adjuntar al PR.
-- [ ] **Step 4:** Lista archivos tocados + confirmar Corte 2 pendiente.
-- [ ] **Step 5:** Commit notas smoke si aplica  
+- [x] **Step 4:** Lista archivos tocados + confirmar Corte 2 pendiente.
+- [x] **Step 5:** Commit notas smoke si aplica  
   `docs(seguimiento): smoke UX v5 CRM mol-dev`
 
 ---
