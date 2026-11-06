@@ -16,7 +16,7 @@ import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import AvancePasosAlumno from '@/components/rematricula/AvancePasosAlumno.vue'
 import { claveBorradorValida } from '@/utils/borradorRematriculaSync'
 import { conciliarRetencionAlumno } from '@/composables/useConciliarRetencion'
-import { copyProcesoIncompleto, procesoRematriculaIncompleto } from '@/utils/procesoRematriculaIncompleto'
+import { copyReingresoRematricula, procesoRematriculaIncompleto } from '@/utils/procesoRematriculaIncompleto'
 import {
   ctaAvanceHome,
   pasosAvanceHome,
@@ -76,8 +76,8 @@ const retencionIncompleta = computed(() =>
   }),
 )
 
-const copyRetencion = computed(() =>
-  copyProcesoIncompleto({
+const copyReingreso = computed(() =>
+  copyReingresoRematricula({
     medioMatricula: alumnoCtx.medioMatricula,
     medioArancel: alumnoCtx.medioArancel,
     webpayMatriculaEstado: alumnoCtx.webpayMatriculaEstado,
@@ -88,7 +88,8 @@ const copyRetencion = computed(() =>
   }),
 )
 
-const conciliando = ref(false)
+/** true hasta terminar la 1ª conciliación (o si faltan clave/periodo). */
+const conciliando = ref(true)
 const rutaRetomar = ref<string | null>(null)
 
 async function retomarRematricula(): Promise<void> {
@@ -104,16 +105,22 @@ watch(
     [
       esAlumnoPixarron.value,
       datosMnp.primeraFila?.codcli,
-      datosMnp.primeraFila?.rut,
+      datosMnp.primeraFila?.rut_alumno,
       periodoActivo.anio,
       periodoActivo.semestre,
     ] as const,
   async () => {
-    if (!esAlumnoPixarron.value) return
+    if (!esAlumnoPixarron.value) {
+      conciliando.value = false
+      return
+    }
     const codcli = datosMnp.primeraFila?.codcli
-    const rut = datosMnp.primeraFila?.rut
+    const rut = datosMnp.primeraFila?.rut_alumno
     const clave = claveBorradorValida(codcli, periodoActivo.anio, periodoActivo.semestre)
-    if (!clave || !codcli || !rut) return
+    if (!clave || !codcli || !rut) {
+      conciliando.value = true
+      return
+    }
     conciliando.value = true
     try {
       const r = await conciliarRetencionAlumno({ rut, codcli })
@@ -192,29 +199,52 @@ watch(
       </Alert>
 
       <section
+        v-else-if="conciliando"
+        class="flex flex-col rounded-2xl border border-uniacc-orange/30 bg-white p-5 shadow-md ring-1 ring-uniacc-orange/10"
+        aria-busy="true"
+        aria-labelledby="alumno-avance-cargando"
+      >
+        <h2 id="alumno-avance-cargando" class="text-lg font-semibold text-zinc-900">
+          Tu rematrícula
+        </h2>
+        <p class="mt-2 text-sm text-zinc-600">Recuperando tu avance guardado…</p>
+        <Button
+          type="button"
+          disabled
+          class="mt-4 cursor-not-allowed rounded-full bg-uniacc-orange/60 px-6 font-semibold text-white"
+        >
+          Un momento…
+        </Button>
+      </section>
+
+      <section
         v-else-if="retencionIncompleta"
-        class="overflow-hidden rounded-2xl border-2 border-[#FF5B00] bg-white shadow-lg ring-1 ring-orange-200"
+        class="overflow-hidden rounded-2xl border border-orange-200 bg-white shadow-lg ring-1 ring-orange-100"
         aria-labelledby="retencion-banner-title"
       >
-        <div class="bg-[#FF5B00] px-4 py-2 text-center text-sm font-semibold text-white">
-          Avance recuperado de forma segura
+        <div class="bg-[#FF5B00] px-4 py-2.5 text-center text-sm font-semibold tracking-wide text-white">
+          Tu avance está guardado
         </div>
-        <div class="space-y-4 p-5 md:p-6">
+        <div class="space-y-3 p-5 md:space-y-4 md:p-6">
           <h2 id="retencion-banner-title" class="text-xl font-bold text-zinc-900 md:text-2xl">
-            Tu matrícula ya está pagada. Retomemos donde quedaste.
+            ¡Tu matrícula ya está pagada! Retomemos donde quedaste.
           </h2>
           <p class="text-sm leading-relaxed text-zinc-600 md:text-base">
-            {{ copyRetencion }} No necesitas volver a pagar la matrícula.
+            {{ copyReingreso }}
+          </p>
+          <p class="text-sm font-bold text-zinc-900 md:text-base">
+            No necesitas volver a pagar la matrícula.
           </p>
           <Button
             type="button"
-            class="h-12 w-full cursor-pointer rounded-full bg-[#FF5B00] text-base font-semibold hover:bg-[#FF5B00]/90 md:w-auto md:px-8"
-            :disabled="conciliando"
+            class="h-12 w-full cursor-pointer rounded-full bg-[#FF5B00] text-base font-semibold text-white hover:bg-[#FF5B00]/90"
             @click="retomarRematricula"
           >
-            Retomar mi rematrícula →
+            Continuar mi rematrícula →
           </Button>
-          <p class="text-sm text-zinc-500">Te llevamos al paso pendiente.</p>
+          <p class="text-center text-sm text-zinc-500">
+            Te llevaremos directamente al paso que tienes pendiente.
+          </p>
         </div>
       </section>
 

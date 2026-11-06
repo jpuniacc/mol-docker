@@ -50,13 +50,26 @@ export function pasoPendienteRetencion(input: SenalesRetencionRematricula): Paso
 }
 
 const COPY_ARANCEL_Y_FIRMA =
-  'Tu matrícula está pagada, pero tu rematrícula no está completa. Falta elegir cómo pagarás el arancel y firmar tu contrato.'
+  'Tu matrícula ya está pagada, pero todavía debes completar tu proceso de rematrícula. Para finalizarlo, falta seleccionar la forma de pago del arancel y firmar tu contrato.'
 
 const COPY_SOLO_FIRMA =
-  'Tu matrícula está pagada, pero tu rematrícula no está completa. Falta firmar tu contrato.'
+  'Tu matrícula ya está pagada, pero todavía debes completar tu proceso de rematrícula. Para finalizarlo, falta firmar tu contrato.'
 
 export function copyProcesoIncompleto(input: SenalesRetencionRematricula): string {
   return arancelResueltoRetencion(input) ? COPY_SOLO_FIRMA : COPY_ARANCEL_Y_FIRMA
+}
+
+const COPY_REINGRESO_ARANCEL_Y_FIRMA =
+  'Tu pago de matrícula está registrado y tu avance se ha guardado. Para completar tu rematrícula, solo falta seleccionar la forma de pago del arancel y firmar tu contrato.'
+
+const COPY_REINGRESO_SOLO_FIRMA =
+  'Tu pago de matrícula está registrado y tu avance se ha guardado. Para completar tu rematrícula, solo falta firmar tu contrato.'
+
+/** Cuerpo del banner de reingreso post-login (P). */
+export function copyReingresoRematricula(input: SenalesRetencionRematricula): string {
+  return arancelResueltoRetencion(input)
+    ? COPY_REINGRESO_SOLO_FIRMA
+    : COPY_REINGRESO_ARANCEL_Y_FIRMA
 }
 
 export function ctaContinuarRetornoMatricula(input: SenalesRetencionRematricula): {

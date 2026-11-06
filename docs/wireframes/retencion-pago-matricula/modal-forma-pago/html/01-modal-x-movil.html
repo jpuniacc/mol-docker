@@ -1,0 +1,38 @@
+<!doctype html><html><meta charset=utf-8><style>*{box-sizing:border-box}body{margin:0;background:#94a3b8;color:#172b47;font:14px system-ui,-apple-system,Arial}
+.stage{min-height:100vh;padding:28px 16px 70px;display:flex;align-items:flex-start;justify-content:center}
+.modal{width:100%;max-width:720px;background:#fff;border-radius:14px;box-shadow:0 20px 50px #0004;overflow:hidden;position:relative}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 20px 8px}
+.h1{font-size:22px;font-weight:800;margin:0;color:#0f172a}.sub{color:#64748b;font-size:13px;margin:6px 0 0;line-height:1.45}
+.x{width:34px;height:34px;border-radius:999px;background:#4D98C5;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;flex-shrink:0;position:relative}
+.x.mark{outline:3px solid #FF5B00;outline-offset:3px;box-shadow:0 0 0 6px rgba(255,91,0,.25)}
+.x .lbl{position:absolute;top:-28px;right:-6px;background:#FF5B00;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;white-space:nowrap}
+.body{padding:8px 20px 18px}.tot{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 14px;margin:12px 0}
+.tot b{color:#FF5B00;font-size:22px}.tot .row{display:flex;justify-content:space-between;color:#64748b;font-size:12px;margin-top:4px}
+.step{display:flex;justify-content:space-between;gap:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin:10px 0;font-size:13px}
+.done{color:#047857;font-weight:700}.now{color:#FF5B00;font-weight:750}.mut{color:#94a3b8}
+.sec{font-weight:700;margin:14px 0 8px;color:#0f172a}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt{border:1.5px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center;color:#334155;background:#fff}
+.opt.on{border-color:#FF5B00;box-shadow:0 0 0 1px #FF5B00}.opt.dis{opacity:.45;background:#f8fafc}
+.opt .ic{font-size:22px;margin-bottom:4px}.opt .t{font-weight:700;font-size:13px}.opt .d{font-size:11px;color:#64748b;margin-top:4px;line-height:1.35}
+.promo{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:8px;padding:8px 10px;font-size:12px;margin:8px 0}
+.foot{display:flex;justify-content:flex-end;gap:10px;padding:14px 20px;border-top:1px solid #e2e8f0;background:#fff}
+.btn{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:10px 16px;font-weight:650;color:#334155;display:inline-block}
+.primary{background:#FF5B00;border-color:#FF5B00;color:#fff}.primary.dim{opacity:.55}
+.hint{font-size:12px;color:#64748b;margin-top:12px;line-height:1.4}
+.veil{position:absolute;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:18px;z-index:5}
+.warn{background:#fff;border-radius:14px;padding:22px;max-width:420px;width:100%;box-shadow:0 12px 40px #0005}
+.warn .ic{color:#FF5B00;font-size:28px}.warn h2{margin:8px 0 10px;font-size:20px;color:#0f172a}
+.warn p{margin:0 0 12px;color:#475569;line-height:1.5;font-size:14px}
+.box{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.45;margin-bottom:14px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}.actions .btn{flex:1;text-align:center;min-width:140px}
+.stamp{position:fixed;right:12px;bottom:12px;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;font-weight:700;padding:5px 10px;border-radius:6px;font-size:11px;z-index:9}
+.note{background:#fefce8;border:1px dashed #ca8a04;color:#713f12;font-size:12px;padding:8px 10px;border-radius:6px;margin:12px 16px 0;line-height:1.4}
+.mobile .modal{max-width:390px}.mobile .grid{gap:8px}.mobile .opt{padding:10px}.mobile .head{padding:14px 14px 6px}
+.mobile .body{padding:6px 14px 14px}.mobile .foot{padding:12px 14px;flex-direction:column-reverse}.mobile .foot .btn{width:100%;text-align:center}
+.mobile .actions{flex-direction:column}.mobile .h1{font-size:19px}.mobile .tot b{font-size:20px}
+</style><body class="mobile"><div class="stage"><div class="modal">
+<div class="head"><div><p class="h1">Forma de pago</p><p class="sub">Confirma el medio para matrícula y arancel. Luego definirás cuotas y vencimientos.</p></div><div class="x mark"><span class="lbl">← cerrar</span>×</div></div>
+<div class="body"><div class="step"><span class="done">✓ Matrícula</span><span>→</span><span class="now">2 Arancel</span><span>→</span><span class="mut">3 Firma</span></div><div class="tot"><div>TOTAL A FINANCIAR</div><b>4.579.360</b><div class="row"><span>Matrícula: 200.000</span><span>Arancel: 4.379.360</span></div></div>
+<div class="sec">Matrícula</div><div class="grid"><div class="opt dis"><div class="ic">📄</div><div class="t">Pagaré</div><div class="d">Pagada</div></div><div class="opt on"><div class="ic">✓</div><div class="t">Webpay</div><div class="d">Pagada · Crédito · 6 cuotas · Autorización 1213</div></div></div><div class="sec">Arancel</div><div class="promo">Pagando con Webpay obtienes un 5% de descuento en tu arancel.</div><div class="grid"><div class="opt"><div class="ic">📄</div><div class="t">Pagaré</div><div class="d">En cuotas · 4.379.360</div></div><div class="opt"><div class="ic">💳</div><div class="t">Webpay</div><div class="d">Pago en línea · 4.160.392</div></div></div><p class="hint">Elige Pagaré o Webpay en cada concepto. Si seleccionas Pagaré en cualquiera, después podrás generar el plan de pagos.</p></div>
+<div class="foot"><span class="btn">Cancelar</span><span class="btn primary dim">Continuar</span></div>
+</div></div><div class="note">Hoy X y Cancelar llaman a <b>cerrarPagoMatriculaDialog()</b> / <b>onPagoMatriculaDialogOpenChange(false)</b> y cierran de inmediato. Propuesta: interceptar si el proceso aún no está cerrado.</div><div class="stamp">DATOS FICTICIOS DE EJEMPLO · wireframe</div></body></html>

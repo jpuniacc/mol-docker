@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   arancelResueltoRetencion,
   copyProcesoIncompleto,
+  copyReingresoRematricula,
   pasoPendienteRetencion,
   procesoRematriculaIncompleto,
   type SenalesRetencionRematricula,
@@ -113,14 +114,33 @@ describe('pasoPendienteRetencion', () => {
 
 describe('copyProcesoIncompleto', () => {
   it('menciona arancel y firma si falta arancel', () => {
-    expect(copyProcesoIncompleto(base())).toContain('arancel')
+    const texto = copyProcesoIncompleto(base())
+    expect(texto).toContain('forma de pago del arancel')
+    expect(texto).toContain('firmar tu contrato')
   })
 
   it('solo menciona firma si arancel resuelto', () => {
     const texto = copyProcesoIncompleto(
       base({ medioArancel: 'webpay', webpayArancelEstado: 'autorizada' }),
     )
-    expect(texto).toContain('firmar')
+    expect(texto).toContain('falta firmar tu contrato')
+    expect(texto.toLowerCase()).not.toContain('arancel')
+  })
+})
+
+describe('copyReingresoRematricula', () => {
+  it('menciona arancel y firma si falta arancel', () => {
+    const texto = copyReingresoRematricula(base())
+    expect(texto).toContain('avance se ha guardado')
+    expect(texto).toContain('forma de pago del arancel')
+    expect(texto).toContain('firmar tu contrato')
+  })
+
+  it('solo menciona firma si arancel resuelto', () => {
+    const texto = copyReingresoRematricula(
+      base({ medioArancel: 'webpay', webpayArancelEstado: 'autorizada', arancelPorPagar: 0 }),
+    )
+    expect(texto).toContain('solo falta firmar tu contrato')
     expect(texto.toLowerCase()).not.toContain('arancel')
   })
 })
