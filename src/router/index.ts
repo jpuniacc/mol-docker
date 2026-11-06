@@ -417,6 +417,17 @@ const routes = [
           import('../views/dashboard/rematricula/RematriculaSeguimientoView.vue'),
       },
       {
+        path: '/dashboard/bandeja-seguimiento',
+        name: 'dashboard-bandeja-seguimiento',
+        meta: {
+          requiresAdminAdmision: true,
+          requiresSoloGrupoDvU: true,
+          requiresPerfilUsuarioIn: [1, 2, 3],
+        },
+        component: () =>
+          import('../views/dashboard/rematricula/BandejaSeguimientoRematriculaView.vue'),
+      },
+      {
         path: '/dashboard/gestion-pagos',
         name: 'dashboard-gestion-pagos',
         meta: {
