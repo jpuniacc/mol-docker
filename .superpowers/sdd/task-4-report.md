@@ -1,32 +1,90 @@
-# Task 4 – UI KPI (desglose + badges + filtro)
+# Task 4 Report: webpayAuditLog + wiring WebpayRetornoAlumnoView
 
-**Estado:** DONE
+## Status
 
-**Archivo modificado:** `src/views/dashboard/rematricula/RematriculaKpiView.vue`
+DONE
 
-## Cambios
-- Imports de `@/utils/esperaFormaPagoKpi`, constantes `FILTROS_ESPERA`, `ORDEN_BUCKETS_ESPERA`, `KPI_KEY_BUCKET`, estado `filtroEspera`.
-- `desgloseFormaPago` (computed): 4 líneas bajo la etapa Forma de pago, clic -> `abrirFormaPagoConFiltro(bucket)`.
-- `alumnosFiltrados`: tras búsqueda de texto, si `etapa === 'forma_pago'` aplica `coincideFiltroEspera(bucketEsperaFormaPago(...), filtroEspera)`.
-- Chips de filtro (solo en forma_pago) bajo el Input; `seleccionarFiltroEspera` también reinicia `filasVisibles`.
-- `toggleEtapa` resetea `filtroEspera` a `'todos'` al abrir una etapa.
-- Badges `CAE` / `Ministerial` junto al badge de permanencia (lógica de permanencia intacta).
-- Helpers en script; sin ternarios anidados nuevos en el template.
+## Starting HEAD
 
-## Verificación
-- `npx vitest run --config vitest.unit.config.ts src/utils/esperaFormaPagoKpi.test.ts src/utils/etapaProgresoRematricula.test.ts` -> 23/23 PASS.
-- `vue-tsc --noEmit`: sin errores en `RematriculaKpiView.vue`.
+`86f8b1d` — feat(webpay): helper destino/motivo telemetría retorno
 
-## Notas
-- Si `abrirFormaPagoConFiltro` se invoca con la etapa ya abierta, solo cambia el filtro (no recarga ni limpia búsqueda).
-- Sin test de componente (no requerido por el brief); verificación visual no ejecutada.
+Branch: `dev` en `/opt/mol-docker`.
 
-## Fix: clic desglose filtra bucket exacto de espera
-- Problema: el desglose cuenta buckets exclusivos (cae = espera_cae AND NOT ministerial), pero el clic aplicaba el chip inclusivo `cae` (incluye `ambos`), mostrando más filas que el conteo.
-- `RematriculaKpiView.vue`: nuevo `filtroBucketExacto` (`ref<BucketEsperaFormaPago | null>`).
-  - `alumnosFiltrados` (forma_pago): si hay bucket exacto, `bucketEsperaFormaPago(...) === exacto`; si no, `coincideFiltroEspera` (inclusivo, sin cambios).
-  - `abrirFormaPagoConFiltro(bucket)`: selecciona el chip equivalente (resaltado) y luego fija `filtroBucketExacto = bucket`.
-  - `seleccionarFiltroEspera` (chips) limpia `filtroBucketExacto`; `toggleEtapa` también lo reinicia.
-- Sin cambios en SQL ni en `esperaFormaPagoKpi.ts` (no se agregan tests nuevos).
-- Tests: `npx vitest run --config vitest.unit.config.ts src/utils/esperaFormaPagoKpi.test.ts src/utils/etapaProgresoRematricula.test.ts` → 2 archivos, 23 tests passed.
-- `vue-tsc --noEmit`: sin errores en `RematriculaKpiView.vue`.
+## Fuente
+
+El archivo `.superpowers/sdd/task-4-brief.md` en disco sigue siendo el brief viejo de KPI/API (`num_operacion`), no esta tarea. La implementación siguió el job del agente y el plan `docs/superpowers/plans/2026-11-03-webpay-retorno-telemetria.md` (Task 4), que coincide con `formaPagoAuditLog.ts` y con `destinoDesdePaso` / `motivoContinuarError` de Task 3.
+
+## Tests
+
+Task 4 no pide un test nuevo. Se reejecutó el helper de Task 3.
+
+**Command:**
+
+```bash
+cd /opt/mol-docker && npx vitest run src/utils/webpayRetornoContinuar.test.ts
+```
+
+**Output:**
+
+```
+ ✓ src/utils/webpayRetornoContinuar.test.ts (2 tests) 7ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  08:58:14
+   Duration  1.45s
+```
+
+Exit code: 0. No hay test de la vista; el wiring no está cubierto por vitest.
+
+## Files Changed
+
+| File | Action |
+|------|--------|
+| `src/services/webpayAuditLog.ts` | Created — `registrarWebpayAudit`, categoría `webpay`, acciones `retorno` / `continuar_ok` / `continuar_error` |
+| `src/views/matricula-alumno/WebpayRetornoAlumnoView.vue` | Modified — telemetría en cada rama de `onMounted` y en las ramas de `avanzarSiAutorizada` |
+
+No se tocó `siguientePaso` ni la decisión de navegación. El reporte no entra en el commit.
+
+## Implementation Summary
+
+- `registrarWebpayAudit` replica `registrarFormaPagoAudit` con `p_categoria: 'webpay'`.
+- RPC con `error` → `console.warn('[WebpayAudit]', error.message)` y `null`.
+- Un `try/catch` extra hace lo mismo si `contextoMolAuditoria` o `supabase.rpc` lanzan, para que la promesa no rechace.
+- La vista no espera el RPC: `emitirWebpayAudit` hace `void registrarWebpayAudit(...).catch(...)` y solo avisa. Continuar y el fin de `onMounted` no dependen del insert.
+- `retorno` en las cinco salidas de `onMounted` (query inválida, sin `buy_order`, sin fila, voucher ilegible, éxito). Payload: `buy_order`, `estado`, `error`, `autenticado`. RUT/codcli `—` se envían como `null`. Periodo sale de la fila cuando existe.
+- `continuar_error` antes del return en `medio_null`, `monto_invalido`, `identidad` y `crear_webpay`, con `motivoContinuarError(...)`.
+- `continuar_ok` justo antes de `redirigirAWebpay`, `irAFormaPago` (elegir arancel y plan pagaré) y `router.push` a firma, con `destinoDesdePaso(paso)`.
+- El fallback final (`flujo-pagare` u otro tipo) registra `destino: 'forma-pago'` y luego llama `irAFormaPago()` como antes.
+- Todos los payloads de Continuar incluyen `buy_order: fila.buyOrder`.
+
+## Commit
+
+- **SHA:** `e9458356a867710903b0665ec268beeeee77e036`
+- **Subject:** feat(webpay): telemetría retorno y Continuar en log_mol_evento
+
+Repo: `/opt/mol-docker`, branch `dev` (4 commits ahead of `origin/dev`). No se hizo push.
+
+## Self-Review
+
+- Las ramas de error y de éxito de Continuar conservan el mismo orden de UI y de navegación; solo se insertó la llamada de auditoría.
+- `siguientePaso` se invoca con los mismos argumentos.
+- Un fallo de auditoría no marca `mostrarReintentar` ni impide `cargando = false`.
+- Linter de los dos archivos: sin diagnósticos.
+- El test que se corrió no ejercita `webpayAuditLog` ni la vista.
+
+## Concerns
+
+- `.superpowers/sdd/task-4-brief.md` está desactualizado (brief de otra Task 4). Este reporte reemplaza el reporte viejo de KPI que había en `task-4-report.md`.
+- Si `obtenerWebpay` lanza, `onMounted` sigue sin `auditarRetorno` en esa excepción: no se agregó un `catch` nuevo alrededor de la carga.
+- La telemetría es fire-and-forget. Un cierre de pestaña inmediato puede perder el evento; no bloquea la UI.
+- No hay prueba automática del wiring. La verificación de filas `webpay.retorno` / `continuar_*` queda para el chequeo manual post-deploy (Task 6).
+
+## Corrección post-revisión (Important)
+
+- **Problema:** en `paso.tipo === 'webpay'`, `continuar_ok` se disparaba con `void` y `redirigirAWebpay` hacía submit de página completa. El fetch a Supabase podía abortarse.
+- **Fix:** solo antes de `redirigirAWebpay`, se espera `registrarWebpayAudit` con tope de 1s (`esperarAuditoriaAntesDeWebpay`). El error se captura y Continuar sigue. Firma y forma de pago siguen en fire-and-forget. No se tocó `siguientePaso` ni la lógica de pago.
+- **Commit:** `16d5596d2ea7734ca36f687c46d1b53731ed20eb` — `fix(webpay): esperar continuar_ok antes del segundo pago`
+- **Archivo:** `src/views/matricula-alumno/WebpayRetornoAlumnoView.vue`
+- **Tests:** `npx vitest run src/utils/webpayRetornoContinuar.test.ts` — 2 passed, exit 0 (09:10:30).
+- El reporte no entra en el commit.

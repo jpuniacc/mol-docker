@@ -1,0 +1,224 @@
+# Review package: 26e7aa1..HEAD
+
+## Commits
+6307343 feat(rematricula): armar y enviar el desbloqueo de un RUT a ConectorIntegracion
+
+## Files changed
+ .../desbloqueo-conector-integracion.test.ts        |  91 +++++++++++++++++
+ src/services/desbloqueo-conector-integracion.ts    | 110 +++++++++++++++++++++
+ 2 files changed, 201 insertions(+)
+
+## Diff
+diff --git a/src/services/desbloqueo-conector-integracion.test.ts b/src/services/desbloqueo-conector-integracion.test.ts
+new file mode 100644
+index 0000000..8e30794
+--- /dev/null
++++ b/src/services/desbloqueo-conector-integracion.test.ts
+@@ -0,0 +1,91 @@
++import assert from 'node:assert/strict'
++import { describe, it } from 'node:test'
++
++import {
++  filaConector,
++  sincronizarRutConector,
++  type DepsConector,
++  type FilaConector,
++} from './desbloqueo-conector-integracion'
++
++function deps(over: Partial<DepsConector> = {}): DepsConector & { filas: FilaConector[] } {
++  const filas: FilaConector[] = []
++  return {
++    filas,
++    periodoActivo: async () => ({ ano: 2027, periodo: 1 }),
++    rutDesbloqueado: async () => true,
++    merge: async (fila) => {
++      filas.push(fila)
++    },
++    ...over,
++  }
++}
++
++describe('filaConector', () => {
++  it('arma el RUT con guion y marca S', () => {
++    assert.deepEqual(
++      filaConector({
++        rutCuerpo: '18056961',
++        dv: '8',
++        ano: 2027,
++        periodo: 1,
++        actor: 'jperez@uniacc.cl',
++        desbloqueado: true,
++      }),
++      { rut: '18056961-8', ano: 2027, periodo: 1, usuario: 'jperez@uniacc.cl', desbloqueado: 'S' },
++    )
++  })
++
++  it('usa MOL si el actor viene vacío y marca N', () => {
++    const fila = filaConector({
++      rutCuerpo: '18056961',
++      dv: '8',
++      ano: 2027,
++      periodo: 1,
++      actor: '  ',
++      desbloqueado: false,
++    })
++    assert.equal(fila.usuario, 'MOL')
++    assert.equal(fila.desbloqueado, 'N')
++  })
++
++  it('recorta el actor a 100 caracteres', () => {
++    const fila = filaConector({
++      rutCuerpo: '18056961',
++      dv: '8',
++      ano: 2027,
++      periodo: 1,
++      actor: 'x'.repeat(150),
++      desbloqueado: true,
++    })
++    assert.equal(fila.usuario.length, 100)
++  })
++})
++
++describe('sincronizarRutConector', () => {
++  it('hace el merge con el estado que queda en Supabase', async () => {
++    const d = deps({ rutDesbloqueado: async () => false })
++    const aviso = await sincronizarRutConector('18056961', '8', null, d)
++    assert.equal(aviso, null)
++    assert.deepEqual(d.filas, [
++      { rut: '18056961-8', ano: 2027, periodo: 1, usuario: 'MOL', desbloqueado: 'N' },
++    ])
++  })
++
++  it('devuelve el aviso si U+ falla y no lanza', async () => {
++    const d = deps({
++      merge: async () => {
++        throw new Error('timeout')
++      },
++    })
++    const aviso = await sincronizarRutConector('18056961', '8', 'ana', d)
++    assert.equal(aviso, '18056961-8 quedó en MOL, pero no llegó a U+.')
++  })
++
++  it('sin período activo no llama al merge', async () => {
++    const d = deps({ periodoActivo: async () => null })
++    const aviso = await sincronizarRutConector('18056961', '8', 'ana', d)
++    assert.equal(aviso, 'No hay período activo; no se envió a U+.')
++    assert.equal(d.filas.length, 0)
++  })
++})
+diff --git a/src/services/desbloqueo-conector-integracion.ts b/src/services/desbloqueo-conector-integracion.ts
+new file mode 100644
+index 0000000..7fc79a9
+--- /dev/null
++++ b/src/services/desbloqueo-conector-integracion.ts
+@@ -0,0 +1,110 @@
++import sql from 'mssql'
++
++import { getConnectionErpSp } from '../config/database-erp-sp'
++import { querySupabase } from '../config/postgres-supabase'
++
++export type FilaConector = {
++  rut: string
++  ano: number
++  periodo: 1 | 2
++  usuario: string
++  desbloqueado: 'S' | 'N'
++}
++
++export type DepsConector = {
++  periodoActivo(): Promise<{ ano: number; periodo: 1 | 2 } | null>
++  rutDesbloqueado(rutCuerpo: string): Promise<boolean>
++  merge(fila: FilaConector): Promise<void>
++}
++
++const AVISO_SIN_PERIODO = 'No hay período activo; no se envió a U+.'
++
++export function filaConector(input: {
++  rutCuerpo: string
++  dv: string
++  ano: number
++  periodo: 1 | 2
++  actor: string | null
++  desbloqueado: boolean
++}): FilaConector {
++  const actor = (input.actor ?? '').trim()
++  return {
++    rut: `${input.rutCuerpo}-${input.dv}`,
++    ano: input.ano,
++    periodo: input.periodo,
++    usuario: actor ? actor.slice(0, 100) : 'MOL',
++    desbloqueado: input.desbloqueado ? 'S' : 'N',
++  }
++}
++
++export const depsConectorPorDefecto: DepsConector = {
++  async periodoActivo() {
++    const res = await querySupabase(
++      `SELECT anio_periodo, semestre_periodo
++         FROM public.tp_periodo_activo
++        WHERE estado IS TRUE
++        ORDER BY id
++        LIMIT 1`,
++    )
++    const row = res.rows[0] as { anio_periodo?: number; semestre_periodo?: number } | undefined
++    const ano = Number(row?.anio_periodo)
++    const periodo = Number(row?.semestre_periodo)
++    if (!Number.isInteger(ano) || (periodo !== 1 && periodo !== 2)) return null
++    return { ano, periodo }
++  },
++  async rutDesbloqueado(rutCuerpo) {
++    const res = await querySupabase(
++      `SELECT 1
++         FROM public.mnp_desbloqueo_toma_ramos
++        WHERE rut_cuerpo = $1
++          AND desbloqueado IS TRUE
++        LIMIT 1`,
++      [rutCuerpo],
++    )
++    return (res.rows ?? []).length > 0
++  },
++  async merge(fila) {
++    const pool = await getConnectionErpSp('prod')
++    await pool
++      .request()
++      .input('rut', sql.VarChar(12), fila.rut)
++      .input('ano', sql.Int, fila.ano)
++      .input('periodo', sql.Int, fila.periodo)
++      .input('usuario', sql.VarChar(100), fila.usuario)
++      .input('desbloqueado', sql.Char(1), fila.desbloqueado)
++      .query(`
++        MERGE ConectorIntegracion.dbo.MOL_ALUMNOS_DESBL WITH (HOLDLOCK) AS t
++        USING (SELECT @rut AS RUT, @ano AS ANO, @periodo AS PERIODO) AS s
++           ON t.RUT = s.RUT AND t.ANO = s.ANO AND t.PERIODO = s.PERIODO
++        WHEN MATCHED THEN
++          UPDATE SET FECHA = GETDATE(), USUARIO = @usuario, DESBLOQUEADO = @desbloqueado
++        WHEN NOT MATCHED THEN
++          INSERT (RUT, ANO, PERIODO, FECHA, USUARIO, DESBLOQUEADO)
++          VALUES (@rut, @ano, @periodo, GETDATE(), @usuario, @desbloqueado);
++      `)
++  },
++}
++
++export async function sincronizarRutConector(
++  rutCuerpo: string,
++  dv: string,
++  actor: string | null,
++  deps: DepsConector = depsConectorPorDefecto,
++): Promise<string | null> {
++  const rut = `${rutCuerpo}-${dv}`
++  try {
++    const periodo = await deps.periodoActivo()
++    if (!periodo) return AVISO_SIN_PERIODO
++    const desbloqueado = await deps.rutDesbloqueado(rutCuerpo)
++    await deps.merge(
++      filaConector({ rutCuerpo, dv, ano: periodo.ano, periodo: periodo.periodo, actor, desbloqueado }),
++    )
++    return null
++  } catch (error) {
++    console.error(
++      `[desbloqueo-conector] ${rut}:`,
++      error instanceof Error ? error.message : error,
++    )
++    return `${rut} quedó en MOL, pero no llegó a U+.`
++  }
++}

@@ -1,99 +1,94 @@
-# Task 3 Report: Conectar router, barra y botón Enviar a firmar
+# Task 3 Report: Front helper destino/motivo Continuar
 
 ## Status
 
 DONE
 
-## Base commit
+## Starting HEAD
 
-`9098fb9` — feat(rematricula): recordar en la sesión que el contrato ya se envió a firmar
+`0179e3d` — docs(webpay): acotar ciclo a telemetría retorno y plan de implementación
+
+Branch: `dev` en `/opt/mol-docker`.
+
+## TDD Evidence
+
+### RED (Step 2)
+
+**Command:**
+
+```bash
+cd /opt/mol-docker && npx vitest run src/utils/webpayRetornoContinuar.test.ts
+```
+
+**Output (excerpt):**
+
+```
+ FAIL  src/utils/webpayRetornoContinuar.test.ts [ src/utils/webpayRetornoContinuar.test.ts ]
+Error: Failed to resolve import "./webpayRetornoContinuar" from "src/utils/webpayRetornoContinuar.test.ts". Does the file exist?
+
+ Test Files  1 failed (1)
+      Tests  no tests
+```
+
+Exit code: 1. Fallo esperado: el módulo de implementación aún no existía.
+
+### GREEN (Step 4)
+
+**Command:**
+
+```bash
+cd /opt/mol-docker && npx vitest run src/utils/webpayRetornoContinuar.test.ts
+```
+
+**Output:**
+
+```
+ ✓ src/utils/webpayRetornoContinuar.test.ts (2 tests) 6ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  08:54:14
+   Duration  1.37s
+```
+
+Exit code: 0.
+
+## Files Changed
+
+| File | Action |
+|------|--------|
+| `src/utils/webpayRetornoContinuar.test.ts` | Created — 2 casos vitest según brief |
+| `src/utils/webpayRetornoContinuar.ts` | Created — `destinoDesdePaso`, `motivoContinuarError`, tipos `DestinoContinuarWebpay` y `MotivoContinuarWebpay` |
+
+No se tocó ninguna vista Vue (queda para Task 4). No se commiteó `backups/` ni docs sueltos.
+
+## Implementation Summary
+
+- `DestinoContinuarWebpay`: `'webpay' | 'elegir-arancel' | 'plan-pagare' | 'firma' | 'forma-pago'`
+- `destinoDesdePaso(paso: PasoWebpay)`: mapea `tipo` 1:1 salvo `flujo-pagare` → `'forma-pago'` (fallthrough)
+- `MotivoContinuarWebpay`: `'medio_null' | 'monto_invalido' | 'identidad' | 'crear_webpay'`
+- `motivoContinuarError`: identity tipada para forzar literales en call sites
+
+`PasoWebpay` se importa de `@/utils/webpaySiguientePaso`. El helper es puro; no tiene I/O ni side-effects.
 
 ## Commit
 
-`0adfed1` — fix(rematricula): no dejar volver atrás después de enviar el contrato a firmar
+- **SHA:** `86f8b1de9fb1faae4533a8d6ea9e3676e52ed69a`
+- **Subject:** feat(webpay): helper destino/motivo telemetría retorno
 
-## Test command and output
+Repo: `/opt/mol-docker`, branch `dev` (3 commits ahead of `origin/dev`). No se hizo push.
 
-```bash
-npx vitest run --config vitest.unit.config.ts src/utils/pasoAlumnoRematricula.test.ts src/stores/matriculaAlumnoContext.test.ts
-```
+## Self-Review
 
-```
- RUN  v2.1.9 /opt/mol-docker
-
- ✓ src/utils/pasoAlumnoRematricula.test.ts (6 tests) 9ms
- ✓ src/stores/matriculaAlumnoContext.test.ts (2 tests) 18ms
-
- Test Files  2 passed (2)
-      Tests  8 passed (8)
-   Start at  14:50:22
-   Duration  1.25s (transform 271ms, setup 0ms, collect 455ms, tests 26ms, environment 1ms, prepare 293ms)
-```
-
-**Result:** PASS — 8 tests.
-
-## Files changed
-
-| File | Change |
-|------|--------|
-| `src/views/matricula-alumno/FirmaAlumnoView.vue` | Eliminado `envioIniciado` local; `anteriorDeshabilitado` usa `alumnoCtx.envioFirmaIniciado`; `enviarAFirmar` llama `marcarEnvioFirmaIniciado()` antes de `enviando.value = true`. |
-| `src/router/index.ts` | Import `rutaSiEnvioFirmaBloquea`; guard tras `firmaCompletada` redirige datos/forma-pago → firma con `replace: true`. |
-| `src/views/matricula-alumno/MatriculaAlumnoLayout.vue` | Import `pasoBloqueadoTrasEnvio`; `pasoBloqueado` y setter de `stepModel` delegan en esa utilidad; removido `matriculaCerrada` (lógica absorbida por la util). |
-
-## Self-review
-
-- **Orden en router:** El bloque `firmaCompletada → resumen` sigue antes que `rutaSiEnvioFirmaBloquea`, como pide el brief.
-- **Sin side effects en navegación:** Router y layout no importan ni invocan `ensureContratoFirma` ni `postGrabarPlanPagos` (verificado con grep).
-- **FirmaAlumnoView:** El `ensure` existente dentro de `enviarAFirmar` no se tocó; solo se cambió el origen de la bandera de envío al store Pinia.
-- **Stepper:** Clic en pasos bloqueados no navega porque el setter usa `pasoBloqueado(v)`; pasos 1 y 2 quedan bloqueados tras envío; paso 4 sigue accesible cuando `firmaCompletada`.
-- **Lint:** Sin errores en los tres archivos editados.
+- Test e implementación copiados verbatim del brief.
+- Los 5 variantes de `PasoWebpay` (`firma`, `webpay`, `elegir-arancel`, `plan-pagare`, `flujo-pagare`) están cubiertos por el test.
+- `concepto` no altera el destino: el mapeo es solo por `tipo`, como pide el brief.
+- `motivoContinuarError` no valida en runtime; el union de TypeScript es el contrato.
+- Diff limitado a los dos archivos del helper (51 líneas). Ninguna vista ni store importan el helper todavía.
 
 ## Concerns
 
-- Ninguna técnica bloqueante. La verificación manual del brief (navegador atrás, URL directa, red sin ensure/grabar en redirect) no se ejecutó en esta sesión; depende de QA manual.
+Ninguna bloqueante.
 
-## Manual verification checklist (from brief)
-
-- [ ] Antes de Enviar a firmar: Anterior y paso Forma de pago funcionan.
-- [ ] Después de Enviar a firmar: Anterior deshabilitado; pasos 1–2 no navegan; atrás/URL forma-pago → firma sin POST ensure/grabar en esa navegación.
-- [ ] Reenvío con documento existente: mismo número de operación.
-- [ ] Tras firmas completas: pantalla resumen.
-
----
-
-## Review fix (post-0adfed1)
-
-### Status
-
-DONE
-
-### Commit
-
-`db83e12` — fix(rematricula): no abrir el retorno de Webpay a sesiones que no son de alumno — restaurado el guard `!alumnoOk && isAlumnoFlowRoute(to.name)` sin excepción adicional para Webpay; añadido test de ruta no textual en `rutaSiEnvioFirmaBloquea`.
-
-### Test command and output
-
-```bash
-npx vitest run --config vitest.unit.config.ts src/utils/pasoAlumnoRematricula.test.ts src/stores/matriculaAlumnoContext.test.ts
-```
-
-```
- RUN  v2.1.9 /opt/mol-docker
-
- ✓ src/utils/pasoAlumnoRematricula.test.ts (7 tests) 9ms
- ✓ src/stores/matriculaAlumnoContext.test.ts (2 tests) 18ms
-
- Test Files  2 passed (2)
-      Tests  9 passed (9)
-   Start at  14:54:08
-   Duration  1.27s (transform 305ms, setup 0ms, collect 468ms, tests 27ms, environment 1ms, prepare 301ms)
-```
-
-**Result:** PASS — 9 tests.
-
-### Files changed (review fix)
-
-| File | Change |
-|------|--------|
-| `src/router/index.ts` | Quitada excepción `matricula-alumno-webpay-retorno` del bloque `!alumnoOk`. |
-| `src/utils/pasoAlumnoRematricula.test.ts` | Caso `undefined` como nombre de ruta en `rutaSiEnvioFirmaBloquea`. |
+- Si `PasoWebpay` gana un `tipo` nuevo, `destinoDesdePaso` cae en `'forma-pago'` por el `return` final. Es el diseño del brief, no un `never` exhaustivo.
+- `motivoContinuarError` es identity: no clasifica strings libres, solo estrecha literales en call sites de Task 4.
