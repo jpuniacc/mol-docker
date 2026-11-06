@@ -41,6 +41,8 @@ import {
 } from '@/utils/seguimientoBandejaChip'
 import { etiquetaOutboxUi } from '@/utils/seguimientoBandejaOutbox'
 import { alcanceCartera } from '@/utils/alcanceCarteraEjecutivo'
+import { refreshProgresoRematricula } from '@/services/progresoRematriculaApi'
+import { toast } from 'vue-sonner'
 
 /** Sentinel Select (Radix no acepta ''); maps to filtroEjecutivo === '' = Ver todas. */
 const SELECT_TODAS = '__todas__'
@@ -116,6 +118,11 @@ async function cargar(): Promise<void> {
       esSupervisor.value && filtroEjecutivo.value.trim()
         ? filtroEjecutivo.value.trim()
         : null
+
+    const { error: refreshError } = await refreshProgresoRematricula(anio, semestre)
+    if (refreshError) {
+      toast.warning(`Progreso no refrescado: ${refreshError}. Los datos pueden estar desactualizados.`)
+    }
 
     const kpiRes = await fetchSeguimientoKpi(anio, semestre, emailOverride)
     if (kpiRes.error) {
