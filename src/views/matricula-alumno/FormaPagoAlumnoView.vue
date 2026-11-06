@@ -28,11 +28,12 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
+import RetencionMicroStepper from '@/components/matricula/RetencionMicroStepper.vue'
 import TextoPortalSolicitudes from '@/components/rematricula/TextoPortalSolicitudes.vue'
 import { MSG_DEUDA_PENDIENTE } from '@/constants/carteraOficial'
 import ConvenioVigenteUpload from '@/components/rematricula/ConvenioVigenteUpload.vue'
 import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
-import { BadgePercent, Check, ChevronDown, CreditCard, FileText, GraduationCap, TriangleAlert } from 'lucide-vue-next'
+import { BadgePercent, Check, ChevronDown, Clock, CreditCard, FileText, GraduationCap, TriangleAlert } from 'lucide-vue-next'
 import { abrirCasoRematricula, consultarCasosAlumno } from '@/services/casoRematriculaApi'
 import {
   consultarCarteraBeneficios,
@@ -86,6 +87,10 @@ import {
 } from '@/utils/convenioCertificadoGate'
 import { periodoCatalogoLabel } from '@/utils/periodoCatalogo'
 import { rutNorm } from '@/utils/rutNorm'
+import {
+  copyAvisoCierreFormaPago,
+  type CopyAvisoCierreFormaPago,
+} from '@/utils/avisoCierreFormaPago'
 import { descuentoFormaPagoArancel, montoWebpayArancel } from '@/utils/descuentoFormaPagoWebpay'
 import { arancelHabilitado, puedeContinuar } from '@/utils/selectorMedioPago'
 import { textoWebpayAprobado } from '@/utils/webpayPagoDetalle'
@@ -261,6 +266,57 @@ const AVISOS_RETORNO_WEBPAY: Record<'abortada' | 'rechazada', string> = {
 
 const matriculaPagadaWebpay = computed(() => alumnoCtx.webpayMatriculaEstado === 'autorizada')
 const arancelPagadoWebpay = computed(() => alumnoCtx.webpayArancelEstado === 'autorizada')
+
+/** Micro-stepper Matrícula → Arancel → Firma dentro del modal de medios. */
+const microPasoFormaPago = computed((): 1 | 2 | 3 => {
+  if (arancelPagadoWebpay.value) return 3
+  if (matriculaPagadaWebpay.value) return 2
+  return 1
+})
+
+const avisoCierreFormaPagoAbierto = ref(false)
+const copyAvisoCierre = ref<CopyAvisoCierreFormaPago | null>(null)
+
+function senalesAvisoCierreFormaPago() {
+  return {
+    medioMatricula: alumnoCtx.medioMatricula ?? medioPagoMatricula.value,
+    medioArancel: alumnoCtx.medioArancel ?? medioPagoArancel.value,
+    webpayMatriculaEstado: alumnoCtx.webpayMatriculaEstado,
+    webpayArancelEstado: alumnoCtx.webpayArancelEstado,
+    pagoMatricula: alumnoCtx.pagoMatricula,
+    arancelPorPagar: montoNetoArancel(),
+    firmaCompletada: alumnoCtx.firmaCompletada,
+  }
+}
+
+/** true si el cierre debe quedar pendiente del warning. */
+function intentarCerrarFormaPagoConAviso(): boolean {
+  if (faseSalida.value === 'webpay') {
+    cancelarSalidaWebpay()
+    return true
+  }
+  const copy = copyAvisoCierreFormaPago(senalesAvisoCierreFormaPago())
+  if (!copy) {
+    cerrarPagoMatriculaDialog()
+    return false
+  }
+  copyAvisoCierre.value = copy
+  avisoCierreFormaPagoAbierto.value = true
+  pagoMatriculaDialogOpen.value = true
+  return true
+}
+
+function seguirCompletandoFormaPago(): void {
+  avisoCierreFormaPagoAbierto.value = false
+  copyAvisoCierre.value = null
+  pagoMatriculaDialogOpen.value = true
+}
+
+function salirIgualFormaPago(): void {
+  avisoCierreFormaPagoAbierto.value = false
+  copyAvisoCierre.value = null
+  cerrarPagoMatriculaDialog()
+}
 
 const arancelEncendido = computed(
   () =>
@@ -1415,11 +1471,7 @@ function cancelarSalidaWebpay(): void {
 }
 
 function cancelarOCerrarPagoMatricula(): void {
-  if (faseSalida.value === 'webpay') {
-    cancelarSalidaWebpay()
-    return
-  }
-  cerrarPagoMatriculaDialog()
+  intentarCerrarFormaPagoConAviso()
 }
 
 async function ejecutarSalidaWebpay(): Promise<void> {
@@ -1465,12 +1517,8 @@ function onPagoMatriculaDialogOpenChange(open: boolean) {
     pagoMatriculaDialogOpen.value = true
     return
   }
-  // Durante la salida a Webpay, cerrar solo detiene el contador y devuelve las opciones.
-  if (faseSalida.value === 'webpay') {
-    cancelarSalidaWebpay()
-    return
-  }
-  cerrarPagoMatriculaDialog()
+  // X / Escape / overlay: warning si el proceso de pago sigue incompleto.
+  intentarCerrarFormaPagoConAviso()
 }
 
 function persistirMediosYMontosWebpay(): void {
@@ -2429,6 +2477,53 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
       </AlertDialogContent>
     </AlertDialog>
 
+    <AlertDialog
+      :open="avisoCierreFormaPagoAbierto"
+      @update:open="(v) => (v ? null : seguirCompletandoFormaPago())"
+    >
+      <AlertDialogContent
+        class="z-[90] max-w-md border-orange-100"
+        overlay-class="z-[90]"
+      >
+        <AlertDialogHeader class="space-y-3 text-left">
+          <Clock class="h-6 w-6 text-[#FF5B00]" aria-hidden="true" />
+          <AlertDialogTitle class="text-xl font-bold text-[#FF5B00] md:text-2xl">
+            Tu rematrícula aún está pendiente
+          </AlertDialogTitle>
+          <AlertDialogDescription class="space-y-3 text-left text-zinc-600">
+            <span class="block text-sm leading-relaxed md:text-base">{{ copyAvisoCierre?.cuerpo }}</span>
+            <span
+              class="block rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm leading-relaxed text-orange-950"
+            >
+              <template v-if="copyAvisoCierre?.tipo === 'arancel'">
+                <span class="font-bold text-[#FF5B00]">¡No te preocupes!</span>
+                Tu pago de matrícula ya está registrado. No necesitas volver a pagarlo. Solo debes
+                continuar con los pasos pendientes.
+              </template>
+              <template v-else>{{ copyAvisoCierre?.aviso }}</template>
+            </span>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter class="flex-col gap-2 sm:flex-col">
+          <Button
+            type="button"
+            class="w-full cursor-pointer rounded-full bg-[#FF5B00] font-semibold text-white hover:bg-[#FF5B00]/90"
+            @click="seguirCompletandoFormaPago"
+          >
+            Continuar rematrícula
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            class="w-full cursor-pointer rounded-full border-[#FF5B00]/40 text-zinc-800 hover:bg-orange-50"
+            @click="salirIgualFormaPago"
+          >
+            Salir por ahora
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
     <Dialog :open="pagoMatriculaDialogOpen" @update:open="onPagoMatriculaDialogOpenChange">
       <DialogScrollContent
         :class="
@@ -2447,6 +2542,10 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
           <DialogDescription v-else class="text-sm text-muted-foreground">
             Revisa las cuotas y el documento de cada beca, en matrícula o en arancel.
           </DialogDescription>
+          <RetencionMicroStepper
+            v-if="pagoMatriculaPaso === 'selector'"
+            :paso-activo="microPasoFormaPago"
+          />
         </DialogHeader>
 
         <div v-if="pagoMatriculaPaso === 'selector'" class="space-y-5 py-1">
