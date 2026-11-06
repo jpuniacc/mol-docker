@@ -1,0 +1,468 @@
+#!/usr/bin/env python3
+"""Wireframes UX v5 CRM — HubSpot-lite Seguimiento rematrícula UNIACC MOL."""
+import os, subprocess
+D = os.path.dirname(os.path.abspath(__file__))
+H = os.path.join(D, 'html')
+os.makedirs(H, exist_ok=True)
+
+CSS = r"""
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,Arial,sans-serif;background:#eef1f6;color:#1f2937;font-size:13px}
+.top{background:#1E3A5F;color:#fff;padding:10px 20px;display:flex;justify-content:space-between;align-items:center}
+.top b{color:#FF5B00}
+.stamp{position:fixed;bottom:12px;left:16px;background:#fee2e2;color:#b91c1c;border:2px dashed #b91c1c;padding:5px 12px;font-weight:800;font-size:11px;z-index:40;letter-spacing:.02em}
+.app{display:flex;flex-direction:column;min-height:100vh}
+.page{display:flex;flex:1;min-height:0}
+/* left filters */
+.filters{width:220px;flex:0 0 220px;background:#fff;border-right:1px solid #e5e7eb;padding:14px 12px;overflow:auto}
+.filters h3{margin:0 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#64748b}
+.fg{margin-bottom:16px}
+.fg label{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:default;font-size:12px;color:#334155}
+.fg label:hover{background:#f8fafc}
+.fg label.on{background:#fff7ed;color:#9a3412;font-weight:600}
+.fg .cnt{margin-left:auto;color:#94a3b8;font-variant-numeric:tabular-nums;font-size:11px}
+.fg label.on .cnt{color:#c2410c}
+.dot{width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+/* main */
+.main{flex:1;min-width:0;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.hdr{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between}
+.hdr h1{margin:0;font-size:20px;color:#1E3A5F}
+.hdr .sub{color:#6b7280;font-size:12px;margin-top:2px}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sel,.inp{border:1px solid #d1d5db;border-radius:8px;padding:7px 11px;background:#fff;font-size:12px}
+.inp{min-width:200px}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:8px;border:1px solid #d1d5db;background:#fff;font-weight:600;cursor:default;font-size:12px}
+.pri{background:#FF5B00;color:#fff;border-color:#FF5B00}
+.ghost{background:#fff;border-color:#cbd5e1;color:#475569}
+.navy{background:#1E3A5F;color:#fff;border-color:#1E3A5F}
+.toggle{display:inline-flex;border:1px solid #d1d5db;border-radius:8px;overflow:hidden;background:#fff}
+.toggle span{padding:7px 14px;font-size:12px;font-weight:600;color:#64748b;border-right:1px solid #e5e7eb}
+.toggle span:last-child{border-right:0}
+.toggle span.on{background:#1E3A5F;color:#fff}
+.meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;color:#64748b;font-size:12px}
+.pill{border-radius:999px;padding:3px 9px;font-size:11px;font-weight:600;border:1px solid #e5e7eb;background:#fff}
+.pill.warn{background:#fff7ed;border-color:#fdba74;color:#9a3412}
+.pill.ok{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+.pill.muted{background:#f8fafc;color:#64748b}
+.pill.blue{background:#eff6ff;border-color:#bfdbfe;color:#1e40af}
+/* table */
+.card-panel{background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{background:#f8fafc;text-align:left;padding:10px 12px;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid #e5e7eb}
+td{padding:11px 12px;border-top:1px solid #f1f5f9;vertical-align:middle}
+tr.sel td{background:#fff7ed}
+tr:hover td{background:#fff7ed55}
+.bdg{display:inline-flex;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700;border:1px solid transparent}
+.muted{color:#94a3b8}
+.foot{display:flex;justify-content:space-between;padding:10px 12px;color:#64748b;font-size:12px;border-top:1px solid #f1f5f9}
+/* board */
+.board{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;align-items:flex-start}
+.col{flex:0 0 200px;background:#f1f5f9;border-radius:10px;padding:8px;min-height:420px}
+.col-h{display:flex;justify-content:space-between;align-items:center;padding:4px 6px 8px;font-weight:700;font-size:12px;color:#1E3A5F}
+.col-h .n{background:#fff;border-radius:999px;padding:1px 7px;font-size:11px;color:#64748b;font-weight:600}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:8px;box-shadow:0 1px 2px #0001}
+.card .nm{font-weight:700;font-size:12px;color:#111;margin-bottom:2px}
+.card .meta2{font-size:11px;color:#64748b;line-height:1.35}
+.card.sel{outline:2px solid #FF5B00;outline-offset:0}
+/* drawer */
+.ov{position:fixed;inset:0;background:#0f172a55;z-index:20}
+.drawer{position:fixed;top:0;right:0;width:480px;height:100%;background:#fff;z-index:30;box-shadow:-16px 0 40px #0003;display:flex;flex-direction:column}
+.dh{padding:16px 18px 12px;border-bottom:1px solid #e5e7eb;flex:0 0 auto}
+.dh h2{margin:0;font-size:17px;color:#0f172a;line-height:1.25}
+.dh .ids{color:#64748b;font-size:12px;margin-top:3px}
+.dh .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.dh .close{float:right;color:#64748b;font-weight:600;font-size:12px}
+.da{padding:12px 18px;border-bottom:1px solid #e5e7eb;display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#fafbfc}
+.db{flex:1;overflow:auto;padding:14px 18px 24px}
+.sec{margin-bottom:16px}
+.sec h3{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#64748b}
+.props{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;font-size:12px}
+.props .k{color:#64748b}
+.props .v{color:#0f172a;font-weight:500;word-break:break-word}
+.box{background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:12px}
+.tl{border-left:2px solid #e5e7eb;margin:4px 0 0 6px;padding-left:14px}
+.tl .e{margin-bottom:12px;position:relative}
+.tl .e:before{content:'';position:absolute;left:-18px;top:4px;width:8px;height:8px;border-radius:50%;background:#FF5B00;border:2px solid #fff;box-shadow:0 0 0 1px #fdba74}
+.tl .e.sys:before{background:#1E3A5F;box-shadow:0 0 0 1px #93c5fd}
+.tl i{color:#94a3b8;font-style:normal;font-size:11px}
+.note{background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;border-radius:8px;padding:8px 10px;font-size:12px;margin:0 0 12px}
+.note.ok{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+.note.warn{background:#fff7ed;border-color:#fdba74;color:#9a3412}
+.chkwrap{padding:22px 28px;max-width:980px;margin:0 auto}
+.chkwrap h1{margin:0 0 8px;color:#1E3A5F;font-size:22px}
+.chk{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin:12px 0}
+.chk h3{margin:0 0 8px;color:#1E3A5F;font-size:14px}
+.chk ul{margin:0;padding-left:18px}
+.chk li{margin:5px 0;line-height:1.4}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#475569;margin-top:8px}
+"""
+
+STAMP = '<div class="stamp">DATOS FICTICIOS · UX CRM PROPUESTA / NO IMPLEMENTADO</div>'
+TOP = '<div class="top"><div><b>UNIACC</b> MOL · Staff · Seguimiento rematrícula 2027-1</div><div>mperez@uniacc.cl</div></div>'
+
+FILTERS = '''
+<aside class="filters">
+  <h3>Filtros</h3>
+  <div class="fg">
+    <label class="on"><span class="dot" style="background:#FF5B00"></span> Mi cartera <span class="cnt">42</span></label>
+    <label><span class="dot" style="background:#94a3b8"></span> Todas las carteras <span class="cnt">4.690</span></label>
+  </div>
+  <h3>Etapa embudo</h3>
+  <div class="fg">
+    <label><span class="dot" style="background:#94a3b8"></span> 1 Sin ingreso <span class="cnt">4.384</span></label>
+    <label><span class="dot" style="background:#94a3b8"></span> 2 Sin términos <span class="cnt">0</span></label>
+    <label><span class="dot" style="background:#f59e0b"></span> 3 Datos faltantes <span class="cnt">5</span></label>
+    <label><span class="dot" style="background:#f97316"></span> 4 Sin forma de pago <span class="cnt">100</span></label>
+    <label class="on"><span class="dot" style="background:#FF5B00"></span> 5 Forma de pago <span class="cnt">27</span></label>
+    <label><span class="dot" style="background:#eab308"></span> 6 Firma pendiente <span class="cnt">0</span></label>
+    <label><span class="dot" style="background:#3b82f6"></span> 7 Firma OK · falta U+ <span class="cnt">1</span></label>
+    <label><span class="dot" style="background:#10b981"></span> 8 Matriculado <span class="cnt">173</span></label>
+  </div>
+  <h3>Alertas</h3>
+  <div class="fg">
+    <label><span class="dot" style="background:#ef4444"></span> Sin contactar +7d <span class="cnt">14</span></label>
+    <label><span class="dot" style="background:#f59e0b"></span> Mail recordatorio pdte <span class="cnt">3</span></label>
+    <label><span class="dot" style="background:#64748b"></span> SMS recordatorio pdte <span class="cnt">11</span></label>
+  </div>
+</aside>
+'''
+
+HDR_LIST = '''
+<div class="hdr">
+  <div>
+    <h1>Seguimiento rematrícula</h1>
+    <div class="sub">CRM HubSpot-lite · Periodo 2027-1</div>
+  </div>
+  <div class="tools">
+    <select class="sel"><option selected>Mi cartera</option><option>Todas las carteras</option><option>mperez@uniacc.cl</option></select>
+    <input class="inp" placeholder="Buscar nombre, RUT o codcli"/>
+    <span class="btn ghost">Actualizar</span>
+    <div class="toggle"><span class="on">Lista</span><span>Board</span></div>
+  </div>
+</div>
+'''
+
+HDR_BOARD = '''
+<div class="hdr">
+  <div>
+    <h1>Seguimiento rematrícula</h1>
+    <div class="sub">CRM HubSpot-lite · Periodo 2027-1</div>
+  </div>
+  <div class="tools">
+    <select class="sel"><option selected>Mi cartera</option><option>Todas las carteras</option></select>
+    <input class="inp" placeholder="Buscar nombre, RUT o codcli"/>
+    <span class="btn ghost">Actualizar</span>
+    <div class="toggle"><span>Lista</span><span class="on">Board</span></div>
+  </div>
+</div>
+'''
+
+TABLE = '''
+<div class="card-panel">
+<table>
+  <thead><tr>
+    <th>Alumno</th><th>Etapa</th><th>Último contacto</th><th>Próxima</th><th>Ejecutivo</th>
+  </tr></thead>
+  <tbody>
+    <tr class="sel">
+      <td><b>Isidora Vargas Muñoz</b><div class="muted">19.222.333-4 · Cine y TV Digital</div></td>
+      <td><span class="bdg" style="background:#fff7ed;color:#9a3412;border-color:#fdba74">5 · Forma de pago</span>
+          <div class="muted" style="margin-top:2px">Arancel pdte · Mat. Webpay ✓</div></td>
+      <td>—<div class="muted">Sin contactar</div></td>
+      <td>Recordar arancel</td>
+      <td class="muted">mperez@…</td>
+    </tr>
+    <tr>
+      <td><b>Tomás Fuentes Díaz</b><div class="muted">20.456.789-0 · Publicidad</div></td>
+      <td><span class="bdg" style="background:#fff7ed;color:#9a3412;border-color:#fdba74">5 · Forma de pago</span>
+          <div class="muted" style="margin-top:2px">CAE · Mat. Webpay ✓</div></td>
+      <td>Mail · 05-11 12:10</td>
+      <td>Esperar CAE</td>
+      <td class="muted">mperez@…</td>
+    </tr>
+    <tr>
+      <td><b>Benjamín Castro Ríos</b><div class="muted">20.777.888-9 · Música</div></td>
+      <td><span class="bdg" style="background:#fff7ed;color:#9a3412;border-color:#fdba74">5 · Forma de pago</span>
+          <div class="muted" style="margin-top:2px">Ambos · Mat. Webpay ✓</div></td>
+      <td>Nota · 04-11</td>
+      <td>Llamar</td>
+      <td class="muted">rgonzalez@…</td>
+    </tr>
+    <tr>
+      <td><b>Catalina Rojas Peña</b><div class="muted">21.111.222-3 · Diseño</div></td>
+      <td><span class="bdg" style="background:#fff7ed;color:#9a3412;border-color:#fdba74">5 · Forma de pago</span>
+          <div class="muted" style="margin-top:2px">Beneficio mín. · Mat. Webpay ✓</div></td>
+      <td>WA · 03-11</td>
+      <td>Confirmar firma</td>
+      <td class="muted">mperez@…</td>
+    </tr>
+    <tr>
+      <td><b>Florencia Paz Salinas Menghini</b><div class="muted">22.221.051-8 · Diseño de Imagen</div></td>
+      <td><span class="bdg" style="background:#ecfdf5;color:#065f46;border-color:#a7f3d0">8 · Matriculado U+</span></td>
+      <td>Sistema · 28-10</td>
+      <td class="muted">—</td>
+      <td class="muted">nicole.eguren@…</td>
+    </tr>
+  </tbody>
+</table>
+<div class="foot"><span>27 resultados · mostrando 1–25</span><span><span class="btn ghost" style="padding:4px 10px">Anterior</span> <span class="btn ghost" style="padding:4px 10px">Siguiente</span></span></div>
+</div>
+'''
+
+BOARD = '''
+<div class="board">
+  <div class="col"><div class="col-h">1 Sin ingreso <span class="n">4.384</span></div>
+    <div class="card"><div class="nm">Ana Paredes</div><div class="meta2">Sin ingreso portal<br>mperez · +9d</div></div>
+    <div class="card"><div class="nm">Luis Mora</div><div class="meta2">Sin ingreso portal<br>rgonzalez</div></div>
+  </div>
+  <div class="col"><div class="col-h">2 Sin términos <span class="n">0</span></div>
+    <div class="muted" style="padding:12px 6px;font-size:11px">Sin casos</div>
+  </div>
+  <div class="col"><div class="col-h">3 Datos falt. <span class="n">5</span></div>
+    <div class="card"><div class="nm">María Soto</div><div class="meta2">Falta teléfono<br>mperez</div></div>
+  </div>
+  <div class="col"><div class="col-h">4 Sin forma pago <span class="n">100</span></div>
+    <div class="card"><div class="nm">Pedro Núñez</div><div class="meta2">Sin medio pago<br>mperez</div></div>
+    <div class="card"><div class="nm">Valentina Ruiz</div><div class="meta2">Sin medio pago<br>nicole.eguren</div></div>
+  </div>
+  <div class="col"><div class="col-h">5 Forma de pago <span class="n">27</span></div>
+    <div class="card sel"><div class="nm">Isidora Vargas</div><div class="meta2">Arancel pdte · Webpay ✓<br>Sin contactar</div></div>
+    <div class="card"><div class="nm">Tomás Fuentes</div><div class="meta2">CAE · Mail 05-11</div></div>
+    <div class="card"><div class="nm">Benjamín Castro</div><div class="meta2">Ambos · Nota 04-11</div></div>
+  </div>
+  <div class="col"><div class="col-h">6 Firma pdte <span class="n">0</span></div>
+    <div class="muted" style="padding:12px 6px;font-size:11px">Sin casos</div>
+  </div>
+  <div class="col"><div class="col-h">7 Firma OK · U+ <span class="n">1</span></div>
+    <div class="card"><div class="nm">Sofía Herrera</div><div class="meta2">Firma OK · falta U+</div></div>
+  </div>
+  <div class="col"><div class="col-h">8 Matriculado <span class="n">173</span></div>
+    <div class="card"><div class="nm">Florencia Paz Salinas</div><div class="meta2">22.221.051-8<br>Matriculado U+</div></div>
+    <div class="card"><div class="nm">Diego Araya</div><div class="meta2">Matriculado U+</div></div>
+  </div>
+</div>
+'''
+
+DRAWER_EN_CURSO = '''
+<div class="ov"></div>
+<aside class="drawer">
+  <div class="dh">
+    <span class="close">Cerrar ✕</span>
+    <h2>Isidora Vargas Muñoz</h2>
+    <div class="ids">19.222.333-4 · codcli 20251CINE1DR011</div>
+    <div class="chips">
+      <span class="bdg" style="background:#fff7ed;color:#9a3412;border-color:#fdba74">5 · Forma de pago</span>
+      <span class="pill muted">Cine y TV Digital</span>
+    </div>
+  </div>
+  <div class="da">
+    <span class="btn pri">Contactar ▾</span>
+    <span class="btn ghost">Agregar nota</span>
+    <span class="muted" style="font-size:11px">Correo / SMS / WA · Corte 2</span>
+  </div>
+  <div class="db">
+    <div class="sec">
+      <h3>Propiedades</h3>
+      <div class="box">
+        <div class="props">
+          <div class="k">Email</div><div class="v">isidora.vargas@mail.cl</div>
+          <div class="k">Teléfono</div><div class="v">+56 9 8765 4321</div>
+          <div class="k">Firmantes</div><div class="v">Alumna · Apoderado (1/2)</div>
+          <div class="k">Ejecutivo</div><div class="v">mperez@uniacc.cl</div>
+          <div class="k">Medios pago</div><div class="v">Mat. Webpay ✓ · Arancel pendiente</div>
+          <div class="k">Carrera</div><div class="v">Cine y TV Digital</div>
+        </div>
+      </div>
+    </div>
+    <div class="sec">
+      <h3>Recordatorios automáticos</h3>
+      <div class="note warn" style="margin-bottom:8px">Visible porque M && !F (matrícula Webpay sí · firma no)</div>
+      <div class="box">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Mail (2 h)</span><span class="pill ok">Enviado 05-11 11:32</span></div>
+        <div style="display:flex;justify-content:space-between"><span>SMS (24 h)</span><span class="pill warn">Pendiente 06-11 09:32</span></div>
+      </div>
+    </div>
+    <div class="sec">
+      <h3>Timeline</h3>
+      <div class="tl">
+        <div class="e"><b>Nota · mperez</b><br>«Espera CAE, llamar jueves»<br><i>05-11 15:04 · próxima 07-11</i></div>
+        <div class="e sys"><b>Sistema · Mail recordatorio 2h</b><br><i>05-11 11:32</i></div>
+        <div class="e sys"><b>Sistema · Matrícula Webpay</b><br><i>05-11 09:32</i></div>
+        <div class="e sys"><b>Sistema · Caso abierto embudo</b><br><i>28-10 10:01</i></div>
+      </div>
+    </div>
+  </div>
+</aside>
+'''
+
+DRAWER_MATRICULADO = '''
+<div class="ov"></div>
+<aside class="drawer">
+  <div class="dh">
+    <span class="close">Cerrar ✕</span>
+    <h2>FLORENCIA PAZ SALINAS MENGHINI</h2>
+    <div class="ids">22.221.051-8 · codcli 20251DIMA1DR024</div>
+    <div class="chips">
+      <span class="bdg" style="background:#ecfdf5;color:#065f46;border-color:#a7f3d0">8 · Matriculado U+</span>
+      <span class="pill muted">DISEÑO DE IMAGEN</span>
+    </div>
+  </div>
+  <div class="da">
+    <span class="btn navy">Agregar nota</span>
+    <span class="pill ok">Caso cerrado en embudo · solo consulta</span>
+  </div>
+  <div class="db">
+    <div class="note ok">Sin correo / SMS / WhatsApp / Contactar — chip Matriculado U+.</div>
+    <div class="sec">
+      <h3>Propiedades</h3>
+      <div class="box">
+        <div class="props">
+          <div class="k">Email</div><div class="v">florencia.salinas@mail.cl</div>
+          <div class="k">Teléfono</div><div class="v">+56 9 7123 4567</div>
+          <div class="k">Firmantes</div><div class="v">Alumna · Apoderado (2/2 firmados)</div>
+          <div class="k">Ejecutivo</div><div class="v">nicole.eguren@uniacc.cl</div>
+          <div class="k">Medios pago</div><div class="v">Mat. Webpay ✓ · Arancel ✓</div>
+          <div class="k">Carrera</div><div class="v">DISEÑO DE IMAGEN</div>
+          <div class="k">U+</div><div class="v">Matriculado · 28-10-2025</div>
+        </div>
+      </div>
+    </div>
+    <div class="sec">
+      <h3>Recordatorios automáticos</h3>
+      <div class="box muted" style="font-size:12px">No aplican (firma completa · caso matriculado).</div>
+    </div>
+    <div class="sec">
+      <h3>Timeline</h3>
+      <div class="tl">
+        <div class="e sys"><b>Sistema · Matriculado U+</b><br><i>28-10 14:22</i></div>
+        <div class="e sys"><b>Sistema · Firma completa (2/2)</b><br><i>28-10 11:05</i></div>
+        <div class="e sys"><b>Sistema · Arancel pagado</b><br><i>27-10 16:40</i></div>
+        <div class="e"><b>Nota · nicole.eguren</b><br>«Documentación OK, derivar a U+»<br><i>27-10 09:15</i></div>
+        <div class="e sys"><b>Sistema · Matrícula Webpay</b><br><i>20-10 10:12</i></div>
+      </div>
+    </div>
+  </div>
+</aside>
+'''
+
+def page(name, body, w=1440, h=900):
+    html = f'<!doctype html><html><head><meta charset="utf-8"><style>{CSS}</style></head><body class="app">{TOP}{STAMP}{body}</body></html>'
+    p = os.path.join(H, f'{name}.html')
+    open(p, 'w').write(html)
+    out = os.path.join(D, f'{name}.png')
+    r = subprocess.run([
+        'google-chrome', '--headless=new', '--no-sandbox', '--disable-gpu',
+        '--hide-scrollbars', f'--window-size={w},{h}', f'--screenshot={out}',
+        'file://' + p
+    ], capture_output=True, text=True)
+    ok = os.path.exists(out) and os.path.getsize(out) > 20000
+    print(name, 'OK' if ok else 'FAIL', os.path.getsize(out) if os.path.exists(out) else 0, (r.stderr or '')[-180:])
+
+# 01 lista + filtros
+page('01-lista-filtros', f'''
+<div class="page">
+  {FILTERS}
+  <div class="main">
+    {HDR_LIST}
+    <div class="meta">
+      <span class="pill warn">Etapa: 5 Forma de pago · 27</span>
+      <span class="pill muted">Cartera: Mi cartera</span>
+      <span class="pill blue">Vista Lista (default)</span>
+    </div>
+    {TABLE}
+  </div>
+</div>
+''', 1440, 900)
+
+# 02 board
+page('02-board', f'''
+<div class="page">
+  {FILTERS}
+  <div class="main">
+    {HDR_BOARD}
+    <div class="meta">
+      <span class="pill muted">Cartera: Mi cartera</span>
+      <span class="pill blue">Vista Board · columnas 1–8</span>
+      <span class="pill warn">Tarjeta seleccionada → abre mismo drawer</span>
+    </div>
+    {BOARD}
+  </div>
+</div>
+''', 1600, 900)
+
+# 03 drawer en curso
+page('03-drawer-en-curso', f'''
+<div class="page">
+  {FILTERS}
+  <div class="main">
+    {HDR_LIST}
+    <div class="meta"><span class="pill warn">Drawer alumno en curso</span></div>
+    {TABLE}
+  </div>
+</div>
+{DRAWER_EN_CURSO}
+''', 1440, 900)
+
+# 04 drawer matriculado
+page('04-drawer-matriculado', f'''
+<div class="page">
+  {FILTERS}
+  <div class="main">
+    {HDR_LIST}
+    <div class="meta"><span class="pill ok">Drawer Matriculado U+ · solo nota</span></div>
+    {TABLE}
+  </div>
+</div>
+{DRAWER_MATRICULADO}
+''', 1440, 900)
+
+# 05 checklist
+page('05-checklist', '''
+<div class="chkwrap">
+  <h1>Checklist PR · UX CRM v5 HubSpot-lite</h1>
+  <div class="note">Front + enriquecimiento mínimo de lectura API caso. mol-dev only · rama <b>dev</b>. No composer / envíos (Corte 2).</div>
+  <div class="chk">
+    <h3>Bandeja híbrida</h3>
+    <ul>
+      <li>[ ] Layout: filtros izq ~220px + main; default <b>Lista</b></li>
+      <li>[ ] Toggle <b>Lista | Board</b> en header (junto a Cartera / buscar / Actualizar)</li>
+      <li>[ ] Board: 8 columnas por etapa embudo (1 Sin ingreso … 8 Matriculado)</li>
+      <li>[ ] Tabla lean: Alumno · Etapa · Último contacto · Próxima · Ejecutivo</li>
+      <li>[ ] Clic fila o tarjeta → mismo drawer derecho ~480px (lista/board detrás)</li>
+    </ul>
+  </div>
+  <div class="chk">
+    <h3>Drawer CRM</h3>
+    <ul>
+      <li>[ ] Cabecera: nombre, RUT, codcli, chip etapa, carrera</li>
+      <li>[ ] Propiedades: email, tel, firmantes, ejecutivo, medios (datos API, no «—» fijos)</li>
+      <li>[ ] Timeline: bitácora + eventos sistema</li>
+      <li>[ ] Recordatorios automáticos solo si M && !F</li>
+      <li>[ ] Chips 1–7: <b>Contactar ▾</b> + <b>Agregar nota</b> (Contactar disabled/tooltip hasta Corte 2)</li>
+      <li>[ ] Chip 8 Matriculado U+: <b>solo Agregar nota</b>; SIN correo/SMS/WA/Contactar</li>
+    </ul>
+  </div>
+  <div class="chk">
+    <h3>API mínima (lectura)</h3>
+    <ul>
+      <li>[ ] Enriquecer GET casos/:codcli con email, teléfono, resumen firmantes</li>
+      <li>[ ] Fuentes ya usadas en MOL (borrador / contacto / TuFirma)</li>
+    </ul>
+  </div>
+  <div class="chk">
+    <h3>No hacer aquí</h3>
+    <ul>
+      <li>Composer / envío real / scheduler (Corte 2)</li>
+      <li>Cambiar criterios de chips de negocio</li>
+      <li>Deploy prod · solo mol-dev</li>
+    </ul>
+  </div>
+  <div class="legend">
+    <span style="color:#FF5B00;font-weight:700">● #FF5B00</span>
+    <span style="color:#1E3A5F;font-weight:700">● #1E3A5F</span>
+    <span>Stamp: DATOS FICTICIOS · UX CRM PROPUESTA / NO IMPLEMENTADO</span>
+  </div>
+</div>
+''', 1280, 980)
+
+print('done', D)
