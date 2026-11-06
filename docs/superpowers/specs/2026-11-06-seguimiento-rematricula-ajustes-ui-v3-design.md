@@ -19,6 +19,8 @@ Alinear la UI AS-IS de la bandeja al wireframe v3 **sin cambiar reglas de negoci
 | Sin contactar +7d | **A:** pill visible; contador `—` o `0`; **no filtrable**; KPI/filtro real = CORTE 2 / API |
 | Contacto panel (email/tel/firmantes) | **A:** UI con **«—»**; **sin** ampliar `/casos/:codcli` |
 | Cartera supervisor | **A:** pill navy + «Ver todas» + `Select` de emails **únicos presentes en `filas` cargadas**; sin endpoint nuevo |
+| Mail 2h / SMS 24h pills | Contadores KPI visibles; **sin filtrar** (API no expone `filtroAux`; no inventar en este PR). Mismo trato que +7d |
+| Overlay panel | Cerrar con click en fondo **y Escape** |
 | Reglas chips / API / migraciones | **No tocar** |
 | Prod | **No** copiar ni rebuild prod en este PR |
 
@@ -42,6 +44,7 @@ Alinear la UI AS-IS de la bandeja al wireframe v3 **sin cambiar reglas de negoci
 ### Auxiliares
 
 - Pills: `Sin contactar +7d —` (no click / no filtra), `Mail 2h pdte N`, `Mail 2h enviado N`, `SMS 24h pdte N`, `SMS 24h enviado N`.
+- Mail/SMS: **solo display** de KPI (no hay filtro API hoy; no inventar `filtroAux`).
 - **Quitar** texto debug tipo «(outbox vacío en CORTE 1…)».
 
 ### Cartera
@@ -49,6 +52,7 @@ Alinear la UI AS-IS de la bandeja al wireframe v3 **sin cambiar reglas de negoci
 - Perfil 3 (`alcanceCartera` ejecutivo): pill navy fija «Cartera: mía (email sesión)»; sin «Ver todas».
 - Perfiles 1/2: pill + toggle/acción «Ver todas» + `Select` de ejecutivos derivados de `filas[].email_ejecutivo` (opción vacía = todas). Sustituye el input libre de email.
 - Lista del select puede ser incompleta (solo página/carga actual); aceptado en este PR.
+- **Hint obligatorio** junto al select: *«Ejecutivos en la carga actual»* (el supervisor no debe creer que es el universo completo).
 
 ### Tabla
 
@@ -62,7 +66,7 @@ Alumno (nombre + RUT) · Carrera · Etapa · Subetapa F.pago · Mat. Webpay · M
 
 ## Panel caso
 
-- Overlay semitransparente (`bg-black/40`); click cierra; drawer derecho existente.
+- Overlay semitransparente (`bg-black/40`); cierra con **click en fondo** y **Escape**; drawer derecho existente.
 - Cabecera: nombre, RUT, `codcli`, badges etapa (+ subetapa si aplica) con mismo mapa de color.
 - Bloque contacto: email / teléfono / firmantes → **«—»** hasta CORTE 2 (payload).
 - Resumen matrícula / arancel / firmantes: usar lo ya disponible en la fila (`mat_webpay_fecha`, etc.); resto «—».
