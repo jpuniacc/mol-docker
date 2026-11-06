@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch, type Component } from 'vue'
+import { MessageCircle, MessageSquare, Pencil, Phone } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -31,12 +32,18 @@ import {
   type SubetapaFormaPago,
 } from '@/services/seguimientoRematriculaApi'
 import {
+  colorEtapaChip,
   ETIQUETA_CHIP_BANDEJA,
+  etiquetaSubetapaFormaPago,
+  numeroChipBandeja,
   ORDEN_CHIPS_BANDEJA,
   type ChipBandeja,
 } from '@/utils/seguimientoBandejaChip'
 import { etiquetaOutboxUi } from '@/utils/seguimientoBandejaOutbox'
 import { alcanceCartera } from '@/utils/alcanceCarteraEjecutivo'
+
+/** Sentinel Select (Radix no acepta ''); maps to filtroEjecutivo === '' = Ver todas. */
+const SELECT_TODAS = '__todas__'
 
 const auth = useAuthStore()
 const periodoActivo = usePeriodoActivoStore()
@@ -57,7 +64,7 @@ const subetapa = ref<SubetapaFormaPago>(null)
 const q = ref('')
 const page = ref(0)
 const pageSize = 25
-/** Supervisor: vacío = todas; con email = filtrar ese ejecutivo. */
+/** Supervisor: '' = Ver todas (sin override API); email = acota cartera. Sin modo «mía» aquí. */
 const filtroEjecutivo = ref('')
 
 const casoAbierto = ref<FilaBandejaSeguimiento | null>(null)
@@ -71,6 +78,24 @@ const guardandoContacto = ref(false)
 const periodoOk = computed(
   () => periodoActivo.anio != null && periodoActivo.semestre != null,
 )
+
+const ejecutivosEnCarga = computed(() => {
+  const set = new Set<string>()
+  for (const f of filas.value) {
+    const e = f.email_ejecutivo?.trim().toLowerCase()
+    if (e) set.add(e)
+  }
+  return [...set].sort()
+})
+
+/** Bind Select ↔ filtroEjecutivo ('' = Ver todas). */
+const filtroEjecutivoSelect = computed({
+  get: () => (filtroEjecutivo.value.trim() ? filtroEjecutivo.value.trim().toLowerCase() : SELECT_TODAS),
+  set: (v: string) => {
+    filtroEjecutivo.value = !v || v === SELECT_TODAS ? '' : v
+    page.value = 0
+  },
+})
 
 function conteoChip(chip: ChipBandeja): number {
   if (!kpi.value) return 0
@@ -142,6 +167,19 @@ function seleccionarChip(chip: ChipBandeja): void {
   page.value = 0
 }
 
+function cerrarCaso(): void {
+  casoAbierto.value = null
+}
+
+function onKeydownEscape(e: KeyboardEvent): void {
+  if (e.key === 'Escape' && casoAbierto.value && !dialogContacto.value) {
+    cerrarCaso()
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydownEscape))
+onUnmounted(() => window.removeEventListener('keydown', onKeydownEscape))
+
 async function abrirCaso(fila: FilaBandejaSeguimiento): Promise<void> {
   if (!periodoOk.value) return
   const r = await fetchSeguimientoCaso(
@@ -155,6 +193,14 @@ async function abrirCaso(fila: FilaBandejaSeguimiento): Promise<void> {
   }
   casoAbierto.value = r.caso
   bitacora.value = r.bitacora
+}
+
+function iconoCanal(canal: string): Component {
+  const c = canal.trim().toLowerCase()
+  if (c === 'llamada' || c === 'telefono' || c === 'teléfono' || c === 'presencial') return Phone
+  if (c === 'sms') return MessageSquare
+  if (c === 'whatsapp') return MessageCircle
+  return Pencil
 }
 
 async function guardarContacto(): Promise<void> {
@@ -205,17 +251,36 @@ function fmtFecha(iso: string | null): string {
         <h1 class="text-2xl font-bold text-[#1E3A5F]">Seguimiento rematrícula</h1>
         <p class="text-sm text-zinc-600">
           Periodo {{ periodoActivo.label ?? '—' }}
-          <span v-if="alcance.tipo === 'ejecutivo'"> · Cartera: {{ alcance.email }}</span>
         </p>
       </div>
-      <div v-if="esSupervisor" class="flex flex-wrap items-center gap-2">
-        <span class="text-sm text-zinc-600">Ver todas</span>
-        <Input
-          v-model="filtroEjecutivo"
-          placeholder="Filtrar email ejecutivo (opcional)"
-          class="w-64"
-          @keyup.enter="page = 0; cargar()"
-        />
+      <div class="flex flex-wrap items-center gap-2">
+        <span
+          v-if="!esSupervisor"
+          class="rounded-full bg-[#1E3A5F] px-3 py-1 text-xs font-medium text-white"
+        >
+          Cartera: mía ({{ alcance.email ?? auth.email ?? '—' }})
+        </span>
+        <template v-else>
+          <span class="rounded-full bg-[#1E3A5F] px-3 py-1 text-xs font-medium text-white">
+            {{
+              filtroEjecutivo
+                ? `Cartera: ${filtroEjecutivo}`
+                : 'Cartera: Ver todas'
+            }}
+          </span>
+          <Select v-model="filtroEjecutivoSelect">
+            <SelectTrigger class="w-64 cursor-pointer">
+              <SelectValue placeholder="Ver todas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem :value="SELECT_TODAS">Ver todas</SelectItem>
+              <SelectItem v-for="em in ejecutivosEnCarga" :key="em" :value="em">
+                {{ em }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <span class="text-xs text-zinc-500">Ejecutivos en la carga actual</span>
+        </template>
       </div>
     </header>
 
@@ -232,11 +297,13 @@ function fmtFecha(iso: string | null): string {
         :class="
           chipActivo === chip
             ? 'border-[#FF5B00] ring-2 ring-[#FF5B00]/30'
-            : 'border-zinc-200'
+            : 'border-[#1E3A5F]/20'
         "
         @click="seleccionarChip(chip)"
       >
-        <div class="text-xs font-medium text-zinc-500">{{ ETIQUETA_CHIP_BANDEJA[chip] }}</div>
+        <div class="text-xs font-medium text-zinc-500">
+          {{ numeroChipBandeja(chip) }}. {{ ETIQUETA_CHIP_BANDEJA[chip] }}
+        </div>
         <div class="mt-1 text-2xl font-bold tabular-nums text-zinc-900">
           {{ conteoChip(chip) }}
         </div>
@@ -269,12 +336,20 @@ function fmtFecha(iso: string | null): string {
 
     <div v-if="kpi" class="flex flex-wrap gap-2 text-sm">
       <span class="rounded-full border border-orange-200 bg-orange-50 px-3 py-1">
-        Mail 2h pdte {{ kpi.mail_2h_pdte }} · enviado {{ kpi.mail_2h_enviado }}
+        Sin contactar +7d —
       </span>
-      <span class="rounded-full border border-orange-200 bg-orange-50 px-3 py-1">
-        SMS 24h pdte {{ kpi.sms_24h_pdte }} · enviado {{ kpi.sms_24h_enviado }}
+      <span class="rounded-full border border-zinc-200 bg-white px-3 py-1">
+        Mail 2h pdte {{ kpi.mail_2h_pdte }}
       </span>
-      <span class="text-zinc-500">(outbox vacío en CORTE 1 → casi siempre n/a)</span>
+      <span class="rounded-full border border-zinc-200 bg-white px-3 py-1">
+        Mail 2h enviado {{ kpi.mail_2h_enviado }}
+      </span>
+      <span class="rounded-full border border-zinc-200 bg-white px-3 py-1">
+        SMS 24h pdte {{ kpi.sms_24h_pdte }}
+      </span>
+      <span class="rounded-full border border-zinc-200 bg-white px-3 py-1">
+        SMS 24h enviado {{ kpi.sms_24h_enviado }}
+      </span>
     </div>
 
     <div class="flex flex-wrap gap-2">
@@ -321,11 +396,18 @@ function fmtFecha(iso: string | null): string {
             </td>
             <td class="px-3 py-2">{{ fila.nombre_carrera ?? '—' }}</td>
             <td class="px-3 py-2">
-              <span class="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-semibold text-[#FF5B00]">
+              <span
+                class="inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold"
+                :class="[
+                  colorEtapaChip(fila.chip).bg,
+                  colorEtapaChip(fila.chip).text,
+                  colorEtapaChip(fila.chip).border,
+                ]"
+              >
                 {{ ETIQUETA_CHIP_BANDEJA[fila.chip] }}
               </span>
             </td>
-            <td class="px-3 py-2">{{ fila.subetapa_forma_pago ?? '—' }}</td>
+            <td class="px-3 py-2">{{ etiquetaSubetapaFormaPago(fila.subetapa_forma_pago) }}</td>
             <td class="px-3 py-2">
               {{ fila.mat_webpay_fecha ? `Sí ${fmtFecha(fila.mat_webpay_fecha)}` : '—' }}
             </td>
@@ -382,6 +464,12 @@ function fmtFecha(iso: string | null): string {
       </div>
     </div>
 
+    <div
+      v-if="casoAbierto"
+      class="fixed inset-0 z-30 bg-black/40"
+      aria-hidden="true"
+      @click="cerrarCaso()"
+    />
     <aside
       v-if="casoAbierto"
       class="fixed inset-y-0 right-0 z-40 w-full max-w-md overflow-y-auto border-l bg-white p-5 shadow-xl"
@@ -390,30 +478,57 @@ function fmtFecha(iso: string | null): string {
         <div>
           <h2 class="text-lg font-bold text-zinc-900">{{ casoAbierto.nombre_alumno }}</h2>
           <p class="text-sm text-zinc-500">{{ casoAbierto.rut }} · {{ casoAbierto.codcli }}</p>
+          <div class="mt-2 flex flex-wrap gap-1">
+            <span
+              class="inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold"
+              :class="[
+                colorEtapaChip(casoAbierto.chip).bg,
+                colorEtapaChip(casoAbierto.chip).text,
+                colorEtapaChip(casoAbierto.chip).border,
+              ]"
+            >
+              {{ ETIQUETA_CHIP_BANDEJA[casoAbierto.chip] }}
+            </span>
+            <span
+              v-if="casoAbierto.subetapa_forma_pago"
+              class="inline-flex rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs font-medium text-zinc-700"
+            >
+              {{ etiquetaSubetapaFormaPago(casoAbierto.subetapa_forma_pago) }}
+            </span>
+          </div>
         </div>
-        <Button type="button" variant="ghost" class="cursor-pointer" @click="casoAbierto = null">
+        <Button type="button" variant="ghost" class="cursor-pointer" @click="cerrarCaso()">
           Cerrar
         </Button>
       </div>
 
       <div class="space-y-2 text-sm">
-        <p>
-          <span class="font-semibold">Etapa:</span>
-          {{ ETIQUETA_CHIP_BANDEJA[casoAbierto.chip] }}
-        </p>
+        <p><span class="font-semibold">Email:</span> —</p>
+        <p><span class="font-semibold">Teléfono:</span> —</p>
+        <p><span class="font-semibold">Firmantes:</span> —</p>
         <p><span class="font-semibold">Carrera:</span> {{ casoAbierto.nombre_carrera ?? '—' }}</p>
         <p><span class="font-semibold">Ejecutivo:</span> {{ casoAbierto.email_ejecutivo ?? '—' }}</p>
+        <p>
+          <span class="font-semibold">Mat. Webpay:</span>
+          {{ casoAbierto.mat_webpay_fecha ? `Sí ${fmtFecha(casoAbierto.mat_webpay_fecha)}` : '—' }}
+        </p>
       </div>
 
       <div class="mt-4 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm">
         <p class="font-semibold text-[#FF5B00]">Retención automática</p>
         <p>Correo 2h: {{ etiquetaOutboxUi(casoAbierto.mail_2h, casoAbierto.mail_2h_sent_at) }}</p>
         <p>SMS 24h: {{ etiquetaOutboxUi(casoAbierto.sms_24h, casoAbierto.sms_24h_sent_at) }}</p>
+        <p
+          v-if="casoAbierto.mail_2h === 'n/a' && casoAbierto.sms_24h === 'n/a'"
+          class="mt-2 text-xs text-zinc-600"
+        >
+          No aplica: sin matrícula Webpay o firma ya completa
+        </p>
       </div>
 
       <div class="mt-4 flex flex-col gap-2">
-        <Button type="button" disabled class="rounded-full bg-[#FF5B00]/40">Enviar correo · próximamente</Button>
-        <Button type="button" disabled variant="outline" class="rounded-full">Enviar SMS · próximamente</Button>
+        <Button type="button" disabled class="rounded-full bg-[#FF5B00]/40">Enviar correo · corte 2</Button>
+        <Button type="button" disabled variant="outline" class="rounded-full">Enviar SMS · corte 2</Button>
         <Button type="button" disabled variant="outline" class="rounded-full">WhatsApp · próximamente</Button>
         <Button
           type="button"
@@ -432,8 +547,9 @@ function fmtFecha(iso: string | null): string {
             :key="ev.id"
             class="rounded-lg border border-zinc-100 bg-slate-50 px-3 py-2"
           >
-            <div class="font-medium text-zinc-800">
-              {{ ev.canal }} · {{ ev.autor_email }}
+            <div class="flex items-center gap-2 font-medium text-zinc-800">
+              <component :is="iconoCanal(ev.canal)" class="size-4 shrink-0 text-zinc-500" aria-hidden="true" />
+              <span>{{ ev.canal }} · {{ ev.autor_email }}</span>
             </div>
             <div class="text-xs text-zinc-500">{{ fmtFecha(ev.created_at) }}</div>
             <p v-if="ev.nota" class="mt-1 text-zinc-700">{{ ev.nota }}</p>
