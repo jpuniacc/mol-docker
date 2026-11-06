@@ -50,7 +50,7 @@ Alinear la UI AS-IS de la bandeja al wireframe v3 **sin cambiar reglas de negoci
 ### Cartera
 
 - Perfil 3 (`alcanceCartera` ejecutivo): pill navy fija «Cartera: mía (email sesión)»; sin «Ver todas».
-- Perfiles 1/2: pill + toggle/acción «Ver todas» + `Select` de ejecutivos derivados de `filas[].email_ejecutivo` (opción vacía = todas). Sustituye el input libre de email.
+- Perfiles 1/2: `Select` de ejecutivos derivados de `filas[].email_ejecutivo`. **`filtroEjecutivo === ''` = Ver todas** (sin override; comportamiento actual). El select solo acota; **no** hay un tercer modo «mía» (eso es solo perfil 3).
 - Lista del select puede ser incompleta (solo página/carga actual); aceptado en este PR.
 - **Hint obligatorio** junto al select: *«Ejecutivos en la carga actual»* (el supervisor no debe creer que es el universo completo).
 

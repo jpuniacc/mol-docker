@@ -170,10 +170,11 @@ const ejecutivosEnCarga = computed(() => {
 
 UI supervisor (perfil 1/2):
 
-- Pill navy: `Cartera: mía ({{ auth.email }})` cuando `!filtroEjecutivo` y modo “mía” opcional, o siempre mostrar pill de contexto + botones «Ver todas».
-- `Select` v-model `filtroEjecutivo` con `SelectItem` por cada `ejecutivosEnCarga` + valor vacío «Todas».
+- **No inventar modo “mía” aparte.** Perfil 1/2: `filtroEjecutivo === ''` = **Ver todas** (comportamiento actual API: sin `emailEjecutivo` override). El `Select` solo **acota** a un ejecutivo de la carga.
+- Pill/contexto navy opcional tipo «Cartera: ver todas» o email filtrado; valor vacío del select label **«Ver todas»**.
+- `Select` v-model `filtroEjecutivo` con `SelectItem` valor `''` = Ver todas + un item por cada `ejecutivosEnCarga`.
 - Texto hint: `Ejecutivos en la carga actual`.
-- Perfil 3: solo pill navy `Cartera: mía (email)`; sin select.
+- Perfil 3: solo pill navy `Cartera: mía (email)`; sin select; API ya fuerza sesión.
 
 Al cambiar select → `page = 0; cargar()`.
 
