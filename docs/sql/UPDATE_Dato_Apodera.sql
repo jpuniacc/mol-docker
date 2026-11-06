@@ -1,0 +1,9 @@
+UPDATE A SET A.MAIL='jpsilvafe@gmail.com', A.CELULAR='964255300'
+FROM MT_CLIENT C
+INNER JOIN MT_APODER A
+ON C.CODAPOD=A.CODAPOD
+WHERE C.CODCLI='20931858';
+
+
+
+select * from mt_posben where codcli = '22647583';
