@@ -20,15 +20,18 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import SeguimientoFiltrosSidebar from '@/components/seguimiento/SeguimientoFiltrosSidebar.vue'
 import SeguimientoListaTabla from '@/components/seguimiento/SeguimientoListaTabla.vue'
+import SeguimientoBoard from '@/components/seguimiento/SeguimientoBoard.vue'
 import SeguimientoCasoDrawer from '@/components/seguimiento/SeguimientoCasoDrawer.vue'
 import { useAuthStore } from '@/stores/auth'
 import { usePeriodoActivoStore } from '@/stores/periodoActivo'
 import {
   fetchSeguimientoBandeja,
+  fetchSeguimientoBoard,
   fetchSeguimientoCaso,
   fetchSeguimientoKpi,
   postSeguimientoContacto,
   type CasoSeguimientoDetalle,
+  type ColumnaBoardSeguimiento,
   type ContactoSeguimiento,
   type FilaBandejaSeguimiento,
   type FiltroAuxSeguimiento,
@@ -53,6 +56,7 @@ const esSupervisor = computed(() => alcance.value.tipo === 'completo')
 
 const kpi = ref<KpiBandejaSeguimiento | null>(null)
 const filas = ref<FilaBandejaSeguimiento[]>([])
+const columnasBoard = ref<ColumnaBoardSeguimiento[]>([])
 const total = ref(0)
 const cargando = ref(false)
 const error = ref<string | null>(null)
@@ -135,22 +139,38 @@ async function cargar(): Promise<void> {
     }
     kpi.value = kpiRes.data
 
-    const list = await fetchSeguimientoBandeja({
-      anio,
-      semestre,
-      chip: chipActivo.value,
-      subetapa: chipActivo.value === 'forma_pago' ? subetapa.value : null,
-      q: q.value,
-      limit: pageSize,
-      offset: page.value * pageSize,
-      emailEjecutivoOverride: emailOverride,
-    })
-    if (list.error) {
-      error.value = list.error
-      return
+    if (vista.value === 'board') {
+      const board = await fetchSeguimientoBoard({
+        anio,
+        semestre,
+        q: q.value,
+        filtroAux: filtroAux.value,
+        emailEjecutivoOverride: emailOverride,
+      })
+      if (board.error) {
+        error.value = board.error
+        return
+      }
+      columnasBoard.value = board.columnas
+    } else {
+      const list = await fetchSeguimientoBandeja({
+        anio,
+        semestre,
+        chip: chipActivo.value,
+        subetapa: chipActivo.value === 'forma_pago' ? subetapa.value : null,
+        q: q.value,
+        filtroAux: filtroAux.value,
+        limit: pageSize,
+        offset: page.value * pageSize,
+        emailEjecutivoOverride: emailOverride,
+      })
+      if (list.error) {
+        error.value = list.error
+        return
+      }
+      filas.value = list.data
+      total.value = list.total
     }
-    filas.value = list.data
-    total.value = list.total
   } finally {
     cargando.value = false
   }
@@ -165,6 +185,8 @@ watch(
       subetapa.value,
       page.value,
       filtroEjecutivo.value,
+      vista.value,
+      filtroAux.value,
     ] as const,
   () => {
     void cargar()
@@ -179,11 +201,9 @@ function seleccionarChip(chip: ChipBandeja): void {
 }
 
 function seleccionarAlerta(alerta: FiltroAuxSeguimiento): void {
-  // Filtrado real en Task 4; UI preparada (toggle visual).
+  // Filtrado real en Task 4; UI preparada (toggle visual + param en API).
   filtroAux.value = filtroAux.value === alerta ? null : alerta
-  if (filtroAux.value) {
-    toast.message('Filtro de alerta listo en la próxima entrega (Task 4)')
-  }
+  page.value = 0
 }
 
 function cerrarCaso(): void {
@@ -241,10 +261,6 @@ async function guardarContacto(): Promise<void> {
 }
 
 function setVista(v: VistaCrm): void {
-  if (v === 'board') {
-    toast.message('Board disponible tras Task 3')
-    return
-  }
   vista.value = v
 }
 </script>
@@ -308,7 +324,12 @@ function setVista(v: VistaCrm): void {
           </button>
           <button
             type="button"
-            class="cursor-pointer rounded-full px-3 py-1 text-xs font-semibold transition text-zinc-600 hover:text-[#1E3A5F]"
+            class="cursor-pointer rounded-full px-3 py-1 text-xs font-semibold transition"
+            :class="
+              vista === 'board'
+                ? 'bg-[#FF5B00] text-white'
+                : 'text-zinc-600 hover:text-[#1E3A5F]'
+            "
             @click="setVista('board')"
           >
             Board
@@ -361,6 +382,7 @@ function setVista(v: VistaCrm): void {
         </div>
 
         <SeguimientoListaTabla
+          v-if="vista === 'lista'"
           :filas="filas"
           :cargando="cargando"
           :total="total"
@@ -368,6 +390,13 @@ function setVista(v: VistaCrm): void {
           :page-size="pageSize"
           @abrir="abrirCaso"
           @update:page="(p) => (page = p)"
+        />
+        <SeguimientoBoard
+          v-else
+          :columnas="columnasBoard"
+          :chip-enfasis="chipActivo"
+          :cargando="cargando"
+          @abrir="abrirCaso"
         />
       </main>
     </div>

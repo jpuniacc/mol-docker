@@ -164,12 +164,20 @@ export async function fetchSeguimientoKpi(
   return { data: body.kpi ?? null, error: null }
 }
 
+export type ColumnaBoardSeguimiento = {
+  chip: ChipBandeja
+  label: string
+  total: number
+  filas: FilaBandejaSeguimiento[]
+}
+
 export async function fetchSeguimientoBandeja(opts: {
   anio: number
   semestre: number
   chip?: ChipBandeja | null
   subetapa?: SubetapaFormaPago
   q?: string | null
+  filtroAux?: FiltroAuxSeguimiento | null
   limit?: number
   offset?: number
   emailEjecutivoOverride?: string | null
@@ -187,6 +195,7 @@ export async function fetchSeguimientoBandeja(opts: {
   if (opts.chip) params.set('chip', opts.chip)
   if (opts.subetapa) params.set('subetapa', opts.subetapa)
   if (opts.q?.trim()) params.set('q', opts.q.trim())
+  if (opts.filtroAux) params.set('filtroAux', opts.filtroAux)
   if (opts.emailEjecutivoOverride?.trim()) {
     params.set('emailEjecutivo', opts.emailEjecutivoOverride.trim().toLowerCase())
   }
@@ -196,6 +205,36 @@ export async function fetchSeguimientoBandeja(opts: {
   return {
     data: Array.isArray(body.filas) ? body.filas : [],
     total: typeof body.total === 'number' ? body.total : 0,
+    error: null,
+  }
+}
+
+export async function fetchSeguimientoBoard(opts: {
+  anio: number
+  semestre: number
+  q?: string | null
+  filtroAux?: FiltroAuxSeguimiento | null
+  limitPorColumna?: number
+  emailEjecutivoOverride?: string | null
+}): Promise<{
+  columnas: ColumnaBoardSeguimiento[]
+  error: string | null
+}> {
+  const params = new URLSearchParams({
+    anio: String(opts.anio),
+    semestre: String(opts.semestre),
+    limitPorColumna: String(opts.limitPorColumna ?? 20),
+  })
+  if (opts.q?.trim()) params.set('q', opts.q.trim())
+  if (opts.filtroAux) params.set('filtroAux', opts.filtroAux)
+  if (opts.emailEjecutivoOverride?.trim()) {
+    params.set('emailEjecutivo', opts.emailEjecutivoOverride.trim().toLowerCase())
+  }
+  const r = await getJson(`/api/rematricula/seguimiento/board?${params}`)
+  if (!r.ok) return { columnas: [], error: r.error }
+  const body = r.body as { columnas?: ColumnaBoardSeguimiento[] }
+  return {
+    columnas: Array.isArray(body.columnas) ? body.columnas : [],
     error: null,
   }
 }
