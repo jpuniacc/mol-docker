@@ -464,16 +464,17 @@ function fmtFecha(iso: string | null): string {
       </div>
     </div>
 
-    <div
-      v-if="casoAbierto"
-      class="fixed inset-0 z-30 bg-black/40"
-      aria-hidden="true"
-      @click="cerrarCaso()"
-    />
-    <aside
-      v-if="casoAbierto"
-      class="fixed inset-y-0 right-0 z-40 w-full max-w-md overflow-y-auto border-l bg-white p-5 shadow-xl"
-    >
+    <Teleport to="body">
+      <div
+        v-if="casoAbierto"
+        class="fixed inset-0 z-50 bg-black/40"
+        aria-hidden="true"
+        @click="cerrarCaso()"
+      />
+      <aside
+        v-if="casoAbierto"
+        class="fixed inset-y-0 right-0 z-[51] w-full max-w-md overflow-y-auto border-l bg-white p-5 shadow-xl"
+      >
       <div class="mb-4 flex items-start justify-between gap-2">
         <div>
           <h2 class="text-lg font-bold text-zinc-900">{{ casoAbierto.nombre_alumno }}</h2>
@@ -557,7 +558,8 @@ function fmtFecha(iso: string | null): string {
           <li v-if="bitacora.length === 0" class="text-zinc-500">Sin contactos aún</li>
         </ul>
       </div>
-    </aside>
+      </aside>
+    </Teleport>
 
     <Dialog :open="dialogContacto" @update:open="(v) => (dialogContacto = v)">
       <DialogContent class="max-w-md">
