@@ -10,15 +10,21 @@ export type EstadoRetencionServidor = {
   firmaCompletadaServidor: boolean
 }
 
-/** Parche mínimo al store/borrador sin inventar cobros. */
-export function parcheDesdeWebpayAutorizadas(estado: EstadoRetencionServidor): {
+export type ParcheRetencionWebpay = {
   medioMatricula?: 'webpay'
   webpayMatriculaEstado?: 'autorizada'
   medioArancel?: 'webpay'
   webpayArancelEstado?: 'autorizada'
   firmaCompletada?: true
-} {
-  const out: ReturnType<typeof parcheDesdeWebpayAutorizadas> = {}
+  /** Baja medio/estado Webpay de arancel no confirmado por servidor (no toca pagaré). */
+  limpiarArancelWebpay?: true
+}
+
+/** Parche mínimo al store/borrador sin inventar cobros. */
+export function parcheDesdeWebpayAutorizadas(
+  estado: EstadoRetencionServidor,
+): ParcheRetencionWebpay {
+  const out: ParcheRetencionWebpay = {}
   if (estado.matriculaAutorizada) {
     out.medioMatricula = 'webpay'
     out.webpayMatriculaEstado = 'autorizada'
@@ -26,6 +32,8 @@ export function parcheDesdeWebpayAutorizadas(estado: EstadoRetencionServidor): {
   if (estado.arancelAutorizado) {
     out.medioArancel = 'webpay'
     out.webpayArancelEstado = 'autorizada'
+  } else {
+    out.limpiarArancelWebpay = true
   }
   if (estado.firmaCompletadaServidor) {
     out.firmaCompletada = true
@@ -38,12 +46,20 @@ export function aplicarParcheRetencionASenales(
   estado: EstadoRetencionServidor,
 ): SenalesRetencionRematricula {
   const p = parcheDesdeWebpayAutorizadas(estado)
+  let medioArancel = p.medioArancel ?? actual.medioArancel
+  let webpayArancelEstado = p.webpayArancelEstado ?? actual.webpayArancelEstado
+  if (p.limpiarArancelWebpay) {
+    if (actual.medioArancel === 'webpay' || actual.webpayArancelEstado != null) {
+      medioArancel = null
+      webpayArancelEstado = null
+    }
+  }
   return {
     ...actual,
     medioMatricula: p.medioMatricula ?? actual.medioMatricula,
     webpayMatriculaEstado: p.webpayMatriculaEstado ?? actual.webpayMatriculaEstado,
-    medioArancel: p.medioArancel ?? actual.medioArancel,
-    webpayArancelEstado: p.webpayArancelEstado ?? actual.webpayArancelEstado,
+    medioArancel,
+    webpayArancelEstado,
     firmaCompletada: p.firmaCompletada === true ? true : actual.firmaCompletada,
   }
 }

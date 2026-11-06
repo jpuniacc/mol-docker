@@ -465,11 +465,19 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
       medioArancel?: 'webpay'
       webpayArancelEstado?: 'autorizada'
       firmaCompletada?: true
+      limpiarArancelWebpay?: true
     }) {
       if (parche.medioMatricula) this.medioMatricula = parche.medioMatricula
       if (parche.webpayMatriculaEstado) this.webpayMatriculaEstado = parche.webpayMatriculaEstado
       if (parche.medioArancel) this.medioArancel = parche.medioArancel
       if (parche.webpayArancelEstado) this.webpayArancelEstado = parche.webpayArancelEstado
+      if (parche.limpiarArancelWebpay) {
+        if (this.medioArancel === 'webpay' || this.webpayArancelEstado != null) {
+          this.medioArancel = null
+          this.webpayArancelEstado = null
+          this.webpayArancelDetalle = null
+        }
+      }
       if (parche.firmaCompletada === true) this.firmaCompletada = true
       this.persistToSessionStorage()
     },

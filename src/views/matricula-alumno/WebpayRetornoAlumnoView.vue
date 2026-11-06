@@ -492,7 +492,7 @@ onMounted(async () => {
             contrato para completar tu rematrícula.
           </p>
 
-          <RetencionMicroStepper :paso-activo="1" />
+          <RetencionMicroStepper :paso-activo="2" />
 
           <div
             class="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm leading-relaxed text-orange-900"

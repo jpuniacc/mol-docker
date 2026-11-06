@@ -4,13 +4,11 @@ import { useRouter } from 'vue-router'
 import { Loader2 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { useAuthStore } from '@/stores/auth'
 import { useDatosAlumnoMnpStore } from '@/stores/datosAlumnoMnp'
 import { conciliarRetencionAlumno } from '@/composables/useConciliarRetencion'
 import { emitirRetencionAudit } from '@/services/retencionAuditLog'
 
 const router = useRouter()
-const auth = useAuthStore()
 const datosMnp = useDatosAlumnoMnpStore()
 
 const cargando = ref(true)
@@ -19,7 +17,7 @@ const error = ref('')
 onMounted(async () => {
   emitirRetencionAudit({ accion: 'retomar' })
   const codcli = (datosMnp.primeraFila?.codcli ?? '').trim()
-  const rut = (datosMnp.primeraFila?.rut ?? auth.username ?? '').trim()
+  const rut = (datosMnp.primeraFila?.rut_alumno ?? '').trim()
   if (!codcli || !rut) {
     error.value = 'No encontramos tu ficha de rematrícula. Inicia sesión de nuevo.'
     cargando.value = false
