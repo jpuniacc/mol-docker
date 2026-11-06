@@ -357,6 +357,27 @@ function setVista(v: VistaCrm): void {
       />
 
       <main class="min-w-0 flex-1 p-4 md:p-5">
+        <div v-if="filtroAux" class="mb-3 flex flex-wrap items-center gap-2">
+          <span
+            class="inline-flex items-center gap-2 rounded-full border border-[#FF5B00]/40 bg-orange-50 px-3 py-1 text-xs font-medium text-[#FF5B00]"
+          >
+            Alerta:
+            {{
+              filtroAux === 'sin_contactar_7d'
+                ? 'Sin contactar +7d'
+                : filtroAux === 'mail_2h_pdte'
+                  ? 'Mail 2h pdte'
+                  : 'SMS 24h pdte'
+            }}
+            <button
+              type="button"
+              class="cursor-pointer underline"
+              @click="filtroAux = null"
+            >
+              quitar
+            </button>
+          </span>
+        </div>
         <div
           v-if="chipActivo === 'forma_pago' && kpi"
           class="mb-3 flex flex-wrap gap-2"

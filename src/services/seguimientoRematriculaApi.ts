@@ -53,8 +53,7 @@ export type KpiBandejaSeguimiento = {
   mail_2h_enviado: number
   sms_24h_pdte: number
   sms_24h_enviado: number
-  /** Presente tras Task 4; UI tolera undefined. */
-  sin_contactar_7d?: number
+  sin_contactar_7d: number
 }
 
 export type ContactoSeguimiento = {
