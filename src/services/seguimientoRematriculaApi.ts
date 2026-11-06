@@ -25,6 +25,17 @@ export type FilaBandejaSeguimiento = {
   email_ejecutivo: string | null
 }
 
+/** GET /casos/:codcli enriquecido (CRM v5). */
+export type CasoSeguimientoDetalle = FilaBandejaSeguimiento & {
+  email_alumno: string | null
+  telefono: string | null
+  firmantes_resumen: string | null
+  medios_pago_resumen: string | null
+  firma_completa: boolean
+}
+
+export type FiltroAuxSeguimiento = 'sin_contactar_7d' | 'mail_2h_pdte' | 'sms_24h_pdte'
+
 export type KpiBandejaSeguimiento = {
   sin_ingreso: number
   ingreso: number
@@ -42,6 +53,8 @@ export type KpiBandejaSeguimiento = {
   mail_2h_enviado: number
   sms_24h_pdte: number
   sms_24h_enviado: number
+  /** Presente tras Task 4; UI tolera undefined. */
+  sin_contactar_7d?: number
 }
 
 export type ContactoSeguimiento = {
@@ -192,7 +205,7 @@ export async function fetchSeguimientoCaso(
   anio: number,
   semestre: number,
 ): Promise<{
-  caso: FilaBandejaSeguimiento | null
+  caso: CasoSeguimientoDetalle | null
   bitacora: ContactoSeguimiento[]
   error: string | null
 }> {
@@ -202,7 +215,7 @@ export async function fetchSeguimientoCaso(
   )
   if (!r.ok) return { caso: null, bitacora: [], error: r.error }
   const body = r.body as {
-    caso?: FilaBandejaSeguimiento
+    caso?: CasoSeguimientoDetalle
     bitacora?: ContactoSeguimiento[]
   }
   return {
