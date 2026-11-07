@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import SeguimientoAgendaAcciones from '@/components/seguimiento/SeguimientoAgendaAcciones.vue'
+import { useSeguimientoAvisosStore } from '@/stores/seguimientoAvisos'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -39,6 +42,8 @@ import { toast } from 'vue-sonner'
 /** Sentinel Select (Radix no acepta ''); maps to filtroEjecutivo === '' = Ver todas. */
 const SELECT_TODAS = '__todas__'
 
+const route=useRoute()
+const avisosStore=useSeguimientoAvisosStore()
 const auth = useAuthStore()
 const periodoActivo = usePeriodoActivoStore()
 
@@ -96,6 +101,11 @@ const filtroEjecutivoSelect = computed({
     page.value = 0
   },
 })
+
+const scopeAgenda=computed(()=>({anio:periodoActivo.anio??0,semestre:periodoActivo.semestre??0,emailEjecutivoOverride:esSupervisor.value?filtroEjecutivo.value:null}))
+watch(()=>[route.query.caso,periodoActivo.anio,periodoActivo.semestre],()=>{
+ if(typeof route.query.caso==='string'&&periodoOk.value)void abrirCaso({codcli:route.query.caso})
+},{immediate:true})
 
 const carteraLabel = computed(() => {
   if (!esSupervisor.value) {
@@ -218,7 +228,7 @@ function onKeydownEscape(e: KeyboardEvent): void {
 onMounted(() => window.addEventListener('keydown', onKeydownEscape))
 onUnmounted(() => window.removeEventListener('keydown', onKeydownEscape))
 
-async function abrirCaso(fila: FilaBandejaSeguimiento): Promise<void> {
+async function abrirCaso(fila: {codcli:string}): Promise<void> {
   if (!periodoOk.value) return
   const r = await fetchSeguimientoCaso(
     fila.codcli,
@@ -248,11 +258,18 @@ async function guardarContacto(nota: NotaContactoPayload): Promise<void> {
       return
     }
     dialogContacto.value = false
+    avisosStore.invalidar()
     await abrirCaso(casoAbierto.value)
     await cargar()
   } finally {
     guardandoContacto.value = false
   }
+}
+
+async function refrescarCaso(){
+ avisosStore.invalidar()
+ if(casoAbierto.value)await abrirCaso(casoAbierto.value)
+ await cargar()
 }
 
 function setVista(v: VistaCrm): void {
@@ -343,6 +360,7 @@ function setVista(v: VistaCrm): void {
     <div class="flex min-h-0 flex-1">
 
       <main class="min-w-0 flex-1 p-4 md:p-5">
+        <SeguimientoAgendaAcciones v-if="periodoOk" :scope="scopeAgenda" @abrir="abrirCaso" />
         <SeguimientoEmbudoBar
           :kpi="kpi"
           :chip-activo="chipActivo"
@@ -403,7 +421,7 @@ function setVista(v: VistaCrm): void {
       :semestre="periodoActivo.semestre!"
       @cerrar="cerrarCaso"
       @agregar-nota="dialogContacto = true"
-      @enviado="abrirCaso(casoAbierto)"
+      @enviado="refrescarCaso"
     />
 
     <SeguimientoNotaDialog

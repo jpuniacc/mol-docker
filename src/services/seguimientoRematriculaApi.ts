@@ -94,6 +94,9 @@ export type ContactoSeguimiento = {
   resultado: string | null
   proxima_accion: string | null
   proxima_accion_en: string | null
+  proxima_accion_estado?: 'pendiente' | 'completada' | 'cancelada'
+  proxima_accion_gestionada_en?: string | null
+  proxima_accion_gestionada_por?: string | null
   created_at: string
   fecha_contacto?: string | null
   proxima_accion_at?: string | null
@@ -152,12 +155,13 @@ async function getJson(
 async function postJson(
   path: string,
   body: Record<string, unknown>,
+  method: 'POST' | 'PATCH' = 'POST',
 ): Promise<{ ok: true; body: unknown } | { ok: false; error: string; status?: number }> {
   const destino = urlConCarteraEjecutivo(`${admisionApiBaseUrl()}${path}`)
   if (typeof destino !== 'string') return { ok: false, error: destino.error }
   try {
     const res = await fetch(destino, {
-      method: 'POST',
+      method,
       headers: { ...headersSesion(), 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
@@ -388,4 +392,31 @@ export async function putFirmaEjecutivo(input: {
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Error de red' }
   }
+}
+
+
+export type ScopeAcciones={anio:number;semestre:number;emailEjecutivoOverride?:string|null}
+export type ResumenAcciones={vencidas:number;hoy:number;total:number;pendientes:number;actualizado_en:string}
+export type AccionAgenda={id:string;codcli:string;anio:number;semestre:number;at:string;canales:string[];comentario:string|null;estado:'pendiente'|'completada'|'cancelada';digest_habilitada:boolean;email_ejecutivo:string|null;nombre_alumno:string|null}
+function paramsAgenda(scope:ScopeAcciones){
+ const p=new URLSearchParams({anio:String(scope.anio),semestre:String(scope.semestre)})
+ if(scope.emailEjecutivoOverride?.trim())p.set('emailEjecutivo',scope.emailEjecutivoOverride.trim().toLowerCase())
+ return p
+}
+export async function fetchResumenAcciones(scope:ScopeAcciones):Promise<{data:ResumenAcciones|null;error:string|null}>{
+ const r=await getJson(`/api/rematricula/seguimiento/proximas-acciones/resumen?${paramsAgenda(scope)}`,10_000)
+ if(!r.ok)return {data:null,error:r.error}
+ const b=r.body as {resumen?:ResumenAcciones}
+ return b.resumen?{data:b.resumen,error:null}:{data:null,error:'Respuesta de agenda inválida'}
+}
+export async function fetchListaAcciones(scope:ScopeAcciones,grupo:'vencidas'|'hoy'|'todas',offset=0):Promise<{data:AccionAgenda[];total:number;error:string|null}>{
+ const p=paramsAgenda(scope);p.set('grupo',grupo);p.set('limit','20');p.set('offset',String(offset))
+ const r=await getJson(`/api/rematricula/seguimiento/proximas-acciones?${p}`,10_000)
+ if(!r.ok)return {data:[],total:0,error:r.error}
+ const b=r.body as {acciones?:AccionAgenda[];total?:number}
+ return {data:b.acciones??[],total:b.total??0,error:null}
+}
+export async function patchEstadoAccion(id:string,estado:'completada'|'cancelada',anio:number,semestre:number):Promise<{error:string|null}>{
+ const r=await postJson(`/api/rematricula/seguimiento/proximas-acciones/${encodeURIComponent(id)}/estado?${paramsAgenda({anio,semestre})}`,{estado},'PATCH')
+ return {error:r.ok?null:r.error}
 }

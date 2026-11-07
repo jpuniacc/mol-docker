@@ -50,7 +50,9 @@ export function prepararNotaFormulario(form: NotaFormulario): {data: NotaContact
   return {error:null,data:{canal:form.canal,nota:form.nota.trim(),fecha_contacto,proxima_accion_at,proxima_accion_canales:[...new Set(form.proxima_canales)],proxima_accion_comentario:form.proxima_comentario.trim()||null}}
 }
 export function esAccionVencida(at: string | null | undefined, ahora = new Date()): boolean {
-  return Boolean(at && Number.isFinite(Date.parse(at)) && Date.parse(at) < ahora.getTime())
+  if (!at || !Number.isFinite(Date.parse(at))) return false
+  const dia = (d: Date) => new Intl.DateTimeFormat('en-CA', {timeZone:ZONA,year:'numeric',month:'2-digit',day:'2-digit'}).format(d)
+  return dia(new Date(at)) < dia(ahora)
 }
 export function etiquetaFechaChile(at: string): string {
   const d = new Date(at)

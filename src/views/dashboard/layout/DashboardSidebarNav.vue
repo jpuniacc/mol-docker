@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watchEffect } from 'vue'
+import SeguimientoAvisosBadge from '@/components/seguimiento/SeguimientoAvisosBadge.vue'
 import { useRoute } from 'vue-router'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -151,7 +152,7 @@ function onNavClick() {
               >
                 <RouterLink :to="{ name: item.routeName }" @click="onNavClick">
                   <component :is="item.icon" class="size-4 shrink-0" />
-                  <span>{{ item.label }}</span>
+                  <span>{{ item.label }}</span><SeguimientoAvisosBadge v-if="'routeName' in item && item.routeName === 'dashboard-bandeja-seguimiento'" />
                 </RouterLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -174,7 +175,7 @@ function onNavClick() {
                 >
                   <RouterLink :to="{ name: item.routeName }" @click="onNavClick">
                     <component :is="item.icon" class="size-4 shrink-0" />
-                    <span>{{ item.label }}</span>
+                    <span>{{ item.label }}</span><SeguimientoAvisosBadge v-if="'routeName' in item && item.routeName === 'dashboard-bandeja-seguimiento'" />
                   </RouterLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -183,7 +184,7 @@ function onNavClick() {
                   <DropdownMenuTrigger as-child>
                     <SidebarMenuButton :tooltip="item.label">
                       <component :is="item.icon" class="size-4 shrink-0" />
-                      <span>{{ item.label }}</span>
+                      <span>{{ item.label }}</span><SeguimientoAvisosBadge v-if="'routeName' in item && item.routeName === 'dashboard-bandeja-seguimiento'" />
                     </SidebarMenuButton>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="right" align="start" class="min-w-56">
@@ -198,7 +199,7 @@ function onNavClick() {
                         @click="onNavClick"
                       >
                         <component :is="sub.icon" class="size-4 shrink-0" />
-                        <span>{{ sub.label }}</span>
+                        <span>{{ sub.label }}</span><SeguimientoAvisosBadge v-if="sub.routeName === 'dashboard-bandeja-seguimiento'" />
                       </RouterLink>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -209,7 +210,7 @@ function onNavClick() {
                   <CollapsibleTrigger as-child>
                     <SidebarMenuButton :tooltip="item.label">
                       <component :is="item.icon" class="size-4 shrink-0" />
-                      <span>{{ item.label }}</span>
+                      <span>{{ item.label }}</span><SeguimientoAvisosBadge v-if="'routeName' in item && item.routeName === 'dashboard-bandeja-seguimiento'" />
                       <ChevronRight
                         class="ml-auto size-4 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
                       />
@@ -223,7 +224,7 @@ function onNavClick() {
                         <SidebarMenuSubButton as-child :is-active="esLinkActivoDashboard(sub.routeName, route.name)">
                           <RouterLink :to="{ name: sub.routeName }" @click="onNavClick">
                             <component :is="sub.icon" class="size-4 shrink-0" />
-                            <span>{{ sub.label }}</span>
+                            <span>{{ sub.label }}</span><SeguimientoAvisosBadge v-if="sub.routeName === 'dashboard-bandeja-seguimiento'" />
                           </RouterLink>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>

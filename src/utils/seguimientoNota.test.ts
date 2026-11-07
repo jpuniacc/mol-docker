@@ -22,7 +22,8 @@ describe('nota y agenda Chile',()=>{
  })
  it('marca vencida sin depender de la zona local',()=>{
   const now=new Date('2026-11-07T17:00:00Z')
-  expect(esAccionVencida('2026-11-07T16:00:00Z',now)).toBe(true)
+  expect(esAccionVencida('2026-11-07T16:00:00Z',now)).toBe(false)
+  expect(esAccionVencida('2026-11-06T16:00:00Z',now)).toBe(true)
   expect(esAccionVencida('2026-11-07T18:00:00Z',now)).toBe(false)
   expect(esAccionVencida(null,now)).toBe(false)
  })

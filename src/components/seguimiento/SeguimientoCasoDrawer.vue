@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import SeguimientoAccionesCaso from './SeguimientoAccionesCaso.vue'
+import { patchEstadoAccion } from '@/services/seguimientoRematriculaApi'
 import { ChevronDown, Mail, MessageSquare } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
@@ -41,6 +43,15 @@ const emit = defineEmits<{
   enviado: []
 }>()
 
+const gestionandoAccion=ref<string|null>(null),errorAccion=ref<string|null>(null)
+async function gestionarAccion(input:{id:string;estado:'completada'|'cancelada'}){
+ gestionandoAccion.value=input.id;errorAccion.value=null
+ try{
+  const r=await patchEstadoAccion(input.id,input.estado,props.anio,props.semestre)
+  if(r.error){errorAccion.value=r.error;return}
+  emit('enviado')
+ }finally{gestionandoAccion.value=null}
+}
 const openCorreo = ref(false)
 const openSms = ref(false)
 
@@ -183,6 +194,7 @@ function valorProp(v: string | null | undefined): string {
       </div>
 
       <div class="space-y-5 p-5 text-sm">
+        <SeguimientoAccionesCaso :acciones="bitacora" :ocupado="gestionandoAccion" :error="errorAccion" @gestionar="gestionarAccion" />
         <section>
           <h3 class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
             Propiedades

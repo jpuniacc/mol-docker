@@ -51,7 +51,7 @@ const detalle = computed(() => {
       <p v-if="evento.resultado" class="whitespace-pre-line break-words"><span class="font-medium">Resultado:</span> {{ evento.resultado }}</p>
       <div v-if="evento.proxima_accion_at || evento.proxima_accion_en || evento.proxima_accion" class="rounded-md border border-zinc-200 bg-zinc-50 p-2">
         <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Próxima acción</p>
-        <SeguimientoProximaAccion :at="evento.proxima_accion_at || evento.proxima_accion_en" :canales="evento.proxima_accion_canales" :comentario="evento.proxima_accion_comentario" :legacy="evento.proxima_accion" />
+        <SeguimientoProximaAccion :at="evento.proxima_accion_at || evento.proxima_accion_en" :canales="evento.proxima_accion_canales" :comentario="evento.proxima_accion_comentario" :legacy="evento.proxima_accion" :estado="evento.proxima_accion_estado" />
       </div>
     </div>
   </details>
