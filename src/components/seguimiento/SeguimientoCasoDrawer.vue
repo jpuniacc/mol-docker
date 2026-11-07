@@ -199,17 +199,17 @@ function etiquetaOrigen(origen: string): string {
           <h3 class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
             Propiedades
           </h3>
-          <dl class="grid grid-cols-[110px_1fr] gap-x-3 gap-y-2">
+          <dl class="grid grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-[110px_minmax(0,1fr)] sm:gap-y-2">
             <dt class="text-zinc-500">Email</dt>
-            <dd class="font-medium text-zinc-900">{{ valorProp(caso.email_alumno) }}</dd>
+            <dd class="min-w-0 break-words font-medium text-zinc-900 [overflow-wrap:anywhere] mb-1 sm:mb-0">{{ valorProp(caso.email_alumno) }}</dd>
             <dt class="text-zinc-500">Teléfono</dt>
-            <dd class="font-medium text-zinc-900">{{ valorProp(caso.telefono) }}</dd>
+            <dd class="min-w-0 break-words font-medium text-zinc-900 [overflow-wrap:anywhere] mb-1 sm:mb-0">{{ valorProp(caso.telefono) }}</dd>
             <dt class="text-zinc-500">Firmantes</dt>
-            <dd class="font-medium text-zinc-900">{{ valorProp(caso.firmantes_resumen) }}</dd>
+            <dd class="min-w-0 break-words font-medium text-zinc-900 [overflow-wrap:anywhere] mb-1 sm:mb-0">{{ valorProp(caso.firmantes_resumen) }}</dd>
             <dt class="text-zinc-500">Medios pago</dt>
-            <dd class="font-medium text-zinc-900">{{ valorProp(caso.medios_pago_resumen) }}</dd>
+            <dd class="min-w-0 break-words font-medium text-zinc-900 [overflow-wrap:anywhere] mb-1 sm:mb-0">{{ valorProp(caso.medios_pago_resumen) }}</dd>
             <dt class="text-zinc-500">Ejecutivo</dt>
-            <dd class="font-medium text-zinc-900">{{ valorProp(caso.email_ejecutivo) }}</dd>
+            <dd class="min-w-0 break-words font-medium text-zinc-900 [overflow-wrap:anywhere] mb-1 sm:mb-0">{{ valorProp(caso.email_ejecutivo) }}</dd>
           </dl>
         </section>
 

@@ -112,7 +112,7 @@ function logout() {
         :class="esAlumnoPixarron ? 'hidden md:block' : ''"
       >
         <div
-          class="contenedor flex flex-wrap items-center gap-3 py-3 pr-4 pl-4 md:gap-4 md:py-4 md:pr-6 md:pl-6"
+          class="contenedor flex items-center gap-3 py-3 pr-4 pl-4 md:gap-4 md:py-4 md:pr-6 md:pl-6"
         >
           <div class="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
             <SidebarTrigger class="text-zinc-700" />
@@ -132,7 +132,7 @@ function logout() {
             </p>
             <div class="mt-1 ml-auto h-1 w-20 rounded-full bg-uniacc-orange md:w-28" />
           </div>
-          <div class="flex w-full flex-shrink-0 flex-wrap items-center justify-end gap-2 sm:w-auto md:gap-3">
+          <div class="flex flex-shrink-0 items-center justify-end gap-2 md:gap-3">
             <p
               class="hidden max-w-[200px] truncate text-xs text-zinc-600 md:max-w-[240px] md:text-sm"
               :title="auth.displayNombreCompleto || auth.username || undefined"
@@ -157,11 +157,11 @@ function logout() {
         </div>
       </header>
 
-      <div class="flex min-h-0 flex-1 flex-col">
-        <div class="contenedor flex-1 px-4 py-6 md:px-6">
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div class="contenedor min-w-0 flex-1 px-4 py-6 md:px-6">
           <RouterView v-slot="{ Component, route }">
             <Transition name="fade" mode="out-in">
-              <div :key="route.fullPath" class="min-h-0 flex-1">
+              <div :key="route.fullPath" class="min-h-0 min-w-0 flex-1">
                 <component :is="Component" />
               </div>
             </Transition>
