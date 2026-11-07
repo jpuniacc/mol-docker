@@ -26,7 +26,7 @@ function guardar() {
 </script>
 <template>
   <Dialog :open="open" @update:open="v => !guardando && emit('update:open',v)">
-    <DialogContent class="max-h-[calc(100dvh-2rem)] max-w-xl overflow-y-auto p-4 sm:p-6">
+    <DialogContent class="left-0 top-0 h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 rounded-none p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:left-1/2 md:top-1/2 md:h-auto md:max-h-[90dvh] md:w-[calc(100%-2rem)] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-lg md:p-6 md:max-w-xl overflow-y-auto [&_input]:text-base [&_textarea]:text-base [&_button]:min-h-11">
       <DialogHeader><DialogTitle>Agregar nota</DialogTitle></DialogHeader>
       <form class="space-y-4" @submit.prevent="guardar">
         <fieldset class="min-w-0 rounded-lg border border-zinc-200 p-3 sm:p-4" :disabled="guardando">
@@ -64,7 +64,7 @@ function guardar() {
         </fieldset>
         <p class="text-xs text-zinc-500">Todas las fechas y horas corresponden a Chile (America/Santiago).</p>
         <p v-if="errorLocal || error" role="alert" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{{ errorLocal || error }}</p>
-        <DialogFooter class="gap-2">
+        <DialogFooter class="sticky bottom-0 gap-2 bg-white py-2">
           <Button type="button" variant="outline" :disabled="guardando" class="cursor-pointer" @click="emit('update:open',false)">Cancelar</Button>
           <Button type="submit" :disabled="guardando" class="cursor-pointer bg-[#FF5B00] hover:bg-[#FF5B00]/90">{{ guardando ? 'Guardando…' : 'Guardar' }}</Button>
         </DialogFooter>

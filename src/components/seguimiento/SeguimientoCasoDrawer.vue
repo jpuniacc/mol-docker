@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import {DialogRoot,DialogPortal,DialogOverlay,DialogContent,DialogTitle,DialogDescription} from 'radix-vue'
 import SeguimientoAccionesCaso from './SeguimientoAccionesCaso.vue'
 import { patchEstadoAccion } from '@/services/seguimientoRematriculaApi'
 import { ChevronDown, Mail, MessageSquare } from 'lucide-vue-next'
@@ -30,6 +31,8 @@ import {
   etiquetaSubetapaFormaPago,
 } from '@/utils/seguimientoBandejaChip'
 
+const opener=typeof document!=='undefined'?document.activeElement as HTMLElement|null:null
+function devolverFoco(e:Event){e.preventDefault();requestAnimationFrame(()=>{if(opener?.isConnected)opener.focus()})}
 const props = defineProps<{
   caso: CasoSeguimientoDetalle
   bitacora: ContactoSeguimiento[]
@@ -98,23 +101,16 @@ function valorProp(v: string | null | undefined): string {
 </script>
 
 <template>
-  <Teleport to="body">
-    <div
-      class="fixed inset-0 z-50 bg-black/40"
-      aria-hidden="true"
-      @click="emit('cerrar')"
-    />
-    <aside
-      class="fixed inset-y-0 right-0 z-[51] flex w-full max-w-[480px] flex-col overflow-y-auto border-l bg-white shadow-xl"
-      role="dialog"
-      aria-label="Detalle del caso"
-    >
-      <div class="border-b border-zinc-100 p-5">
+  <DialogRoot :open="true" @update:open="v=>!v && emit('cerrar')"><DialogPortal>
+    <DialogOverlay class="fixed inset-0 z-50 bg-black/40" />
+    <DialogContent class="fixed inset-y-0 right-0 z-[51] flex h-[100dvh] w-full max-w-none flex-col overflow-y-auto border-l bg-white pb-[env(safe-area-inset-bottom)] shadow-xl md:max-w-[480px]" aria-label="Detalle del caso" @close-auto-focus="devolverFoco" @escape-key-down="e=>{if(openCorreo || openSms)e.preventDefault()}">
+      <DialogDescription class="sr-only">Información e historial del caso de rematrícula</DialogDescription>
+      <div class="sticky top-0 z-10 border-b border-zinc-100 bg-white p-4 md:p-5">
         <div class="mb-3 flex items-start justify-between gap-2">
           <div class="min-w-0">
-            <h2 class="truncate text-lg font-bold text-[#1E3A5F]">
+            <DialogTitle as-child><h2 class="pr-2 text-lg font-bold text-[#1E3A5F] [overflow-wrap:anywhere]">
               {{ caso.nombre_alumno ?? 'Sin nombre' }}
-            </h2>
+            </h2></DialogTitle>
             <p class="text-sm text-zinc-500">
               {{ caso.rut ?? '—' }} · {{ caso.codcli }}
             </p>
@@ -309,7 +305,8 @@ function valorProp(v: string | null | undefined): string {
           <p v-if="timeline.total > 0" class="mt-2 text-center text-xs text-zinc-500">{{ timeline.eventos.length }} de {{ timeline.total }} eventos</p>
         </section>
       </div>
-    </aside>
+      <div v-if="!esMatriculado" class="sticky bottom-0 border-t bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"><Button type="button" class="min-h-11 w-full bg-[#FF5B00] text-white" @click="emit('agregarNota')">Agregar nota</Button></div>
+    </DialogContent></DialogPortal>
 
     <SeguimientoComposerCorreo
       v-if="!esMatriculado"
@@ -329,5 +326,5 @@ function valorProp(v: string | null | undefined): string {
       @update:open="(v) => (openSms = v)"
       @enviado="emit('enviado')"
     />
-  </Teleport>
+  </DialogRoot>
 </template>

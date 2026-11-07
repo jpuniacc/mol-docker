@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SeguimientoCasoCard from './SeguimientoCasoCard.vue'
 import SeguimientoProximaAccion from './SeguimientoProximaAccion.vue'
 import { Button } from '@/components/ui/button'
 import type { FilaBandejaSeguimiento } from '@/services/seguimientoRematriculaApi'
@@ -43,7 +44,8 @@ function detalleEtapa(fila: FilaBandejaSeguimiento): string {
 
 <template>
   <div class="flex min-w-0 flex-1 flex-col">
-    <div class="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
+    <div class="space-y-3 md:hidden"><p v-if="cargando" role="status">Cargando…</p><p v-if="!cargando &amp;&amp; !filas.length" class="py-6 text-center text-zinc-500">Sin casos</p><SeguimientoCasoCard v-for="fila in filas" :key="fila.codcli" :fila="fila" @abrir="emit('abrir',$event)" /></div>
+    <div class="hidden overflow-x-auto md:block rounded-lg border border-zinc-200 bg-white">
       <table class="min-w-full text-left text-sm">
         <thead class="border-b bg-slate-50 text-xs uppercase tracking-wide text-zinc-500">
           <tr>
@@ -104,7 +106,7 @@ function detalleEtapa(fila: FilaBandejaSeguimiento): string {
       </table>
     </div>
 
-    <div class="mt-3 flex items-center justify-between gap-2 text-sm">
+    <div class="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm [&_button]:min-h-11">
       <span class="text-zinc-500">{{ total }} resultados</span>
       <div class="flex gap-2">
         <Button

@@ -4,6 +4,7 @@ import SeguimientoComposerSms from './SeguimientoComposerSms.vue'
 
 const { enviarSms } = vi.hoisted(() => ({ enviarSms: vi.fn().mockResolvedValue({ error: null }) }))
 vi.mock('@/services/seguimientoRematriculaApi', () => ({ postSeguimientoEnviarSms: enviarSms }))
+vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({email:'prueba@uniacc.cl'}) }))
 vi.mock('vue-sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 const slots = { template: '<div><slot /></div>' }
 function montar(telefono: string | null) {
@@ -12,7 +13,7 @@ function montar(telefono: string | null) {
     global: { stubs: { Dialog: slots, DialogContent: slots, DialogHeader: slots, DialogTitle: slots, DialogFooter: slots } },
   })
 }
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {vi.clearAllMocks();sessionStorage.clear()})
 describe('SMS: destinatario visible normalizado como la API', () => {
   it.each(['912345678', '0912345678', '56912345678', '+56912345678', '+56 9 1234 5678', '(09)1234-5678', ' 9123 45678 '])('muestra +56 9 XXXX XXXX para %s', (telefono) => {
     const w = montar(telefono)

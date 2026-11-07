@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import SeguimientoFiltrosSheet from '@/components/seguimiento/SeguimientoFiltrosSheet.vue'
 import SeguimientoAgendaAcciones from '@/components/seguimiento/SeguimientoAgendaAcciones.vue'
 import { useSeguimientoAvisosStore } from '@/stores/seguimientoAvisos'
 import { Button } from '@/components/ui/button'
@@ -63,6 +64,8 @@ const chipActivo = ref<ChipBandeja | null>(null)
 const subetapa = ref<SubetapaFormaPago>(null)
 const filtroAux = ref<FiltroAuxSeguimiento | null>(null)
 const q = ref('')
+const filtrosMovil=ref(false)
+const cantidadFiltros=computed(()=>Number(!!chipActivo.value)+Number(!!subetapa.value)+Number(!!filtroAux.value)+Number(!!filtroEjecutivo.value))
 const page = ref(0)
 const pageSize = 25
 /** Supervisor: '' = Ver todas (sin override API); email = acota cartera. */
@@ -219,15 +222,6 @@ function cerrarCaso(): void {
   casoAbierto.value = null
 }
 
-function onKeydownEscape(e: KeyboardEvent): void {
-  if (e.key === 'Escape' && casoAbierto.value && !dialogContacto.value) {
-    cerrarCaso()
-  }
-}
-
-onMounted(() => window.addEventListener('keydown', onKeydownEscape))
-onUnmounted(() => window.removeEventListener('keydown', onKeydownEscape))
-
 async function abrirCaso(fila: {codcli:string}): Promise<void> {
   if (!periodoOk.value) return
   const r = await fetchSeguimientoCaso(
@@ -272,13 +266,18 @@ async function refrescarCaso(){
  await cargar()
 }
 
+function buscar(){if(page.value===0)void cargar();else page.value=0}
+function aplicarFiltros(v:{chip:ChipBandeja|null;subetapa:SubetapaFormaPago;filtroAux:FiltroAuxSeguimiento|null;ejecutivo:string}){
+ const antes=JSON.stringify([chipActivo.value,subetapa.value,filtroAux.value,filtroEjecutivo.value,page.value]);chipActivo.value=v.chip;subetapa.value=v.subetapa;filtroAux.value=v.filtroAux;filtroEjecutivo.value=esSupervisor.value?v.ejecutivo:'';page.value=0
+ if(antes===JSON.stringify([chipActivo.value,subetapa.value,filtroAux.value,filtroEjecutivo.value,page.value]))void cargar()
+}
 function setVista(v: VistaCrm): void {
   vista.value = v
 }
 </script>
 
 <template>
-  <div class="flex h-full min-h-[calc(100vh-4rem)] flex-col bg-slate-50">
+  <div class="flex min-w-0 h-full min-h-[calc(100dvh-4rem)] flex-col bg-slate-50">
     <header
       class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-3 md:px-6"
     >
@@ -289,8 +288,9 @@ function setVista(v: VistaCrm): void {
         </p>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <template v-if="esSupervisor">
+      <div class="flex w-full min-w-0 flex-wrap items-center gap-2 md:w-auto [&_button]:min-h-11">
+        <Button type="button" variant="outline" class="min-h-11 md:hidden" @click="filtrosMovil=true">Filtros ({{cantidadFiltros}})</Button>
+        <template v-if="esSupervisor"><div class="hidden md:block">
           <Select v-model="filtroEjecutivoSelect">
             <SelectTrigger class="w-56 cursor-pointer">
               <SelectValue placeholder="Ver todas" />
@@ -301,14 +301,14 @@ function setVista(v: VistaCrm): void {
                 {{ em }}
               </SelectItem>
             </SelectContent>
-          </Select>
+          </Select></div>
         </template>
 
         <Input
           v-model="q"
           placeholder="Buscar nombre / RUT"
-          class="w-48 md:w-56"
-          @keyup.enter="page = 0; cargar()"
+          class="min-w-0 flex-1 text-base md:w-56 md:flex-none"
+          @keyup.enter="buscar"
         />
         <Button
           type="button"
@@ -316,7 +316,7 @@ function setVista(v: VistaCrm): void {
           size="sm"
           class="cursor-pointer rounded-full"
           :disabled="cargando"
-          @click="page = 0; cargar()"
+          @click="buscar"
         >
           {{ cargando ? 'Cargando…' : 'Actualizar' }}
         </Button>
@@ -361,17 +361,17 @@ function setVista(v: VistaCrm): void {
 
       <main class="min-w-0 flex-1 p-4 md:p-5">
         <SeguimientoAgendaAcciones v-if="periodoOk" :scope="scopeAgenda" @abrir="abrirCaso" />
-        <SeguimientoEmbudoBar
+        <div class="hidden md:block"><SeguimientoEmbudoBar
           :kpi="kpi"
           :chip-activo="chipActivo"
           :filtro-aux="filtroAux"
           @seleccionar-chip="seleccionarChip"
           @seleccionar-alerta="seleccionarAlerta"
           @limpiar="limpiarFiltros"
-        />
+        /></div>
         <div
           v-if="chipActivo === 'forma_pago' && kpi"
-          class="mb-3 flex flex-wrap gap-2"
+          class="mb-3 hidden flex-wrap gap-2 md:flex"
         >
           <Button
             v-for="s in [
@@ -413,6 +413,7 @@ function setVista(v: VistaCrm): void {
       </main>
     </div>
 
+    <SeguimientoFiltrosSheet v-model:open="filtrosMovil" :value="{chip:chipActivo,subetapa,filtroAux,ejecutivo:filtroEjecutivo}" :supervisor="esSupervisor" :ejecutivos="ejecutivosEnCarga" :periodo="periodoActivo.label || '—'" @aplicar="aplicarFiltros" />
     <SeguimientoCasoDrawer
       v-if="casoAbierto"
       :caso="casoAbierto"
