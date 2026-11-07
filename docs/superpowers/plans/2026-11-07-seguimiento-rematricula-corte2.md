@@ -23,12 +23,15 @@
 - No mezclar hotfix progreso / Webpay forma_pago.
 - Naranja `#FF5B00`, navy `#1E3A5F`.
 - Bitácora manual: canal `correo|sms`, origen `manual`; plantilla/asunto/preview van en `nota` (texto estructurado; no hay columnas dedicadas).
+- **Batch automático apagado por defecto en mol-dev:** `RETENCION_OUTBOX_DRY_RUN=1` (default si unset en non-prod) **o** allowlist `RETENCION_OUTBOX_RUTS` (RUTs normalizados separados por coma). Sin dry-run=0 **y** sin allowlist → el batch **no envía** a alumnos reales (solo enqueue/log). Smoke usa dry-run o 1–2 RUT de prueba.
+- **`mnp_ejecutivo_firma`:** solo `service_role` (SELECT/INSERT/UPDATE). **Prohibido** `GRANT … TO anon, authenticated` — la anon key vive en el front.
+- **From SMTP:** confirmar relay/SPF; plan B si From ejecutivo falla → From=`SMTP_FROM` + display name ejecutivo + Reply-To=email ejecutivo.
 
 ## File map
 
 | Archivo | Rol |
 |---------|-----|
-| `mol-docker/supabase/migrations/20261107120000_seguimiento_corte2.sql` | `mnp_ejecutivo_firma` + GRANT INSERT/UPDATE outbox |
+| `mol-docker/supabase/migrations/20261107120000_seguimiento_corte2.sql` | `mnp_ejecutivo_firma` (solo service_role) + GRANT INSERT/UPDATE outbox |
 | `uniacc-api-docker/src/services/email.service.ts` | From/Reply-To por envío |
 | `uniacc-api-docker/src/services/seguimiento-html-sanitize.ts` (+ test) | Sanitizar HTML TipTap |
 | `uniacc-api-docker/src/services/seguimiento-firma-ejecutivo.service.ts` (+ test) | GET/PUT firma |
@@ -63,15 +66,15 @@ CREATE TABLE IF NOT EXISTS public.mnp_ejecutivo_firma (
 );
 
 GRANT SELECT, INSERT, UPDATE ON public.mnp_ejecutivo_firma TO service_role;
-GRANT SELECT ON public.mnp_ejecutivo_firma TO anon, authenticated;
+-- NO grant a anon/authenticated (firma privada; API via service_role)
 
 GRANT INSERT, UPDATE ON public.mnp_retencion_outbox TO service_role;
 ```
 
-- [ ] **Step 1:** Crear migración con el SQL de arriba.
+- [ ] **Step 1:** Crear migración con el SQL de arriba (sin grants anon/authenticated).
 - [ ] **Step 2:** Apply en supabase-db:
   `docker cp … supabase-db:/tmp/… && docker exec supabase-db psql -U postgres -d postgres -f /tmp/…`
-- [ ] **Step 3:** Verificar `\d public.mnp_ejecutivo_firma` y grants outbox.
+- [ ] **Step 3:** Verificar `\d public.mnp_ejecutivo_firma`, grants solo `service_role`, y grants outbox.
 - [ ] **Step 4:** Commit  
   `feat(seguimiento): migración firma ejecutivo + grants outbox CORTE 2`
 
@@ -105,10 +108,26 @@ export function sanitizeSeguimientoHtml(html: string): string
 // strip: script, style, on*, javascript: URLs
 ```
 
+**From mode helper (exportable):**
+
+```ts
+export type FromMode = 'direct' | 'relay_reply_to'
+/** direct: From=ejecutivo; relay_reply_to (plan B): From=SMTP_FROM, name=ejecutivo, Reply-To=ejecutivo */
+export function resolverFromSeguimiento(input: {
+  ejecutivoEmail: string
+  ejecutivoNombre?: string
+  mode: FromMode
+  smtpFrom: string
+}): { fromEmail: string; fromName: string; replyTo: string }
+```
+
+Env `SEGUIMIENTO_FROM_MODE=direct|relay_reply_to` (default `direct` hasta smoke SMTP).
+
 - [ ] **Step 1:** Test sanitize: strip `<script>`, `onerror=`, keep `<b>`/`<a href="https://…">`.
 - [ ] **Step 2:** RED → implementar sanitize (usar `sanitize-html` si ya está en deps; si no, allowlist regex mínima + tests, o añadir dep con justificación).
-- [ ] **Step 3:** Extender `enviarMailRematriculaAviso` con From/Reply-To; test unitario del armado de opciones (mock transporter si existe patrón).
-- [ ] **Step 4:** Commit  
+- [ ] **Step 3:** Extender `enviarMailRematriculaAviso` con From/Reply-To + `resolverFromSeguimiento`; test unitario del armado de opciones.
+- [ ] **Step 4:** Envío real de prueba (mol-dev SMTP) a un buzón interno con From=ejecutivo. Si rebota/SPF falla → set `SEGUIMIENTO_FROM_MODE=relay_reply_to` y documentar en smoke. No dejar `direct` en prod-like sin evidencia.
+- [ ] **Step 5:** Commit  
   `feat(seguimiento): From/Reply-To por envío + sanitize HTML composer`
 
 ---
@@ -228,6 +247,15 @@ Cuerpo correo = wireframe 06 / PLAN (pasos arancel+firma, no volver a pagar, CTA
 **Batch (reemplazar writes a `mol_retencion_aviso`):**
 
 ```ts
+// Guardas envío (mol-dev seguro por defecto)
+function puedeEnviarRetencionReal(rutNorm: string): boolean {
+  if (process.env.RETENCION_OUTBOX_DRY_RUN !== '0') return false // default ON dry-run
+  const allow = (process.env.RETENCION_OUTBOX_RUTS ?? '')
+    .split(',').map(s => s.replace(/[^0-9Kk]/g,'').toUpperCase()).filter(Boolean)
+  if (allow.length === 0) return false
+  return allow.includes(rutNorm)
+}
+
 // Pseudocódigo
 for candidato in listarCandidatos(ahora): // M && !F
   const ejecutivo = emailCartera(candidato.rut_norm) // From AUTO
@@ -237,17 +265,21 @@ for candidato in listarCandidatos(ahora): // M && !F
 for fila in outboxPendienteVencida(ahora):
   if firmaCompleta(fila): mark cancelado; continue
   if tipo sms && !horaPermiteSmsChile: skip
-  send with From=ejecutivo cartera (fallback SMTP_FROM si sin ejecutivo + log warn)
+  if !puedeEnviarRetencionReal(fila.rut_norm):
+    // dry-run: log + dejar pendiente (o marcar enviado_simulado solo en logs; NO enviar)
+    continue
+  send with From=resolverFromSeguimiento(ejecutivo cartera)
   mark enviado | error
 
 // También: cancelar pendientes cuando F completa (scan o en mismo loop)
 ```
 
-Idempotencia = UNIQUE outbox. **No** insertar en `mol_retencion_aviso`.
+Idempotencia = UNIQUE outbox. **No** insertar en `mol_retencion_aviso`.  
+En `.env` mol-dev / uniacc-api: `RETENCION_OUTBOX_DRY_RUN=1` hasta smoke controlado.
 
-- [ ] **Step 1:** Tests templates (asunto exacto, SMS length ≤139).
-- [ ] **Step 2:** Tests batch con deps mock: enqueue 2 filas; envío; cancelación F; no escribe `mol_retencion_aviso`.
-- [ ] **Step 3:** Implementar; dejar scheduler intacto (`procesarRetencionBatch`).
+- [ ] **Step 1:** Tests templates: asunto exacto; SMS con `process.env.REMATRICULA_RETENCION_URL_RETOMAR` (o valor de mol-dev) **length ≤ 139**.
+- [ ] **Step 2:** Tests batch mock: enqueue 2 filas; dry-run no llama email/sms; allowlist sí envía; cancelación F; no escribe `mol_retencion_aviso`.
+- [ ] **Step 3:** Implementar; dejar scheduler intacto (`procesarRetencionBatch`); default dry-run.
 - [ ] **Step 4:** Commit  
   `feat(seguimiento): retención batch escribe mnp_retencion_outbox + copy 06/07`
 
@@ -288,13 +320,14 @@ fetchFirmaEjecutivo() / putFirmaEjecutivo({ mime, base64 })
 **Files:**
 - Create/Update: `docs/wireframes/seguimiento-rematricula-v2/smoke/README.md` (o bajo v5/smoke con sección CORTE 2)
 
-- [ ] **Step 1:** Apply SQL; rebuild `uniacc-api` + `mol-dev`.
+- [ ] **Step 1:** Apply SQL; rebuild `uniacc-api` + `mol-dev` con `RETENCION_OUTBOX_DRY_RUN=1`.
 - [ ] **Step 2:** Smoke funcional (caso **prueba**, no masivo):
   1. Chip ≠ 8: enviar correo → bitácora
   2. Enviar SMS (dentro de ventana) → bitácora
   3. Chip 8: sin Contactar
-  4. Outbox: tras batch/dry-run, mail_2h/sms_24h visibles en drawer
-- [ ] **Step 3:** Documentar en smoke: **sin backfill** — casos avisados por job viejo pueden mostrar n/a/pdte hasta nuevo ciclo; From manual=sesión vs auto=cartera.
+  4. Outbox: tras batch dry-run, filas `pendiente` visibles; **sin** envíos reales masivos
+  5. Opcional: `RETENCION_OUTBOX_DRY_RUN=0` + `RETENCION_OUTBOX_RUTS=<rut_prueba>` para un envío real acotado
+- [ ] **Step 3:** Documentar en smoke: **sin backfill**; From manual=sesión vs auto=cartera; dry-run default; resultado SMTP (direct vs relay_reply_to).
 - [ ] **Step 4:** Commit  
   `docs(seguimiento): smoke CORTE 2 mol-dev`
 
@@ -318,3 +351,6 @@ fetchFirmaEjecutivo() / putFirmaEjecutivo({ mime, base64 })
 - From **manual = sesión**; From **auto = cartera** (pueden diferir si supervisor envía caso ajeno).
 - Sin backfill `mol_retencion_aviso` → outbox.
 - Plantilla/asunto/preview en campo `nota` de bitácora (sin migración de columnas).
+- Batch: **dry-run por defecto**; envío real solo con `DRY_RUN=0` + allowlist RUT.
+- Firma: **solo service_role** (no anon/authenticated).
+- SMTP: probar From ejecutivo; plan B `relay_reply_to` si SPF/relay lo bloquea.
