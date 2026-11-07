@@ -1,0 +1,51 @@
+<html><head><meta charset="utf-8"><style>*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#f4f6f9;color:#1f2937;font-size:13px}
+.top{background:#1E3A5F;color:#fff;padding:12px 24px;display:flex;justify-content:space-between;align-items:center}.top b{color:#FF5B00}
+.stamp{position:fixed;bottom:12px;left:16px;background:#fee2e2;color:#b91c1c;border:2px dashed #b91c1c;padding:4px 10px;font-weight:700;font-size:11px;z-index:9}
+.wrap{padding:20px 24px}
+.callout{background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:10px 14px;margin-bottom:14px;color:#9a3412}
+.callout b{color:#c2410c}
+.kpis{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}.k{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px}.k.on{border:2px solid #FF5B00;box-shadow:0 0 0 3px #ff5b0030}
+.k small{color:#6b7280;display:block;min-height:34px;line-height:1.2}.k b{font-size:22px;color:#1E3A5F}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;align-items:center}
+.c{border:1px solid #d1d5db;border-radius:99px;padding:4px 10px;background:#fff}.c.on{background:#FF5B00;color:#fff;border-color:#FF5B00}.c.n{background:#1E3A5F;color:#fff}.c.warn{background:#fff7ed;border-color:#fdba74;color:#9a3412}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden}th{background:#eef2f7;text-align:left;padding:8px;font-size:11px;color:#374151}td{padding:8px;border-top:1px solid #eef0f3;font-size:12px}
+.pill{border-radius:6px;padding:2px 7px;font-size:11px;font-weight:600;white-space:nowrap}
+.ok{color:#15803d}.pd{color:#b45309}.na{color:#9ca3af}
+.btn{display:inline-block;padding:7px 12px;border-radius:999px;border:1px solid #d1d5db;background:#fff;margin:2px;font-weight:600}.pri{background:#FF5B00;color:#fff;border-color:#FF5B00}.dis{opacity:.45}
+.sheet{position:fixed;top:0;right:0;width:440px;height:100%;background:#fff;box-shadow:-8px 0 24px #0003;padding:18px;overflow:auto;z-index:5}.ov{position:fixed;inset:0;background:#0004;z-index:4}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin:10px 0}
+.note{background:#fef2f2;border:1px dashed #ef4444;color:#b91c1c;border-radius:8px;padding:6px 8px;font-size:11px;margin:6px 0;font-weight:600}
+.diff{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.box{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;min-height:220px}
+.box h4{margin:0 0 8px;font-size:13px}.as{border-top:3px solid #9ca3af}.to{border-top:3px solid #FF5B00}
+.tl{border-left:2px solid #e5e7eb;margin-left:6px;padding-left:12px}.tl div{margin-bottom:9px}.tl i{color:#6b7280;font-style:normal;font-size:11px}
+ul.changes{margin:8px 0 0 18px;padding:0}ul.changes li{margin:4px 0}
+</style></head><body><div class="top"><div><b>UNIACC</b> MOL · Staff · Seguimiento rematrícula · ajustes UI</div><div>v3 · propuesta de cambio</div></div><div class="stamp">DATOS FICTICIOS · PROPUESTA DE CAMBIO UI</div><div class="wrap">
+<div class="callout"><b>Objetivo:</b> ajustar la UI CORTE 1 ya desplegada en mol-dev para acercarla al wireframe v2 (sin implementar aún composer/corte 2).</div>
+<div class="diff">
+  <div class="box as"><h4>AS-IS (mol-dev hoy)</h4>
+  <ul class="changes">
+    <li>8 chips planos, sin número de etapa ni color fuerte</li>
+    <li>Etiqueta larga en KPI (texto truncado visual)</li>
+    <li>Mail/SMS solo como pills de texto + nota debug “outbox vacío…”</li>
+    <li>Sin filtro <b>Sin contactar +7d</b></li>
+    <li>Cartera: texto “Ver todas” + input email crudo</li>
+    <li>Tabla: etapa pill naranja única (todas iguales)</li>
+    <li>Panel: sin teléfono/email alumno ni firmantes</li>
+    <li>Sin overlay detrás del sheet</li>
+    <li>Botones correo/SMS/WA disabled “próximamente”</li>
+  </ul></div>
+  <div class="box to"><h4>TO-BE (este paquete v3)</h4>
+  <ul class="changes">
+    <li>Chips numerados 1–8 + borde activo con ring</li>
+    <li>Etiquetas cortas de embudo (como v2)</li>
+    <li>Auxiliares: +7d · Mail 2h · SMS 24h (sin texto debug)</li>
+    <li>Pill navy “Cartera: mía” + toggle supervisor</li>
+    <li>Pills de etapa con color por estado</li>
+    <li>Panel con contacto alumno + firmantes + retención</li>
+    <li>Overlay al abrir caso</li>
+    <li>Correo/SMS: CTA “próximamente” más claros (corte 2)</li>
+  </ul></div>
+</div>
+<div class="card" style="margin-top:14px"><b>Fuera de este paquete (sigue corte 2):</b> composer WYSIWYG + firma imagen, enqueue/scheduler 2h/24h, WhatsApp real, From DVU vs ejecutivo.</div>
+</div></body></html>
