@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import SeguimientoFiltrosSidebar from '@/components/seguimiento/SeguimientoFiltrosSidebar.vue'
+import SeguimientoEmbudoBar from '@/components/seguimiento/SeguimientoEmbudoBar.vue'
 import SeguimientoListaTabla from '@/components/seguimiento/SeguimientoListaTabla.vue'
 import SeguimientoBoard from '@/components/seguimiento/SeguimientoBoard.vue'
 import SeguimientoCasoDrawer from '@/components/seguimiento/SeguimientoCasoDrawer.vue'
@@ -194,6 +194,13 @@ watch(
   { immediate: true },
 )
 
+function limpiarFiltros(): void {
+  chipActivo.value = null
+  filtroAux.value = null
+  subetapa.value = null
+  page.value = 0
+}
+
 function seleccionarChip(chip: ChipBandeja): void {
   chipActivo.value = chipActivo.value === chip ? null : chip
   if (chipActivo.value !== 'forma_pago') subetapa.value = null
@@ -273,7 +280,7 @@ function setVista(v: VistaCrm): void {
       <div class="min-w-0">
         <h1 class="text-xl font-bold text-[#1E3A5F]">Seguimiento rematrícula</h1>
         <p class="text-xs text-zinc-500">
-          CRM · Periodo {{ periodoActivo.label ?? '—' }}
+          CRM · Periodo {{ periodoActivo.label ?? '—' }} · Cartera: {{ carteraLabel }}
         </p>
       </div>
 
@@ -346,38 +353,16 @@ function setVista(v: VistaCrm): void {
     </p>
 
     <div class="flex min-h-0 flex-1">
-      <SeguimientoFiltrosSidebar
-        :kpi="kpi"
-        :chip-activo="chipActivo"
-        :filtro-aux="filtroAux"
-        :es-supervisor="esSupervisor"
-        :cartera-label="carteraLabel"
-        @seleccionar-chip="seleccionarChip"
-        @seleccionar-alerta="seleccionarAlerta"
-      />
 
       <main class="min-w-0 flex-1 p-4 md:p-5">
-        <div v-if="filtroAux" class="mb-3 flex flex-wrap items-center gap-2">
-          <span
-            class="inline-flex items-center gap-2 rounded-full border border-[#FF5B00]/40 bg-orange-50 px-3 py-1 text-xs font-medium text-[#FF5B00]"
-          >
-            Alerta:
-            {{
-              filtroAux === 'sin_contactar_7d'
-                ? 'Sin contactar +7d'
-                : filtroAux === 'mail_2h_pdte'
-                  ? 'Mail 2h pdte'
-                  : 'SMS 24h pdte'
-            }}
-            <button
-              type="button"
-              class="cursor-pointer underline"
-              @click="filtroAux = null"
-            >
-              quitar
-            </button>
-          </span>
-        </div>
+        <SeguimientoEmbudoBar
+          :kpi="kpi"
+          :chip-activo="chipActivo"
+          :filtro-aux="filtroAux"
+          @seleccionar-chip="seleccionarChip"
+          @seleccionar-alerta="seleccionarAlerta"
+          @limpiar="limpiarFiltros"
+        />
         <div
           v-if="chipActivo === 'forma_pago' && kpi"
           class="mb-3 flex flex-wrap gap-2"
