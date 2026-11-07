@@ -15,6 +15,7 @@ import {
   type CasoSeguimientoDetalle,
 } from '@/services/seguimientoRematriculaApi'
 import { toast } from 'vue-sonner'
+import { formatearTelefono } from '@/utils/seguimientoDrawer'
 
 const props = defineProps<{
   open: boolean
@@ -71,7 +72,7 @@ async function enviar(): Promise<void> {
         <div>
           <Label>Para</Label>
           <p class="mt-1 rounded-md border bg-zinc-50 px-3 py-2">
-            {{ caso.telefono ?? '—' }}
+            {{ formatearTelefono(caso.telefono) }}
           </p>
         </div>
         <div>
