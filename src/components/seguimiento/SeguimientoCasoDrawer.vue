@@ -43,7 +43,9 @@ const openSms = ref(false)
 const esMatriculado = computed(() => props.caso.chip === 'matriculado')
 
 const aplicaRecordatorios = computed(
-  () => props.caso.mat_webpay_fecha != null && !props.caso.firma_completa,
+  () =>
+    (props.caso.mat_webpay_fecha != null || props.caso.webpay_matricula_autorizada === true) &&
+    !props.caso.firma_completa,
 )
 
 function valorProp(v: string | null | undefined): string {
@@ -146,7 +148,7 @@ function etiquetaOrigen(origen: string): string {
                 <ChevronDown class="ml-1 size-4" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
+            <DropdownMenuContent align="start" class="z-[60]">
               <DropdownMenuItem class="cursor-pointer" @click="openCorreo = true">
                 Correo
               </DropdownMenuItem>
@@ -162,7 +164,7 @@ function etiquetaOrigen(origen: string): string {
                       </DropdownMenuItem>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent>Próximamente</TooltipContent>
+                  <TooltipContent class="z-[62]">Próximamente</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </DropdownMenuContent>

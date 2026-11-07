@@ -32,6 +32,7 @@ export type CasoSeguimientoDetalle = FilaBandejaSeguimiento & {
   firmantes_resumen: string | null
   medios_pago_resumen: string | null
   firma_completa: boolean
+  webpay_matricula_autorizada?: boolean
 }
 
 export type FiltroAuxSeguimiento = 'sin_contactar_7d' | 'mail_2h_pdte' | 'sms_24h_pdte'
