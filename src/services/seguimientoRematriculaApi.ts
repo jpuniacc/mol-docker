@@ -29,12 +29,17 @@ export type FilaBandejaSeguimiento = {
 export type CasoSeguimientoDetalle = FilaBandejaSeguimiento & {
   email_alumno: string | null
   telefono: string | null
+  ejecutivo_nombre?: string | null
+  firmantes_detalle?: { alumno: EstadoFirmaDrawer; sostenedor: EstadoFirmaDrawer }
+  medios_pago_detalle?: { matricula: string; arancel: string }
   firmantes_resumen: string | null
   medios_pago_resumen: string | null
   firma_completa: boolean
   webpay_matricula_autorizada?: boolean
   recordatorios?: RecordatoriosCaso
 }
+
+export type EstadoFirmaDrawer = 'firmado' | 'pendiente' | 'no_aplica' | 'sin_informacion'
 
 export type EstadoRecordatorio = 'programado' | 'simulado' | 'enviado' | 'omitido' | 'fallo' | 'no_aplica'
 

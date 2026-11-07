@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, type Component } from 'vue'
+import { computed, ref, watch, type Component } from 'vue'
 import { ChevronDown, Mail, MessageCircle, MessageSquare, Pencil, Phone } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,6 +17,10 @@ import {
 import SeguimientoComposerCorreo from '@/components/seguimiento/SeguimientoComposerCorreo.vue'
 import SeguimientoComposerSms from '@/components/seguimiento/SeguimientoComposerSms.vue'
 import type { CasoSeguimientoDetalle, ContactoSeguimiento } from '@/services/seguimientoRematriculaApi'
+import {
+  FILTROS_TIMELINE, formatearTelefono, tipoEvento, paginaTimeline, agruparTimeline,
+  leerFiltroTimeline, guardarFiltroTimeline,
+} from '@/utils/seguimientoDrawer'
 import {
   colorEtapaChip,
   ETIQUETA_CHIP_BANDEJA,
@@ -38,6 +42,17 @@ const emit = defineEmits<{
 
 const openCorreo = ref(false)
 const openSms = ref(false)
+
+const filtroTimeline = ref(leerFiltroTimeline())
+const limiteTimeline = ref(10)
+const timeline = computed(() => paginaTimeline(props.bitacora, filtroTimeline.value, limiteTimeline.value))
+const gruposTimeline = computed(() => agruparTimeline(timeline.value.eventos))
+watch(filtroTimeline, (filtro) => {
+  limiteTimeline.value = 10
+  guardarFiltroTimeline(filtro)
+})
+watch(() => [props.caso.codcli, props.anio, props.semestre], () => { limiteTimeline.value = 10 })
+const etiquetasFirma = { firmado: 'firmado', pendiente: 'pendiente', no_aplica: 'no aplica', sin_informacion: 'sin información' }
 
 const esMatriculado = computed(() => props.caso.chip === 'matriculado')
 
@@ -86,16 +101,13 @@ function iconoCanal(canal: string, origen: string): Component {
   if (origen === 'sistema') return Pencil
   const c = canal.trim().toLowerCase()
   if (c === 'llamada' || c === 'telefono' || c === 'teléfono' || c === 'presencial') return Phone
+  if (['correo', 'email', 'mail'].includes(c)) return Mail
   if (c === 'sms') return MessageSquare
   if (c === 'whatsapp') return MessageCircle
   return Pencil
 }
 
-function etiquetaOrigen(origen: string): string {
-  if (origen === 'sistema') return 'Sistema'
-  if (origen === 'auto') return 'Auto'
-  return 'Nota'
-}
+
 </script>
 
 <template>
@@ -203,13 +215,22 @@ function etiquetaOrigen(origen: string): string {
             <dt class="text-zinc-500">Email</dt>
             <dd class="min-w-0 break-words font-medium text-zinc-900 [overflow-wrap:anywhere] mb-1 sm:mb-0">{{ valorProp(caso.email_alumno) }}</dd>
             <dt class="text-zinc-500">Teléfono</dt>
-            <dd class="min-w-0 break-words font-medium text-zinc-900 [overflow-wrap:anywhere] mb-1 sm:mb-0">{{ valorProp(caso.telefono) }}</dd>
+            <dd class="min-w-0 break-words font-medium text-zinc-900 [overflow-wrap:anywhere] mb-1 sm:mb-0">{{ formatearTelefono(caso.telefono) }}</dd>
             <dt class="text-zinc-500">Firmantes</dt>
-            <dd class="min-w-0 break-words font-medium text-zinc-900 [overflow-wrap:anywhere] mb-1 sm:mb-0">{{ valorProp(caso.firmantes_resumen) }}</dd>
+            <dd class="min-w-0 break-words font-medium text-zinc-900 [overflow-wrap:anywhere] mb-1 sm:mb-0"><template v-if="caso.firmantes_detalle">
+                <div>Alumno · {{ etiquetasFirma[caso.firmantes_detalle.alumno] }}</div>
+                <div class="text-xs font-normal text-zinc-500">Sostenedor: {{ etiquetasFirma[caso.firmantes_detalle.sostenedor] }}</div>
+              </template>
+              <template v-else>{{ valorProp(caso.firmantes_resumen) }}</template></dd>
             <dt class="text-zinc-500">Medios pago</dt>
-            <dd class="min-w-0 break-words font-medium text-zinc-900 [overflow-wrap:anywhere] mb-1 sm:mb-0">{{ valorProp(caso.medios_pago_resumen) }}</dd>
+            <dd class="min-w-0 break-words font-medium text-zinc-900 [overflow-wrap:anywhere] mb-1 sm:mb-0"><template v-if="caso.medios_pago_detalle">
+                <div>Matrícula: {{ caso.medios_pago_detalle.matricula }}</div>
+                <div class="text-xs font-normal text-zinc-500">Arancel: {{ caso.medios_pago_detalle.arancel }}</div>
+              </template>
+              <template v-else>{{ valorProp(caso.medios_pago_resumen) }}</template></dd>
             <dt class="text-zinc-500">Ejecutivo</dt>
-            <dd class="min-w-0 break-words font-medium text-zinc-900 [overflow-wrap:anywhere] mb-1 sm:mb-0">{{ valorProp(caso.email_ejecutivo) }}</dd>
+            <dd class="min-w-0 break-words font-medium text-zinc-900 [overflow-wrap:anywhere] mb-1 sm:mb-0"><div>{{ caso.ejecutivo_nombre || (caso.email_ejecutivo ? 'Nombre no registrado' : 'Sin asignar') }}</div>
+              <div v-if="caso.email_ejecutivo" class="text-xs font-normal text-zinc-500">{{ caso.email_ejecutivo }}</div></dd>
           </dl>
         </section>
 
@@ -246,27 +267,21 @@ function etiquetaOrigen(origen: string): string {
               <li
                 v-for="it in caso.recordatorios.items"
                 :key="it.tipo"
-                class="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2"
+                class="rounded-md border border-zinc-200 px-3 py-2"
               >
-                <div class="flex items-center justify-between gap-2">
-                  <span class="flex items-center gap-2 font-medium text-zinc-900">
-                    <component :is="it.tipo === 'mail_2h' ? Mail : MessageSquare" class="size-4 text-zinc-500" aria-hidden="true" />
-                    {{ it.tipo === 'mail_2h' ? 'Correo' : 'SMS' }}
+                <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                  <span class="flex items-center gap-2 text-xs font-semibold text-zinc-900">
+                    <component :is="it.tipo === 'mail_2h' ? Mail : MessageSquare" class="size-4 shrink-0 text-zinc-500" aria-hidden="true" />
+                    {{ it.tipo === 'mail_2h' ? 'Correo 2 h' : 'SMS 24 h' }}
                   </span>
-                  <span :class="['rounded-full px-2 py-0.5 text-[11px] font-semibold', pillRecordatorio[it.estado].cls]">
+                  <span :class="['inline-flex flex-wrap items-center gap-1 rounded-full px-2 py-0.5 text-[11px]', pillRecordatorio[it.estado].cls]">
                     {{ pillRecordatorio[it.estado].label }}
+                    <template v-if="it.estado === 'enviado' && it.enviado_at"> · {{ fechaCl(it.enviado_at) }} (Chile)</template>
+                    <template v-else-if="it.programado_para"> · {{ fechaCl(it.programado_para) }} (Chile)</template>
                   </span>
                 </div>
-                <p class="mt-1 text-xs text-zinc-500">
-                  <template v-if="it.estado === 'enviado' && it.enviado_at">Enviado {{ fechaCl(it.enviado_at) }} (Chile)</template>
-                  <template v-else-if="it.programado_para">
-                    {{ it.estado === 'omitido' ? 'Correspondería' : (it.tipo === 'mail_2h' ? '2 h después del pago ·' : '24 h después del pago ·') }}
-                    {{ fechaCl(it.programado_para) }} (Chile)
-                  </template>
-                  <template v-else>—</template>
-                </p>
-                <p v-if="it.destino && it.estado !== 'no_aplica'" class="text-xs text-zinc-500">{{ it.destino }}</p>
-                <p v-if="it.motivo" class="text-xs text-zinc-500">{{ it.motivo }}</p>
+                <p v-if="it.destino && it.estado !== 'no_aplica'" class="mt-1 break-words text-xs text-zinc-500 [overflow-wrap:anywhere]">{{ it.destino }}</p>
+                <p v-if="it.motivo" class="mt-0.5 break-words text-xs text-zinc-500">{{ it.motivo }}</p>
               </li>
             </ul>
           </template>
@@ -277,30 +292,43 @@ function etiquetaOrigen(origen: string): string {
           <h3 class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
             Timeline
           </h3>
-          <ul class="space-y-3">
-            <li
-              v-for="ev in bitacora"
-              :key="ev.id"
-              class="rounded-lg border border-zinc-100 bg-slate-50 px-3 py-2"
+          <div class="mb-4 flex flex-wrap gap-1.5" role="group" aria-label="Filtrar timeline por tipo de contacto">
+            <button
+              v-for="f in FILTROS_TIMELINE"
+              :key="f.tipo"
+              type="button"
+              :aria-pressed="filtroTimeline === f.tipo"
+              :class="['cursor-pointer rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600', filtroTimeline === f.tipo ? 'bg-[#FF5B00] text-white' : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200']"
+              @click="filtroTimeline = f.tipo"
             >
-              <div class="flex items-center gap-2 font-medium text-zinc-800">
-                <component
-                  :is="iconoCanal(ev.canal, ev.origen)"
-                  class="size-4 shrink-0 text-zinc-500"
-                  aria-hidden="true"
-                />
-                <span>
-                  {{ etiquetaOrigen(ev.origen) }} · {{ ev.canal }}
-                  <span v-if="ev.origen !== 'sistema'" class="text-zinc-500">
-                    · {{ ev.autor_email }}
-                  </span>
-                </span>
-              </div>
-              <div class="text-xs text-zinc-500">{{ fmtFecha(ev.created_at) }}</div>
-              <p v-if="ev.nota" class="mt-1 text-zinc-700">{{ ev.nota }}</p>
-            </li>
-            <li v-if="bitacora.length === 0" class="text-zinc-500">Sin eventos aún</li>
-          </ul>
+              {{ f.label }} {{ timeline.conteos[f.tipo] }}
+            </button>
+          </div>
+          <div aria-live="polite">
+            <p v-if="timeline.total === 0" class="text-zinc-500">{{ bitacora.length === 0 ? 'Sin eventos aún' : 'Sin eventos de este tipo' }}</p>
+            <div v-for="grupo in gruposTimeline" :key="grupo.key" class="mb-4">
+              <h4 class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{{ grupo.label }}</h4>
+              <ul class="ml-1 border-l border-zinc-200">
+                <li v-for="ev in grupo.eventos" :key="ev.id" class="relative min-w-0 pb-4 pl-4 last:pb-1">
+                  <span class="absolute -left-[5px] top-1.5 size-2 rounded-full bg-[#FF5B00]" aria-hidden="true" />
+                  <div class="flex flex-wrap items-center gap-1.5 text-xs text-zinc-600">
+                    <component :is="iconoCanal(ev.canal, ev.origen)" class="size-3.5 shrink-0" aria-hidden="true" />
+                    <span class="rounded-full bg-zinc-100 px-2 py-0.5">{{ FILTROS_TIMELINE.find(f => f.tipo === tipoEvento(ev))?.label }}</span>
+                    <span v-if="tipoEvento(ev) === 'nota' && ev.canal !== 'nota'">{{ ev.canal }}</span>
+                    <span v-if="ev.origen === 'auto'">Automático</span>
+                  </div>
+                  <p v-if="ev.nota" class="mt-1 whitespace-pre-line break-words font-medium text-zinc-800 [overflow-wrap:anywhere]">{{ ev.nota }}</p>
+                  <div class="mt-1 break-words text-xs text-zinc-500 [overflow-wrap:anywhere]">
+                    <span v-if="ev.origen !== 'sistema'">{{ ev.autor_email }} · </span>{{ fmtFecha(ev.created_at) }} (Chile)
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <Button v-if="timeline.restantes > 0" type="button" variant="outline" class="mt-2 w-full cursor-pointer" @click="limiteTimeline += 10">
+            Ver {{ timeline.restantes }} anteriores
+          </Button>
+          <p v-if="timeline.total > 0" class="mt-2 text-center text-xs text-zinc-500">{{ timeline.eventos.length }} de {{ timeline.total }} eventos</p>
         </section>
       </div>
     </aside>
