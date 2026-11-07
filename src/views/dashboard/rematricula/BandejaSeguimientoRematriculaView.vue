@@ -426,8 +426,11 @@ function setVista(v: VistaCrm): void {
       v-if="casoAbierto"
       :caso="casoAbierto"
       :bitacora="bitacora"
+      :anio="periodoActivo.anio!"
+      :semestre="periodoActivo.semestre!"
       @cerrar="cerrarCaso"
       @agregar-nota="dialogContacto = true"
+      @enviado="abrirCaso(casoAbierto)"
     />
 
     <Dialog :open="dialogContacto" @update:open="(v) => (dialogContacto = v)">

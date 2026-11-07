@@ -281,3 +281,74 @@ export async function postSeguimientoContacto(
   const parsed = r.body as { contacto?: ContactoSeguimiento }
   return { contacto: parsed.contacto ?? null, error: null }
 }
+
+export type PlantillaCorreoSeguimiento =
+  | 'retencion_2h'
+  | 'recordatorio_firma'
+  | 'recordatorio_forma_pago'
+  | 'personalizado'
+
+export async function postSeguimientoEnviarCorreo(
+  codcli: string,
+  body: {
+    anio: number
+    semestre: number
+    plantilla: PlantillaCorreoSeguimiento
+    asunto: string
+    html: string
+    incluirFirma?: boolean
+  },
+): Promise<{ error: string | null }> {
+  const r = await postJson(
+    `/api/rematricula/seguimiento/casos/${encodeURIComponent(codcli)}/enviar-correo`,
+    body,
+  )
+  return { error: r.ok ? null : r.error }
+}
+
+export async function postSeguimientoEnviarSms(
+  codcli: string,
+  body: { anio: number; semestre: number; texto: string },
+): Promise<{ error: string | null }> {
+  const r = await postJson(
+    `/api/rematricula/seguimiento/casos/${encodeURIComponent(codcli)}/enviar-sms`,
+    body,
+  )
+  return { error: r.ok ? null : r.error }
+}
+
+export async function fetchFirmaEjecutivo(): Promise<{
+  firma: { mime: string; base64: string; updated_at: string } | null
+  error: string | null
+}> {
+  const r = await getJson('/api/rematricula/seguimiento/ejecutivo/firma')
+  if (!r.ok) return { firma: null, error: r.error }
+  const body = r.body as {
+    firma?: { mime: string; base64: string; updated_at: string } | null
+  }
+  return { firma: body.firma ?? null, error: null }
+}
+
+export async function putFirmaEjecutivo(input: {
+  mime: 'image/png' | 'image/jpeg'
+  base64: string
+}): Promise<{ error: string | null }> {
+  const destino = urlConCarteraEjecutivo(
+    `${admisionApiBaseUrl()}/api/rematricula/seguimiento/ejecutivo/firma`,
+  )
+  if (typeof destino !== 'string') return { error: destino.error }
+  try {
+    const res = await fetch(destino, {
+      method: 'PUT',
+      headers: { ...headersSesion(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    if (!res.ok) {
+      const parsed = (await res.json().catch(() => ({}))) as { message?: string }
+      return { error: parsed.message || `Error HTTP ${res.status}` }
+    }
+    return { error: null }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Error de red' }
+  }
+}

@@ -1,13 +1,21 @@
 <script setup lang="ts">
-import { computed, type Component } from 'vue'
+import { computed, ref, type Component } from 'vue'
 import { ChevronDown, MessageCircle, MessageSquare, Pencil, Phone } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import SeguimientoComposerCorreo from '@/components/seguimiento/SeguimientoComposerCorreo.vue'
+import SeguimientoComposerSms from '@/components/seguimiento/SeguimientoComposerSms.vue'
 import type { CasoSeguimientoDetalle, ContactoSeguimiento } from '@/services/seguimientoRematriculaApi'
 import {
   colorEtapaChip,
@@ -19,12 +27,18 @@ import { etiquetaOutboxUi } from '@/utils/seguimientoBandejaOutbox'
 const props = defineProps<{
   caso: CasoSeguimientoDetalle
   bitacora: ContactoSeguimiento[]
+  anio: number
+  semestre: number
 }>()
 
 const emit = defineEmits<{
   cerrar: []
   agregarNota: []
+  enviado: []
 }>()
+
+const openCorreo = ref(false)
+const openSms = ref(false)
 
 const esMatriculado = computed(() => props.caso.chip === 'matriculado')
 
@@ -122,23 +136,37 @@ function etiquetaOrigen(origen: string): string {
         </p>
 
         <div class="mt-4 flex flex-wrap gap-2">
-          <TooltipProvider v-if="!esMatriculado">
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <span class="inline-flex">
-                  <Button
-                    type="button"
-                    disabled
-                    class="rounded-full bg-[#FF5B00]/40 text-white"
-                  >
-                    Contactar
-                    <ChevronDown class="ml-1 size-4" aria-hidden="true" />
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>Próximamente</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <DropdownMenu v-if="!esMatriculado">
+            <DropdownMenuTrigger as-child>
+              <Button
+                type="button"
+                class="cursor-pointer rounded-full bg-[#FF5B00] hover:bg-[#FF5B00]/90"
+              >
+                Contactar
+                <ChevronDown class="ml-1 size-4" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem class="cursor-pointer" @click="openCorreo = true">
+                Correo
+              </DropdownMenuItem>
+              <DropdownMenuItem class="cursor-pointer" @click="openSms = true">
+                SMS
+              </DropdownMenuItem>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <div>
+                      <DropdownMenuItem disabled class="opacity-50">
+                        WhatsApp
+                      </DropdownMenuItem>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>Próximamente</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             type="button"
             class="cursor-pointer rounded-full bg-[#FF5B00] hover:bg-[#FF5B00]/90"
@@ -215,5 +243,24 @@ function etiquetaOrigen(origen: string): string {
         </section>
       </div>
     </aside>
+
+    <SeguimientoComposerCorreo
+      v-if="!esMatriculado"
+      :open="openCorreo"
+      :caso="caso"
+      :anio="anio"
+      :semestre="semestre"
+      @update:open="(v) => (openCorreo = v)"
+      @enviado="emit('enviado')"
+    />
+    <SeguimientoComposerSms
+      v-if="!esMatriculado"
+      :open="openSms"
+      :caso="caso"
+      :anio="anio"
+      :semestre="semestre"
+      @update:open="(v) => (openSms = v)"
+      @enviado="emit('enviado')"
+    />
   </Teleport>
 </template>
