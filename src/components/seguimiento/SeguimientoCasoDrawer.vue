@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, type Component } from 'vue'
-import { ChevronDown, MessageCircle, MessageSquare, Pencil, Phone } from 'lucide-vue-next'
+import { ChevronDown, Mail, MessageCircle, MessageSquare, Pencil, Phone } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -22,7 +22,6 @@ import {
   ETIQUETA_CHIP_BANDEJA,
   etiquetaSubetapaFormaPago,
 } from '@/utils/seguimientoBandejaChip'
-import { etiquetaOutboxUi } from '@/utils/seguimientoBandejaOutbox'
 
 const props = defineProps<{
   caso: CasoSeguimientoDetalle
@@ -42,11 +41,27 @@ const openSms = ref(false)
 
 const esMatriculado = computed(() => props.caso.chip === 'matriculado')
 
-const aplicaRecordatorios = computed(
-  () =>
-    (props.caso.mat_webpay_fecha != null || props.caso.webpay_matricula_autorizada === true) &&
-    !props.caso.firma_completa,
-)
+const pillRecordatorio: Record<string, { label: string; cls: string }> = {
+  programado: { label: 'Programado', cls: 'bg-blue-100 text-blue-700' },
+  simulado: { label: 'Simulado', cls: 'bg-purple-100 text-purple-700' },
+  enviado: { label: 'Enviado', cls: 'bg-green-100 text-green-700' },
+  omitido: { label: 'Omitido', cls: 'bg-slate-100 text-slate-600' },
+  fallo: { label: 'Falló', cls: 'bg-red-100 text-red-700' },
+  no_aplica: { label: 'No aplica', cls: 'bg-slate-100 text-slate-600' },
+}
+
+function fechaCl(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleString('es-CL', {
+    timeZone: 'America/Santiago',
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 
 function valorProp(v: string | null | undefined): string {
   if (v == null || !String(v).trim()) return '—'
@@ -202,16 +217,60 @@ function etiquetaOrigen(origen: string): string {
           <h3 class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
             Recordatorios automáticos
           </h3>
-          <div
-            v-if="aplicaRecordatorios"
-            class="rounded-lg border border-orange-200 bg-orange-50 p-3"
-          >
-            <p>Correo 2h: {{ etiquetaOutboxUi(caso.mail_2h, caso.mail_2h_sent_at) }}</p>
-            <p>SMS 24h: {{ etiquetaOutboxUi(caso.sms_24h, caso.sms_24h_sent_at) }}</p>
-          </div>
-          <p v-else class="text-zinc-500">
-            No aplican: sin matrícula Webpay o firma ya completa.
-          </p>
+          <template v-if="caso.recordatorios">
+            <div class="mb-2 space-y-0.5 text-[13px] text-zinc-700">
+              <p>
+                <template v-if="caso.recordatorios.pago_matricula_at">
+                  Matrícula pagada por Webpay · {{ fechaCl(caso.recordatorios.pago_matricula_at) }}
+                </template>
+                <template v-else>Sin matrícula pagada por Webpay</template>
+              </p>
+              <p>
+                Firma de contrato:
+                {{ caso.recordatorios.firma_completa ? 'completa ✓' : 'pendiente' }}
+              </p>
+            </div>
+            <p
+              v-if="!caso.recordatorios.habilitado"
+              class="mb-2 rounded-md bg-zinc-100 px-3 py-2 text-xs text-zinc-600"
+            >
+              Envío automático desactivado en este ambiente.
+            </p>
+            <p
+              v-else-if="caso.recordatorios.dry_run"
+              class="mb-2 rounded-md bg-purple-50 px-3 py-2 text-xs text-purple-700"
+            >
+              Modo simulación: los recordatorios no se envían de verdad.
+            </p>
+            <ul class="space-y-2">
+              <li
+                v-for="it in caso.recordatorios.items"
+                :key="it.tipo"
+                class="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2"
+              >
+                <div class="flex items-center justify-between gap-2">
+                  <span class="flex items-center gap-2 font-medium text-zinc-900">
+                    <component :is="it.tipo === 'mail_2h' ? Mail : MessageSquare" class="size-4 text-zinc-500" aria-hidden="true" />
+                    {{ it.tipo === 'mail_2h' ? 'Correo' : 'SMS' }}
+                  </span>
+                  <span :class="['rounded-full px-2 py-0.5 text-[11px] font-semibold', pillRecordatorio[it.estado].cls]">
+                    {{ pillRecordatorio[it.estado].label }}
+                  </span>
+                </div>
+                <p class="mt-1 text-xs text-zinc-500">
+                  <template v-if="it.estado === 'enviado' && it.enviado_at">Enviado {{ fechaCl(it.enviado_at) }} (Chile)</template>
+                  <template v-else-if="it.programado_para">
+                    {{ it.estado === 'omitido' ? 'Correspondería' : (it.tipo === 'mail_2h' ? '2 h después del pago ·' : '24 h después del pago ·') }}
+                    {{ fechaCl(it.programado_para) }} (Chile)
+                  </template>
+                  <template v-else>—</template>
+                </p>
+                <p v-if="it.destino && it.estado !== 'no_aplica'" class="text-xs text-zinc-500">{{ it.destino }}</p>
+                <p v-if="it.motivo" class="text-xs text-zinc-500">{{ it.motivo }}</p>
+              </li>
+            </ul>
+          </template>
+          <p v-else class="text-zinc-500">Sin información de recordatorios.</p>
         </section>
 
         <section>

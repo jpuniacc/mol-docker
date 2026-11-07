@@ -33,6 +33,26 @@ export type CasoSeguimientoDetalle = FilaBandejaSeguimiento & {
   medios_pago_resumen: string | null
   firma_completa: boolean
   webpay_matricula_autorizada?: boolean
+  recordatorios?: RecordatoriosCaso
+}
+
+export type EstadoRecordatorio = 'programado' | 'simulado' | 'enviado' | 'omitido' | 'fallo' | 'no_aplica'
+
+export type RecordatorioItem = {
+  tipo: 'mail_2h' | 'sms_24h'
+  estado: EstadoRecordatorio
+  programado_para: string | null
+  enviado_at: string | null
+  destino: string | null
+  motivo: string | null
+}
+
+export type RecordatoriosCaso = {
+  habilitado: boolean
+  dry_run: boolean
+  pago_matricula_at: string | null
+  firma_completa: boolean
+  items: RecordatorioItem[]
 }
 
 export type FiltroAuxSeguimiento = 'sin_contactar_7d' | 'mail_2h_pdte' | 'sms_24h_pdte'
