@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch, type Component } from 'vue'
-import { ChevronDown, Mail, MessageCircle, MessageSquare, Pencil, Phone } from 'lucide-vue-next'
+import { computed, ref, watch } from 'vue'
+import { ChevronDown, Mail, MessageSquare } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -14,11 +14,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import SeguimientoTimelineEvento from './SeguimientoTimelineEvento.vue'
 import SeguimientoComposerCorreo from '@/components/seguimiento/SeguimientoComposerCorreo.vue'
 import SeguimientoComposerSms from '@/components/seguimiento/SeguimientoComposerSms.vue'
 import type { CasoSeguimientoDetalle, ContactoSeguimiento } from '@/services/seguimientoRematriculaApi'
 import {
-  FILTROS_TIMELINE, formatearTelefono, tipoEvento, paginaTimeline, agruparTimeline,
+  FILTROS_TIMELINE, formatearTelefono, paginaTimeline, agruparTimeline,
   leerFiltroTimeline, guardarFiltroTimeline,
 } from '@/utils/seguimientoDrawer'
 import {
@@ -82,31 +83,6 @@ function valorProp(v: string | null | undefined): string {
   if (v == null || !String(v).trim()) return '—'
   return String(v).trim()
 }
-
-function fmtFecha(iso: string | null): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString('es-CL', {
-    timeZone: 'America/Santiago',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-function iconoCanal(canal: string, origen: string): Component {
-  if (origen === 'sistema') return Pencil
-  const c = canal.trim().toLowerCase()
-  if (c === 'llamada' || c === 'telefono' || c === 'teléfono' || c === 'presencial') return Phone
-  if (['correo', 'email', 'mail'].includes(c)) return Mail
-  if (c === 'sms') return MessageSquare
-  if (c === 'whatsapp') return MessageCircle
-  return Pencil
-}
-
 
 </script>
 
@@ -308,19 +284,9 @@ function iconoCanal(canal: string, origen: string): Component {
             <p v-if="timeline.total === 0" class="text-zinc-500">{{ bitacora.length === 0 ? 'Sin eventos aún' : 'Sin eventos de este tipo' }}</p>
             <div v-for="grupo in gruposTimeline" :key="grupo.key" class="mb-4">
               <h4 class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{{ grupo.label }}</h4>
-              <ul class="ml-1 border-l border-zinc-200">
-                <li v-for="ev in grupo.eventos" :key="ev.id" class="relative min-w-0 pb-4 pl-4 last:pb-1">
-                  <span class="absolute -left-[5px] top-1.5 size-2 rounded-full bg-[#FF5B00]" aria-hidden="true" />
-                  <div class="flex flex-wrap items-center gap-1.5 text-xs text-zinc-600">
-                    <component :is="iconoCanal(ev.canal, ev.origen)" class="size-3.5 shrink-0" aria-hidden="true" />
-                    <span class="rounded-full bg-zinc-100 px-2 py-0.5">{{ FILTROS_TIMELINE.find(f => f.tipo === tipoEvento(ev))?.label }}</span>
-                    <span v-if="tipoEvento(ev) === 'nota' && ev.canal !== 'nota'">{{ ev.canal }}</span>
-                    <span v-if="ev.origen === 'auto'">Automático</span>
-                  </div>
-                  <p v-if="ev.nota" class="mt-1 whitespace-pre-line break-words font-medium text-zinc-800 [overflow-wrap:anywhere]">{{ ev.nota }}</p>
-                  <div class="mt-1 break-words text-xs text-zinc-500 [overflow-wrap:anywhere]">
-                    <span v-if="ev.origen !== 'sistema'">{{ ev.autor_email }} · </span>{{ fmtFecha(ev.created_at) }} (Chile)
-                  </div>
+              <ul class="space-y-2">
+                <li v-for="ev in grupo.eventos" :key="`${filtroTimeline}-${limiteTimeline}-${ev.id}`" class="min-w-0">
+                  <SeguimientoTimelineEvento :evento="ev" />
                 </li>
               </ul>
             </div>

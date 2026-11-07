@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { shallowMount } from '@vue/test-utils'
 import SeguimientoCasoDrawer from './SeguimientoCasoDrawer.vue'
+import SeguimientoTimelineEvento from './SeguimientoTimelineEvento.vue'
 import type { CasoSeguimientoDetalle, ContactoSeguimiento } from '@/services/seguimientoRematriculaApi'
 vi.mock('@/components/seguimiento/SeguimientoComposerCorreo.vue', () => ({ default: { template: '<div />' } }))
 vi.mock('@/components/seguimiento/SeguimientoComposerSms.vue', () => ({ default: { template: '<div />' } }))
@@ -33,7 +34,7 @@ describe('drawer timeline integrado',()=>{
   expect(w.text()).toContain('Nombre Consejero')
   expect(w.text()).toContain('consejero@uniacc.cl')
   expect(w.text()).toContain('10 de 35 eventos')
-  expect(w.findAll('p').filter(p=>/^Evento \d+$/.test(p.text()))).toHaveLength(10)
+  expect(w.findAllComponents(SeguimientoTimelineEvento)).toHaveLength(10)
   expect(w.get('[role="group"]').classes()).toContain('flex-wrap')
   w.unmount()
  })

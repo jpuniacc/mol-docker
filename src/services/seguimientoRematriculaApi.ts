@@ -22,6 +22,9 @@ export type FilaBandejaSeguimiento = {
   ultimo_contacto: string | null
   ultimo_contacto_canal: string | null
   proxima_accion: string | null
+  proxima_accion_at?: string | null
+  proxima_accion_canales?: string[]
+  proxima_accion_comentario?: string | null
   email_ejecutivo: string | null
 }
 
@@ -92,6 +95,10 @@ export type ContactoSeguimiento = {
   proxima_accion: string | null
   proxima_accion_en: string | null
   created_at: string
+  fecha_contacto?: string | null
+  proxima_accion_at?: string | null
+  proxima_accion_canales?: string[]
+  proxima_accion_comentario?: string | null
 }
 
 function headersSesion(): HeadersInit {
@@ -297,6 +304,10 @@ export async function postSeguimientoContacto(
     canal: string
     nota?: string | null
     proxima_accion?: string | null
+    fecha_contacto?: string | null
+    proxima_accion_at?: string | null
+    proxima_accion_canales?: string[]
+    proxima_accion_comentario?: string | null
   },
 ): Promise<{ contacto: ContactoSeguimiento | null; error: string | null }> {
   const r = await postJson(

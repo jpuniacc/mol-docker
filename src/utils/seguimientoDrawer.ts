@@ -32,7 +32,7 @@ export function paginaTimeline(items: ContactoSeguimiento[], filtro: FiltroTimel
   const conteos: Record<FiltroTimeline, number> = { todos: items.length, correo: 0, sms: 0, whatsapp: 0, nota: 0, sistema: 0 }
   for (const ev of items) conteos[tipoEvento(ev)]++
   const filtrados = items.filter((ev) => filtro === 'todos' || tipoEvento(ev) === filtro)
-    .sort((a, b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0))
+    .sort((a, b) => (Date.parse(b.fecha_contacto || b.created_at) || 0) - (Date.parse(a.fecha_contacto || a.created_at) || 0))
   return { eventos: filtrados.slice(0, limite), restantes: Math.max(0, filtrados.length - limite), total: filtrados.length, conteos }
 }
 
@@ -51,7 +51,7 @@ export function agruparTimeline(items: ContactoSeguimiento[], ahora = new Date()
   const ayer = ayerFecha.toISOString().slice(0, 10)
   const grupos: Array<{ key: string; label: string; eventos: ContactoSeguimiento[] }> = []
   for (const ev of items) {
-    const key = claveDia(new Date(ev.created_at))
+    const key = claveDia(new Date(ev.fecha_contacto || ev.created_at))
     let grupo = grupos.find((g) => g.key === key)
     if (!grupo) {
       const label = key === hoy ? 'Hoy' : key === ayer ? 'Ayer' : key === 'sin-fecha' ? 'Sin fecha' : key.split('-').reverse().join('-')

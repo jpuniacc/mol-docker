@@ -47,3 +47,14 @@ describe('drawer CRM', () => {
   expect(()=>guardarFiltroTimeline('nota',bloqueado)).not.toThrow()
  })
 })
+
+
+describe('fecha real de contacto',()=>{
+ it('ordena y agrupa por fecha_contacto cuando existe',()=>{
+  const newer=evento(100,'llamada','manual','2026-11-07T17:00:00Z')
+  const older={...evento(101,'llamada','manual','2026-11-08T17:00:00Z'),fecha_contacto:'2026-11-06T17:00:00Z'}
+  const p=paginaTimeline([older,newer],'todos',10)
+  expect(p.eventos.map(e=>e.id)).toEqual(['100','101'])
+  expect(agruparTimeline(p.eventos,new Date('2026-11-07T18:00:00Z')).map(g=>g.label)).toEqual(['Hoy','Ayer'])
+ })
+})

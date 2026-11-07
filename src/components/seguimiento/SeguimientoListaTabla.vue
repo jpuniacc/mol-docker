@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SeguimientoProximaAccion from './SeguimientoProximaAccion.vue'
 import { Button } from '@/components/ui/button'
 import type { FilaBandejaSeguimiento } from '@/services/seguimientoRematriculaApi'
 import {
@@ -49,7 +50,7 @@ function detalleEtapa(fila: FilaBandejaSeguimiento): string {
             <th class="px-3 py-2.5 font-medium">Alumno</th>
             <th class="px-3 py-2.5 font-medium">Etapa</th>
             <th class="px-3 py-2.5 font-medium">Último contacto</th>
-            <th class="px-3 py-2.5 font-medium">Próxima</th>
+            <th class="px-3 py-2.5 font-medium">Próxima acción</th>
             <th class="px-3 py-2.5 font-medium">Ejecutivo</th>
           </tr>
         </thead>
@@ -88,7 +89,9 @@ function detalleEtapa(fila: FilaBandejaSeguimiento): string {
               </template>
               <template v-else>—</template>
             </td>
-            <td class="px-3 py-2.5 text-zinc-700">{{ fila.proxima_accion ?? '—' }}</td>
+            <td class="min-w-[180px] px-3 py-2.5 text-zinc-700">
+              <SeguimientoProximaAccion :at="fila.proxima_accion_at" :canales="fila.proxima_accion_canales" :comentario="fila.proxima_accion_comentario" :legacy="fila.proxima_accion" />
+            </td>
             <td class="px-3 py-2.5 text-xs text-zinc-600">{{ fila.email_ejecutivo ?? '—' }}</td>
           </tr>
           <tr v-if="!cargando && filas.length === 0">

@@ -2,14 +2,6 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -17,7 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
+import SeguimientoNotaDialog from '@/components/seguimiento/SeguimientoNotaDialog.vue'
+import type { NotaContactoPayload } from '@/utils/seguimientoNota'
 import SeguimientoEmbudoBar from '@/components/seguimiento/SeguimientoEmbudoBar.vue'
 import SeguimientoListaTabla from '@/components/seguimiento/SeguimientoListaTabla.vue'
 import SeguimientoBoard from '@/components/seguimiento/SeguimientoBoard.vue'
@@ -76,9 +69,8 @@ const vista = ref<VistaCrm>('lista')
 const casoAbierto = ref<CasoSeguimientoDetalle | null>(null)
 const bitacora = ref<ContactoSeguimiento[]>([])
 const dialogContacto = ref(false)
-const canalContacto = ref('nota')
-const notaContacto = ref('')
-const proximaAccion = ref('')
+const errorContacto = ref<string | null>(null)
+watch(dialogContacto, () => { errorContacto.value = null })
 const guardandoContacto = ref(false)
 
 const periodoOk = computed(
@@ -241,25 +233,21 @@ async function abrirCaso(fila: FilaBandejaSeguimiento): Promise<void> {
   bitacora.value = r.bitacora
 }
 
-async function guardarContacto(): Promise<void> {
+async function guardarContacto(nota: NotaContactoPayload): Promise<void> {
   if (!casoAbierto.value || !periodoOk.value) return
+  errorContacto.value = null
   guardandoContacto.value = true
   try {
     const r = await postSeguimientoContacto(casoAbierto.value.codcli, {
       anio: periodoActivo.anio!,
       semestre: periodoActivo.semestre!,
-      canal: canalContacto.value,
-      nota: notaContacto.value.trim() || null,
-      proxima_accion: proximaAccion.value.trim() || null,
+      ...nota,
     })
     if (r.error) {
-      error.value = r.error
+      errorContacto.value = r.error
       return
     }
     dialogContacto.value = false
-    notaContacto.value = ''
-    proximaAccion.value = ''
-    canalContacto.value = 'nota'
     await abrirCaso(casoAbierto.value)
     await cargar()
   } finally {
@@ -418,56 +406,11 @@ function setVista(v: VistaCrm): void {
       @enviado="abrirCaso(casoAbierto)"
     />
 
-    <Dialog :open="dialogContacto" @update:open="(v) => (dialogContacto = v)">
-      <DialogContent class="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Agregar nota</DialogTitle>
-        </DialogHeader>
-        <div class="space-y-3">
-          <div>
-            <Label>Canal</Label>
-            <Select v-model="canalContacto">
-              <SelectTrigger class="mt-1 w-full">
-                <SelectValue placeholder="Canal" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="nota">Nota</SelectItem>
-                <SelectItem value="llamada">Llamada</SelectItem>
-                <SelectItem value="correo">Correo</SelectItem>
-                <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                <SelectItem value="sms">SMS</SelectItem>
-                <SelectItem value="presencial">Presencial</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Nota</Label>
-            <Textarea v-model="notaContacto" class="mt-1" rows="4" />
-          </div>
-          <div>
-            <Label>Próxima acción (opcional)</Label>
-            <Input v-model="proximaAccion" class="mt-1" />
-          </div>
-        </div>
-        <DialogFooter class="gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            class="cursor-pointer"
-            @click="dialogContacto = false"
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="button"
-            class="cursor-pointer bg-[#FF5B00] hover:bg-[#FF5B00]/90"
-            :disabled="guardandoContacto"
-            @click="guardarContacto"
-          >
-            Guardar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <SeguimientoNotaDialog
+      v-model:open="dialogContacto"
+      :guardando="guardandoContacto"
+      :error="errorContacto"
+      @guardar="guardarContacto"
+    />
   </div>
 </template>
