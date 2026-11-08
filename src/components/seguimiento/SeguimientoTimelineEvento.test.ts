@@ -36,3 +36,8 @@ describe('tarjetas de todos los eventos',()=>{
   w.unmount()
  })
 })
+
+it('respuesta manual se distingue y no interpreta comentario como HTML/plantilla',()=>{
+ const evento:any={id:'respuesta',canal:'correo',origen:'manual',autor_email:'a@uniacc.cl',created_at:'2026-11-07T15:00:00Z',es_respuesta:true,nota:'<img src=x onerror=alert(1)>',resultado:'Respuesta registrada'}
+ const w=mount(SeguimientoTimelineEvento,{props:{evento}});expect(w.text()).toContain('Alumno respondió');expect(w.find('img').exists()).toBe(false)
+})

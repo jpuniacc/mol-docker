@@ -6,11 +6,12 @@ import { FILTROS_TIMELINE, tipoEvento } from '@/utils/seguimientoDrawer'
 import { etiquetaFechaChile, CANALES_ACCION } from '@/utils/seguimientoNota'
 import SeguimientoProximaAccion from './SeguimientoProximaAccion.vue'
 const props = defineProps<{ evento: ContactoSeguimiento }>()
-const tipo = computed(() => FILTROS_TIMELINE.find(f => f.tipo === tipoEvento(props.evento))?.label || 'Nota')
+const tipo = computed(() => props.evento.es_respuesta ? 'Respuesta' : FILTROS_TIMELINE.find(f => f.tipo === tipoEvento(props.evento))?.label || 'Nota')
 const autor = computed(() => props.evento.origen === 'sistema' ? 'Sistema' : props.evento.autor_email || 'Sin autor')
 const canal = computed(() => CANALES_ACCION.find(c => c.value === props.evento.canal)?.label || props.evento.canal)
 const detalle = computed(() => {
   const nota = props.evento.nota?.trim() || ''
+  if(props.evento.es_respuesta)return {titulo:'Alumno respondió',plantilla:'',preview:'',comentario:nota}
   // Formato existente de bitácora de correo: no interpretar HTML ni inventar contenido.
   const mail = /^\[plantilla:([^\]]+)\]\s*asunto=([\s\S]*?)\s\|\spreview=([\s\S]*)$/.exec(nota)
   if (mail) return { titulo: mail[2] || 'Correo enviado', plantilla: mail[1], preview: mail[3], comentario: '' }

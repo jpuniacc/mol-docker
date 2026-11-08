@@ -417,6 +417,12 @@ const routes = [
           import('../views/dashboard/rematricula/RematriculaSeguimientoView.vue'),
       },
       {
+        path: '/dashboard/metricas-seguimiento',
+        name: 'dashboard-metricas-seguimiento',
+        meta: { requiresAdminAdmision:true, requiresSoloGrupoDvU:true, requiresPerfilUsuarioIn:[1,2,3] },
+        component:()=>import('../views/dashboard/rematricula/MetricasSeguimientoView.vue'),
+      },
+      {
         path: '/dashboard/bandeja-seguimiento',
         name: 'dashboard-bandeja-seguimiento',
         meta: {

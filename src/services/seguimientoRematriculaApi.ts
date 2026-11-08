@@ -86,6 +86,8 @@ export type KpiBandejaSeguimiento = {
 }
 
 export type ContactoSeguimiento = {
+  es_respuesta?: boolean
+  respuesta_a_contacto_id?: string | null
   id: string
   canal: string
   origen: string
@@ -104,7 +106,7 @@ export type ContactoSeguimiento = {
   proxima_accion_comentario?: string | null
 }
 
-function headersSesion(): HeadersInit {
+export function headersSesion(): HeadersInit {
   const auth = useAuthStore()
   const h: Record<string, string> = { Accept: 'application/json' }
   const perfil = auth.perfil?.codigo_perfil_usuario
@@ -418,5 +420,11 @@ export async function fetchListaAcciones(scope:ScopeAcciones,grupo:'vencidas'|'h
 }
 export async function patchEstadoAccion(id:string,estado:'completada'|'cancelada',anio:number,semestre:number):Promise<{error:string|null}>{
  const r=await postJson(`/api/rematricula/seguimiento/proximas-acciones/${encodeURIComponent(id)}/estado?${paramsAgenda({anio,semestre})}`,{estado},'PATCH')
+ return {error:r.ok?null:r.error}
+}
+
+export type RespuestaSeguimientoPayload={requestId:string;contactoId:string|null;canal:string;fecha:string;comentario:string|null}
+export async function postSeguimientoRespuesta(codcli:string,anio:number,semestre:number,body:RespuestaSeguimientoPayload):Promise<{error:string|null}>{
+ const r=await postJson(`/api/rematricula/seguimiento/casos/${encodeURIComponent(codcli)}/respuestas?${new URLSearchParams({anio:String(anio),semestre:String(semestre)})}`,body)
  return {error:r.ok?null:r.error}
 }

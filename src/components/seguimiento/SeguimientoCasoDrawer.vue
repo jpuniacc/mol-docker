@@ -2,6 +2,8 @@
 import { computed, ref, watch } from 'vue'
 import {DialogRoot,DialogPortal,DialogOverlay,DialogContent,DialogTitle,DialogDescription} from 'radix-vue'
 import SeguimientoAccionesCaso from './SeguimientoAccionesCaso.vue'
+import SeguimientoRespuestaDialog from './SeguimientoRespuestaDialog.vue'
+import { postSeguimientoRespuesta,type RespuestaSeguimientoPayload } from '@/services/seguimientoRematriculaApi'
 import { patchEstadoAccion } from '@/services/seguimientoRematriculaApi'
 import { ChevronDown, Mail, MessageSquare } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
@@ -55,6 +57,8 @@ async function gestionarAccion(input:{id:string;estado:'completada'|'cancelada'}
   emit('enviado')
  }finally{gestionandoAccion.value=null}
 }
+const openRespuesta=ref(false),guardandoRespuesta=ref(false),errorRespuesta=ref<string|null>(null)
+async function guardarRespuesta(payload:RespuestaSeguimientoPayload){guardandoRespuesta.value=true;errorRespuesta.value=null;try{const r=await postSeguimientoRespuesta(props.caso.codcli,props.anio,props.semestre,payload);if(r.error){errorRespuesta.value=r.error;return}openRespuesta.value=false;emit('enviado')}finally{guardandoRespuesta.value=false}}
 const openCorreo = ref(false)
 const openSms = ref(false)
 
@@ -103,7 +107,7 @@ function valorProp(v: string | null | undefined): string {
 <template>
   <DialogRoot :open="true" @update:open="v=>!v && emit('cerrar')"><DialogPortal>
     <DialogOverlay class="fixed inset-0 z-50 bg-black/40" />
-    <DialogContent class="fixed inset-y-0 right-0 z-[51] flex h-[100dvh] w-full max-w-none flex-col overflow-y-auto border-l bg-white pb-[env(safe-area-inset-bottom)] shadow-xl md:max-w-[480px]" aria-label="Detalle del caso" @close-auto-focus="devolverFoco" @escape-key-down="e=>{if(openCorreo || openSms)e.preventDefault()}">
+    <DialogContent class="fixed inset-y-0 right-0 z-[51] flex h-[100dvh] w-full max-w-none flex-col overflow-y-auto border-l bg-white pb-[env(safe-area-inset-bottom)] shadow-xl md:max-w-[480px]" aria-label="Detalle del caso" @close-auto-focus="devolverFoco" @escape-key-down="e=>{if(openCorreo || openSms || openRespuesta)e.preventDefault()}">
       <DialogDescription class="sr-only">Información e historial del caso de rematrícula</DialogDescription>
       <div class="sticky top-0 z-10 border-b border-zinc-100 bg-white p-4 md:p-5">
         <div class="mb-3 flex items-start justify-between gap-2">
@@ -190,6 +194,7 @@ function valorProp(v: string | null | undefined): string {
       </div>
 
       <div class="space-y-5 p-5 text-sm">
+        <Button type="button" variant="outline" class="min-h-11 w-full" @click="errorRespuesta=null;openRespuesta=true">Alumno respondió</Button>
         <SeguimientoAccionesCaso :acciones="bitacora" :ocupado="gestionandoAccion" :error="errorAccion" @gestionar="gestionarAccion" />
         <section>
           <h3 class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
@@ -308,6 +313,7 @@ function valorProp(v: string | null | undefined): string {
       <div v-if="!esMatriculado" class="sticky bottom-0 border-t bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"><Button type="button" class="min-h-11 w-full bg-[#FF5B00] text-white" @click="emit('agregarNota')">Agregar nota</Button></div>
     </DialogContent></DialogPortal>
 
+    <SeguimientoRespuestaDialog v-model:open="openRespuesta" :bitacora="bitacora" :guardando="guardandoRespuesta" :error="errorRespuesta" @guardar="guardarRespuesta" />
     <SeguimientoComposerCorreo
       v-if="!esMatriculado"
       :open="openCorreo"
