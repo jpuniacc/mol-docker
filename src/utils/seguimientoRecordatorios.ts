@@ -15,6 +15,6 @@ export function timelineRecordatorios<T extends {id:string;outbox_id?:string|nul
 
 /** Same safe historical codes as the API allowlist; never display unknown provider/contact text. */
 export function motivoCancelacionRecordatorio(code:string|null|undefined){
- const labels:Record<string,string>={etapa_o_elegibilidad_cambio:'La etapa o elegibilidad cambió',firma_completa:'Firma completa'}
+ const labels:Record<string,string>={etapa_o_elegibilidad_cambio:'La etapa o elegibilidad cambió',firma_completa:'Firma completa',espera_cae_o_ministerial:'En espera de CAE o beca ministerial'}
  return code&&Object.prototype.hasOwnProperty.call(labels,code)?labels[code]:'Motivo no disponible'
 }
