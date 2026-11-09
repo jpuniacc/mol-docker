@@ -1,3 +1,5 @@
+import type {RecordatorioEtapa,FiltrosRecordatorios} from '@/types/recordatoriosEtapa'
+export type {RecordatorioEtapa,FiltrosRecordatorios} from '@/types/recordatoriosEtapa'
 import { admisionApiBaseUrl } from '@/constants/admisionApi'
 import { useAuthStore } from '@/stores/auth'
 import { urlConCarteraEjecutivo } from '@/stores/carteraEjecutivo'
@@ -7,6 +9,8 @@ import type { EstadoOutboxUi } from '@/utils/seguimientoBandejaOutbox'
 export type SubetapaFormaPago = 'cae' | 'ministerial' | 'ambos' | 'resto' | null
 
 export type FilaBandejaSeguimiento = {
+  recordatorios_etapa?:RecordatorioEtapa[]
+  recordatorios_etapa_disponibles?:boolean
   codcli: string
   rut: string | null
   rut_norm: string | null
@@ -86,6 +90,8 @@ export type KpiBandejaSeguimiento = {
 }
 
 export type ContactoSeguimiento = {
+  outbox_id?:string|null
+  recordatorio_etapa?:RecordatorioEtapa
   es_respuesta?: boolean
   respuesta_a_contacto_id?: string | null
   id: string
@@ -209,7 +215,7 @@ export type ColumnaBoardSeguimiento = {
   filas: FilaBandejaSeguimiento[]
 }
 
-export async function fetchSeguimientoBandeja(opts: {
+export async function fetchSeguimientoBandeja(opts: FiltrosRecordatorios & {
   anio: number
   semestre: number
   chip?: ChipBandeja | null
@@ -234,6 +240,7 @@ export async function fetchSeguimientoBandeja(opts: {
   if (opts.subetapa) params.set('subetapa', opts.subetapa)
   if (opts.q?.trim()) params.set('q', opts.q.trim())
   if (opts.filtroAux) params.set('filtroAux', opts.filtroAux)
+  for(const k of ['recordatorio_estado','recordatorio_etapa','recordatorio_canal'] as const)if(opts[k])params.set(k,opts[k]!)
   if (opts.emailEjecutivoOverride?.trim()) {
     params.set('emailEjecutivo', opts.emailEjecutivoOverride.trim().toLowerCase())
   }
@@ -247,7 +254,7 @@ export async function fetchSeguimientoBandeja(opts: {
   }
 }
 
-export async function fetchSeguimientoBoard(opts: {
+export async function fetchSeguimientoBoard(opts: FiltrosRecordatorios & {
   anio: number
   semestre: number
   q?: string | null
@@ -265,6 +272,7 @@ export async function fetchSeguimientoBoard(opts: {
   })
   if (opts.q?.trim()) params.set('q', opts.q.trim())
   if (opts.filtroAux) params.set('filtroAux', opts.filtroAux)
+  for(const k of ['recordatorio_estado','recordatorio_etapa','recordatorio_canal'] as const)if(opts[k])params.set(k,opts[k]!)
   if (opts.emailEjecutivoOverride?.trim()) {
     params.set('emailEjecutivo', opts.emailEjecutivoOverride.trim().toLowerCase())
   }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SeguimientoRecordatorios from './SeguimientoRecordatorios.vue'
 import { computed } from 'vue'
 import { ChevronRight } from 'lucide-vue-next'
 import type { ContactoSeguimiento } from '@/services/seguimientoRematriculaApi'
@@ -22,7 +23,8 @@ const detalle = computed(() => {
 })
 </script>
 <template>
-  <details :data-evento-id="evento.id" class="group min-w-0 rounded-lg border border-zinc-200 bg-white">
+  <SeguimientoRecordatorios v-if="evento.recordatorio_etapa" :items="[evento.recordatorio_etapa]" :disponible="true" :detalles="true" />
+  <details v-else :data-evento-id="evento.id" class="group min-w-0 rounded-lg border border-zinc-200 bg-white">
     <summary class="cursor-pointer list-none rounded-lg px-3 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600 [&::-webkit-details-marker]:hidden">
       <div class="flex min-w-0 items-start gap-2">
         <ChevronRight class="mt-0.5 size-4 shrink-0 text-zinc-500 transition-transform group-open:rotate-90" aria-hidden="true" />

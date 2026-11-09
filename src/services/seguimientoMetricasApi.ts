@@ -1,3 +1,4 @@
+export type {MetricasRecordatorios} from '@/types/recordatoriosEtapa'
 import {admisionApiBaseUrl} from '@/constants/admisionApi'
 import {headersSesion} from './seguimientoRematriculaApi'
 export type CanalMetrica='correo'|'sms'|'whatsapp'|'llamada'|'nota'|'otros'

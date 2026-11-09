@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type {FiltrosRecordatorios} from '@/types/recordatoriosEtapa'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import SeguimientoFiltrosSheet from '@/components/seguimiento/SeguimientoFiltrosSheet.vue'
@@ -63,9 +64,10 @@ const error = ref<string | null>(null)
 const chipActivo = ref<ChipBandeja | null>(null)
 const subetapa = ref<SubetapaFormaPago>(null)
 const filtroAux = ref<FiltroAuxSeguimiento | null>(null)
+const recordatorios=ref<FiltrosRecordatorios>({})
 const q = ref('')
 const filtrosMovil=ref(false)
-const cantidadFiltros=computed(()=>Number(!!chipActivo.value)+Number(!!subetapa.value)+Number(!!filtroAux.value)+Number(!!filtroEjecutivo.value))
+const cantidadFiltros=computed(()=>Number(!!chipActivo.value)+Number(!!subetapa.value)+Number(!!filtroAux.value)+Number(!!filtroEjecutivo.value)+Object.values(recordatorios.value).filter(Boolean).length)
 const page = ref(0)
 const pageSize = 25
 /** Supervisor: '' = Ver todas (sin override API); email = acota cartera. */
@@ -150,6 +152,7 @@ async function cargar(): Promise<void> {
         semestre,
         q: q.value,
         filtroAux: filtroAux.value,
+        ...recordatorios.value,
         emailEjecutivoOverride: emailOverride,
       })
       if (board.error) {
@@ -165,6 +168,7 @@ async function cargar(): Promise<void> {
         subetapa: chipActivo.value === 'forma_pago' ? subetapa.value : null,
         q: q.value,
         filtroAux: filtroAux.value,
+        ...recordatorios.value,
         limit: pageSize,
         offset: page.value * pageSize,
         emailEjecutivoOverride: emailOverride,
@@ -192,6 +196,7 @@ watch(
       filtroEjecutivo.value,
       vista.value,
       filtroAux.value,
+      JSON.stringify(recordatorios.value),
     ] as const,
   () => {
     void cargar()
@@ -200,6 +205,7 @@ watch(
 )
 
 function limpiarFiltros(): void {
+  recordatorios.value={}
   chipActivo.value = null
   filtroAux.value = null
   subetapa.value = null
@@ -267,9 +273,10 @@ async function refrescarCaso(){
 }
 
 function buscar(){if(page.value===0)void cargar();else page.value=0}
-function aplicarFiltros(v:{chip:ChipBandeja|null;subetapa:SubetapaFormaPago;filtroAux:FiltroAuxSeguimiento|null;ejecutivo:string}){
- const antes=JSON.stringify([chipActivo.value,subetapa.value,filtroAux.value,filtroEjecutivo.value,page.value]);chipActivo.value=v.chip;subetapa.value=v.subetapa;filtroAux.value=v.filtroAux;filtroEjecutivo.value=esSupervisor.value?v.ejecutivo:'';page.value=0
- if(antes===JSON.stringify([chipActivo.value,subetapa.value,filtroAux.value,filtroEjecutivo.value,page.value]))void cargar()
+function aplicarFiltros(v:{recordatorios?:FiltrosRecordatorios;chip:ChipBandeja|null;subetapa:SubetapaFormaPago;filtroAux:FiltroAuxSeguimiento|null;ejecutivo:string}){
+ const actual=()=>JSON.stringify([chipActivo.value,subetapa.value,filtroAux.value,filtroEjecutivo.value,recordatorios.value,page.value]);const antes=actual()
+ recordatorios.value={...v.recordatorios};chipActivo.value=v.chip;subetapa.value=v.subetapa;filtroAux.value=v.filtroAux;filtroEjecutivo.value=esSupervisor.value?v.ejecutivo:'';page.value=0
+ if(antes===actual())void cargar()
 }
 function setVista(v: VistaCrm): void {
   vista.value = v
@@ -365,6 +372,7 @@ function setVista(v: VistaCrm): void {
           :kpi="kpi"
           :chip-activo="chipActivo"
           :filtro-aux="filtroAux"
+          :recordatorios="recordatorios" @recordatorios="recordatorios=$event;page=0"
           @seleccionar-chip="seleccionarChip"
           @seleccionar-alerta="seleccionarAlerta"
           @limpiar="limpiarFiltros"
@@ -413,7 +421,7 @@ function setVista(v: VistaCrm): void {
       </main>
     </div>
 
-    <SeguimientoFiltrosSheet v-model:open="filtrosMovil" :value="{chip:chipActivo,subetapa,filtroAux,ejecutivo:filtroEjecutivo}" :supervisor="esSupervisor" :ejecutivos="ejecutivosEnCarga" :periodo="periodoActivo.label || '—'" @aplicar="aplicarFiltros" />
+    <SeguimientoFiltrosSheet v-model:open="filtrosMovil" :value="{chip:chipActivo,subetapa,filtroAux,ejecutivo:filtroEjecutivo,recordatorios}" :supervisor="esSupervisor" :ejecutivos="ejecutivosEnCarga" :periodo="periodoActivo.label || '—'" @aplicar="aplicarFiltros" />
     <SeguimientoCasoDrawer
       v-if="casoAbierto"
       :caso="casoAbierto"

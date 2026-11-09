@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import {computed,ref,watch} from 'vue'
+import SeguimientoRecordatoriosMetricas from '@/components/seguimiento/SeguimientoRecordatoriosMetricas.vue'
+import type {MetricasRecordatorios} from '@/services/seguimientoMetricasApi'
 import {useAuthStore} from '@/stores/auth'
 import {usePeriodoActivoStore} from '@/stores/periodoActivo'
 import {getMetricas,csvMetricas,type ResumenMetricas,type ScopeMetricas,type CanalMetrica,type FilaMetrica} from '@/services/seguimientoMetricasApi'
@@ -11,12 +13,13 @@ import {fechaHoraChileInput,etiquetaFechaChile,type NotaContactoPayload} from '@
 const auth=useAuthStore(),periodo=usePeriodoActivoStore(),jefatura=computed(()=>[1,2].includes(Number(auth.perfil?.codigo_perfil_usuario))),hoy=fechaHoraChileInput(new Date().toISOString()).slice(0,10)
 const anio=ref<number|null>(periodo.anio??null),semestre=ref<number|null>(periodo.semestre??null),desde=ref(hoy.slice(0,7)+'-01'),hasta=ref(hoy),autor=ref(auth.email??''),data=ref<ResumenMetricas|null>(null),opciones=ref<string[]>([]),cargando=ref(false),error=ref<string|null>(null),sheet=ref(false),metrica=ref('contactados'),casos=ref<{codcli:string;nombre_alumno:string|null;nombre_carrera:string|null}[]>([]),totalCasos=ref(0),pagina=ref(0),errorCasos=ref<string|null>(null)
 const caso=ref<CasoSeguimientoDetalle|null>(null),bitacora=ref<ContactoSeguimiento[]>([]),drawerPeriodo=ref({anio:0,semestre:0}),nota=ref(false),guardandoNota=ref(false),errorNota=ref<string|null>(null),scopeAplicado=ref<ScopeMetricas|null>(null)
+const automaticos=ref<MetricasRecordatorios|null>(null),errorAutomaticos=ref<string|null>(null)
 let generation=0,caseGeneration=0
 const canales:{key:CanalMetrica;label:string}[]=[{key:'correo',label:'Correo'},{key:'sms',label:'SMS'},{key:'whatsapp',label:'WhatsApp'},{key:'llamada',label:'Llamada'},{key:'nota',label:'Nota'},{key:'otros',label:'Otros (incluye presencial)'}]
-async function cargar(){const id=++generation;cargando.value=true;error.value=null;data.value=null;casos.value=[];totalCasos.value=0;caseGeneration++;sheet.value=false
+async function cargar(){const id=++generation;automaticos.value=null;errorAutomaticos.value=null;cargando.value=true;error.value=null;data.value=null;casos.value=[];totalCasos.value=0;caseGeneration++;sheet.value=false
  if(!anio.value||!semestre.value){error.value='Selecciona período académico';cargando.value=false;return}
  const scope:ScopeMetricas={anio:anio.value,semestre:semestre.value,desde:desde.value,hasta:hasta.value,autor:jefatura.value?autor.value:auth.email??''}
- const result=await getMetricas<{resumen:ResumenMetricas}>('resumen',scope);if(id!==generation)return
+ const [result,auto]=await Promise.all([getMetricas<{resumen:ResumenMetricas}>('resumen',scope),getMetricas<{recordatorios:MetricasRecordatorios}>('recordatorios',scope)]);if(id!==generation)return;automaticos.value=auto.data?.recordatorios??null;errorAutomaticos.value=auto.error
  if(result.error||!result.data?.resumen){error.value=result.error||'Respuesta inválida';cargando.value=false;return}data.value=result.data.resumen;scopeAplicado.value=scope;pagina.value=0
  if(jefatura.value){const all=await getMetricas<{consejeros:FilaMetrica[]}>('consejeros',scope);if(id!==generation)return;if(all.error){error.value=all.error;data.value=null;cargando.value=false;return}opciones.value=[...new Set([auth.email??'',...(all.data?.consejeros??[]).map(c=>c.autor).filter(a=>a!=='__sin_autor__')])].sort()}
  cargando.value=false;await cargarCasos()
@@ -43,6 +46,7 @@ watch(metrica,()=>{pagina.value=0;void cargarCasos()})
    <button type="submit" :disabled="cargando" class="min-h-11 rounded bg-orange-600 px-4 text-white disabled:opacity-50">Aplicar</button>
   </form>
   <p v-if="cargando" role="status">Cargando métricas…</p><p v-if="error" role="alert" class="rounded border border-red-300 p-4 text-red-700">{{error}}</p>
+  <SeguimientoRecordatoriosMetricas :data="automaticos" :error="errorAutomaticos" :cargando="cargando" />
   <template v-if="data&&!cargando&&!error">
    <p class="text-xs text-zinc-500">Período {{data.anio}}/{{data.semestre}} · {{data.desde}} a {{data.hasta}} · corte stock {{etiquetaFechaChile(data.calculadoEn)}} (Chile). Instrumentación desde {{etiquetaFechaChile(data.instrumentacionDesde)}} (Chile). Progreso observado: {{data.progresoActualizadoEn?etiquetaFechaChile(data.progresoActualizadoEn):'N/D'}} (Chile).</p>
    <MetricasResumen :data="data" />

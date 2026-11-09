@@ -1,16 +1,20 @@
 <script setup lang="ts">
+import SeguimientoFiltrosRecordatorios from './SeguimientoFiltrosRecordatorios.vue'
+import type {FiltrosRecordatorios} from '@/types/recordatoriosEtapa'
 import { ORDEN_CHIPS_BANDEJA, ETIQUETA_CHIP_BANDEJA, numeroChipBandeja, type ChipBandeja } from '@/utils/seguimientoBandejaChip'
 import type { FiltroAuxSeguimiento, KpiBandejaSeguimiento } from '@/services/seguimientoRematriculaApi'
 
 const props = defineProps<{
   kpi: KpiBandejaSeguimiento | null
   chipActivo: ChipBandeja | null
+  recordatorios?:FiltrosRecordatorios
   filtroAux: FiltroAuxSeguimiento | null
   esSupervisor: boolean
   carteraLabel: string
 }>()
 
 const emit = defineEmits<{
+  recordatorios: [v:FiltrosRecordatorios]
   seleccionarChip: [chip: ChipBandeja]
   seleccionarAlerta: [alerta: FiltroAuxSeguimiento]
 }>()
@@ -101,5 +105,6 @@ const alertas: Array<{ id: FiltroAuxSeguimiento; label: string; conteo: () => nu
         </li>
       </ul>
     </section>
+  <SeguimientoFiltrosRecordatorios :model-value="recordatorios??{}" @update:model-value="emit('recordatorios',$event)" />
   </aside>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SeguimientoRecordatorios from './SeguimientoRecordatorios.vue'
 import SeguimientoCasoCard from './SeguimientoCasoCard.vue'
 import SeguimientoProximaAccion from './SeguimientoProximaAccion.vue'
 import { Button } from '@/components/ui/button'
@@ -53,6 +54,7 @@ function detalleEtapa(fila: FilaBandejaSeguimiento): string {
             <th class="px-3 py-2.5 font-medium">Etapa</th>
             <th class="px-3 py-2.5 font-medium">Último contacto</th>
             <th class="px-3 py-2.5 font-medium">Próxima acción</th>
+            <th class="px-3 py-2.5 font-medium">Recordatorios</th>
             <th class="px-3 py-2.5 font-medium">Ejecutivo</th>
           </tr>
         </thead>
@@ -94,13 +96,14 @@ function detalleEtapa(fila: FilaBandejaSeguimiento): string {
             <td class="min-w-[180px] px-3 py-2.5 text-zinc-700">
               <SeguimientoProximaAccion :at="fila.proxima_accion_at" :canales="fila.proxima_accion_canales" :comentario="fila.proxima_accion_comentario" :legacy="fila.proxima_accion" />
             </td>
+            <td class="min-w-[200px] px-3 py-2.5"><SeguimientoRecordatorios :items="fila.recordatorios_etapa" :disponible="fila.recordatorios_etapa_disponibles" /></td>
             <td class="px-3 py-2.5 text-xs text-zinc-600">{{ fila.email_ejecutivo ?? '—' }}</td>
           </tr>
           <tr v-if="!cargando && filas.length === 0">
-            <td colspan="5" class="px-3 py-10 text-center text-zinc-500">Sin filas</td>
+            <td colspan="6" class="px-3 py-10 text-center text-zinc-500">Sin filas</td>
           </tr>
           <tr v-if="cargando && filas.length === 0">
-            <td colspan="5" class="px-3 py-10 text-center text-zinc-500">Cargando…</td>
+            <td colspan="6" class="px-3 py-10 text-center text-zinc-500">Cargando…</td>
           </tr>
         </tbody>
       </table>

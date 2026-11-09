@@ -1,0 +1,30 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "include": [
+    "src/types/recordatoriosEtapa.ts",
+    "src/utils/seguimientoRecordatorios.ts",
+    "src/components/seguimiento/SeguimientoRecordatorios.vue",
+    "src/components/seguimiento/SeguimientoRecordatoriosMetricas.vue",
+    "src/components/seguimiento/SeguimientoFiltrosRecordatorios.vue"
+  ],
+  "exclude": [
+    "src/**/*.test.ts"
+  ],
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    },
+    "types": [],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "skipLibCheck": true
+  }
+}

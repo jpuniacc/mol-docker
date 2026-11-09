@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SeguimientoRecordatorios from './SeguimientoRecordatorios.vue'
+import {timelineRecordatorios} from '@/utils/seguimientoRecordatorios'
 import { computed, ref, watch } from 'vue'
 import {DialogRoot,DialogPortal,DialogOverlay,DialogContent,DialogTitle,DialogDescription} from 'radix-vue'
 import SeguimientoAccionesCaso from './SeguimientoAccionesCaso.vue'
@@ -64,7 +66,7 @@ const openSms = ref(false)
 
 const filtroTimeline = ref(leerFiltroTimeline())
 const limiteTimeline = ref(10)
-const timeline = computed(() => paginaTimeline(props.bitacora, filtroTimeline.value, limiteTimeline.value))
+const timeline = computed(() => paginaTimeline(timelineRecordatorios(props.bitacora,props.caso.recordatorios_etapa??[]), filtroTimeline.value, limiteTimeline.value))
 const gruposTimeline = computed(() => agruparTimeline(timeline.value.eventos))
 watch(filtroTimeline, (filtro) => {
   limiteTimeline.value = 10
@@ -227,6 +229,8 @@ function valorProp(v: string | null | undefined): string {
           <h3 class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
             Recordatorios automáticos
           </h3>
+          <SeguimientoRecordatorios :items="caso.recordatorios_etapa" :disponible="caso.recordatorios_etapa_disponibles" :detalles="true" />
+          <details v-if="caso.recordatorios" class="mt-3 rounded border p-3"><summary class="cursor-pointer text-xs">Compatibilidad: motor legacy postpago (no equivale al histórico por etapa)</summary>
           <template v-if="caso.recordatorios">
             <div class="mb-2 space-y-0.5 text-[13px] text-zinc-700">
               <p>
@@ -274,7 +278,7 @@ function valorProp(v: string | null | undefined): string {
               </li>
             </ul>
           </template>
-          <p v-else class="text-zinc-500">Sin información de recordatorios.</p>
+          <p v-else class="text-zinc-500">Sin información de recordatorios legacy.</p></details>
         </section>
 
         <section>
