@@ -75,6 +75,26 @@ function esApoyo(fila: FilaBeneficioPromedio): boolean {
   return (fila.codigo ?? '').trim() === CODIGO_APOYO_UNIACC
 }
 
+/**
+ * Con fuerzaAplica (reintegro), los flujos que el catálogo marca como no aplicables
+ * (NO_RENOVABLE / NO_VIGENTE / EN_REVISION) deben descontar como interna MOL_DVU.
+ */
+export function flujoParaCascade(
+  flujo: string | null,
+  fuerzaAplica: boolean | undefined,
+): string | null {
+  if (!fuerzaAplica) return flujo
+  if (
+    flujo === 'ESTATAL' ||
+    flujo === 'CONVENIO' ||
+    flujo === 'MOL_DVU' ||
+    flujo === 'FORMA_PAGO'
+  ) {
+    return flujo
+  }
+  return 'MOL_DVU'
+}
+
 /** Estatal sobre el saldo, luego ganadora interna, Apoyo 1756 y convenios. */
 function ordenCascade(filas: FilaBeneficioPromedio[]): FilaBeneficioPromedio[] {
   const vigentes = filas.filter(
@@ -106,7 +126,8 @@ export function filasBeneficioConPromedio(input: {
   const filas: FilaBeneficioPromedio[] = input.items.map((item) => {
     const cod = (item.cod_beneficio ?? '').trim() || null
     const cat = cod ? porCodigo.get(cod) : undefined
-    const flujo = cat?.flujo ?? item.flujo ?? null
+    const flujoCatalogo = cat?.flujo ?? item.flujo ?? null
+    const flujo = flujoParaCascade(flujoCatalogo, item.fuerzaAplica)
     // Campaña reintegro (fuerzaAplica): la beca se mantiene sin ajuste Art.13 por nota.
     const exige =
       !item.fuerzaAplica && flujo === 'MOL_DVU' && exigeMedicionPromedio(cat?.renovable)

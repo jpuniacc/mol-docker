@@ -276,6 +276,40 @@ describe('textoPorcentajeFila', () => {
     expect(textoPorcentajeFila(filas[0]!)).toBe('36 %')
   })
 
+  it('fuerzaAplica con flujo NO_RENOVABLE (Apoyo 1811) sí descuenta el arancel', () => {
+    const arancel = 4_140_000
+    const filas = filasBeneficioConPromedio({
+      items: [
+        {
+          slot: 1,
+          descripcion: 'Beneficio Apoyo UNIACC No Renovable',
+          cod_beneficio: '1811',
+          pct: 15,
+          sinMapear: false,
+          aplica: true,
+          flujo: 'NO_RENOVABLE',
+          fuerzaAplica: true,
+        },
+      ],
+      catalogo: [
+        {
+          codigo_beneficio: '1811',
+          flujo: 'NO_RENOVABLE',
+          renovable: 'BENEFICIO NO RENOVABLE',
+        },
+      ],
+      seleccionados: { 1: true },
+      arancelBruto: arancel,
+      promedio: 5.6,
+    })
+    expect(filas[0]).toMatchObject({
+      resultado: 'NO_APLICA',
+      porcAplica: 15,
+      monto: Math.round(arancel * 0.15),
+      flujo: 'MOL_DVU',
+    })
+  })
+
   it('la beca que baja conserva el porcentaje que queda', () => {
     expect(
       textoPorcentajeFila(

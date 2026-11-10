@@ -342,6 +342,7 @@ const puedeContinuarSelectorMedios = computed(() =>
     medioMatricula: medioPagoMatricula.value,
     medioArancel: medioPagoArancel.value,
     matriculaAutorizada: matriculaPagadaWebpay.value,
+    arancelAutorizado: arancelPagadoWebpay.value,
     arancelPorPagar: arancelPorPagarSelector.value,
     matriculaPorPagar: matriculaPorPagarSelector.value,
   }),
@@ -1792,6 +1793,11 @@ async function continuarSelectorMedios() {
 
   if (paso.tipo === 'firma') {
     alumnoCtx.marcarPasoAlcanzado(3)
+    const guardado = await alumnoCtx.flushBorrador()
+    if (!guardado) {
+      mostrarErrorRematricula('No se pudo guardar el avance antes de la firma. Reintenta Continuar.')
+      return
+    }
     void router.push({ name: 'matricula-alumno-firma' })
   }
 }
@@ -1923,6 +1929,11 @@ async function confirmarPagareMatricula() {
   })
   if (paso.tipo === 'firma') {
     alumnoCtx.marcarPasoAlcanzado(3)
+    const guardado = await alumnoCtx.flushBorrador()
+    if (!guardado) {
+      mostrarErrorRematricula('No se pudo guardar el avance antes de la firma. Reintenta Continuar.')
+      return
+    }
     void router.push({ name: 'matricula-alumno-firma' })
   }
 }

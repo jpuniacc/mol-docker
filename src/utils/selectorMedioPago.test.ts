@@ -79,4 +79,27 @@ describe('selectorMedioPago', () => {
       }),
     ).toBe(true)
   })
+
+  it('matrícula $0 con arancel Webpay autorizado deja Continuar (ir a firma)', () => {
+    expect(
+      puedeContinuar({
+        medioMatricula: null,
+        medioArancel: 'webpay',
+        matriculaAutorizada: false,
+        arancelAutorizado: true,
+        matriculaPorPagar: 0,
+        arancelPorPagar: 3_519_000,
+      }),
+    ).toBe(true)
+    expect(
+      puedeContinuar({
+        medioMatricula: null,
+        medioArancel: 'webpay',
+        matriculaAutorizada: false,
+        arancelAutorizado: false,
+        matriculaPorPagar: 0,
+        arancelPorPagar: 3_519_000,
+      }),
+    ).toBe(false)
+  })
 })

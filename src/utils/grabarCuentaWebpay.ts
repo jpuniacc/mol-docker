@@ -73,6 +73,7 @@ export function armarGrabarCuentaWebpay(input: GrabarCuentaWebpayInput): ArmadoC
   if (!Number.isInteger(montoArancel) || montoArancel < 0) {
     return { ok: false, error: 'Falta el saldo de arancel' }
   }
+  const matriculaCubierta = montoMatricula === 0
   const arancelCubierto = montoArancel === 0
   const beneficios = beneficiosDeLaCuenta(input.descuentos)
   if (!beneficios.ok) return beneficios
@@ -95,7 +96,8 @@ export function armarGrabarCuentaWebpay(input: GrabarCuentaWebpayInput): ArmadoC
       corrpagMatricula: '0',
       corrpagArancel: '0',
       beneficios: beneficios.beneficios,
-      medioMatricula: 'webpay',
+      // Reintegro / cubierto: sin medio Webpay (no hay tx autorizada de ese concepto).
+      ...(matriculaCubierta ? {} : { medioMatricula: 'webpay' as const }),
       ...(arancelCubierto ? {} : { medioArancel: 'webpay' as const }),
       cerrarFicha: input.cerrarFicha,
     },

@@ -31,6 +31,7 @@ import {
   montoCrearSiguienteWebpay,
   motivoContinuarError,
 } from '@/utils/webpayRetornoContinuar'
+import { matriculaRequiereMedio } from '@/utils/selectorMedioPago'
 import { siguientePaso, type MedioConcepto } from '@/utils/webpaySiguientePaso'
 import {
   ctaContinuarRetornoMatricula,
@@ -287,7 +288,9 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
 
   const medioMatricula = alumnoCtx.medioMatricula
   const medioArancel: MedioConcepto | null = alumnoCtx.medioArancel
-  if (medioMatricula == null) {
+  const matriculaPorPagar = alumnoCtx.webpayMontoMatricula
+  // Reintegro / matrícula cubierta: medioMatricula queda null a propósito.
+  if (matriculaRequiereMedio(matriculaPorPagar) && medioMatricula == null) {
     auditarContinuarError(fila, motivoContinuarError('medio_null'))
     mostrarErrorRematricula('No encontramos cómo seguir con el pago.')
     mostrarReintentar.value = true
@@ -301,6 +304,7 @@ async function avanzarSiAutorizada(fila: FilaPublica): Promise<void> {
     arancelAutorizado: alumnoCtx.webpayArancelEstado === 'autorizada',
     planListo: alumnoCtx.pagoMatricula != null,
     arancelPorPagar: alumnoCtx.webpayMontoArancel,
+    matriculaPorPagar,
   })
 
   if (paso.tipo === 'webpay') {

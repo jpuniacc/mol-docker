@@ -37,6 +37,7 @@ import { asignarDocumentosDescuento } from '@/utils/documentosDescuentoContrato'
 import { armarGrabarCuentaWebpay } from '@/utils/grabarCuentaWebpay'
 import { decisionMatriculaFirma } from '@/utils/matriculaTrasFirma'
 import { numeroOperacionContrato } from '@/utils/numeroOperacionContrato'
+import { cuentaWebpayAntesDeFirmar } from '@/utils/cuentaWebpayAntesDeFirmar'
 import { ordenGrabadoWebpay } from '@/utils/ordenGrabadoWebpay'
 import { hoyIsoLocal } from '@/utils/pagareCuotasDraft'
 import {
@@ -424,16 +425,17 @@ function abrirFirma(email: string): void {
   }
 }
 
-/** Cuenta Webpay lista para grabar antes de firmar: dos Webpay, o matrícula Webpay con arancel $0. */
-const ambosWebpay = computed(() => {
-  const matriculaOk =
-    alumnoCtx.medioMatricula === 'webpay' && alumnoCtx.webpayMatriculaEstado === 'autorizada'
-  if (!matriculaOk) return false
-  if (alumnoCtx.medioArancel === 'webpay' && alumnoCtx.webpayArancelEstado === 'autorizada') {
-    return true
-  }
-  return alumnoCtx.medioArancel == null && alumnoCtx.webpayMontoArancel === 0
-})
+/** Cuenta Webpay lista para grabar antes de firmar (incluye matrícula $0 + arancel Webpay). */
+const ambosWebpay = computed(() =>
+  cuentaWebpayAntesDeFirmar({
+    medioMatricula: alumnoCtx.medioMatricula,
+    medioArancel: alumnoCtx.medioArancel,
+    webpayMatriculaEstado: alumnoCtx.webpayMatriculaEstado,
+    webpayArancelEstado: alumnoCtx.webpayArancelEstado,
+    webpayMontoMatricula: alumnoCtx.webpayMontoMatricula,
+    webpayMontoArancel: alumnoCtx.webpayMontoArancel,
+  }),
+)
 
 // Tras Transbank la SPA recarga y el preflight queda vacío. Se pide igual que en la forma de pago.
 async function asegurarPreflightWebpay(): Promise<string | null> {

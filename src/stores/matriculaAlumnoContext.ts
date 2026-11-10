@@ -527,7 +527,9 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
           this.webpayArancelEstado === 'autorizada'
             ? detalleWebpayPersistido(parsed.webpayArancelDetalle)
             : null
-        this.webpayMontoMatricula = montoWebpayPersistido(parsed.webpayMontoMatricula)
+        this.webpayMontoMatricula = montoWebpayPersistido(parsed.webpayMontoMatricula, {
+          allowZero: true,
+        })
         this.numOperacionCuenta = numOperacionPersistido(parsed.numOperacionCuenta)
         this.webpayMontoArancel = montoWebpayPersistido(parsed.webpayMontoArancel, {
           allowZero: true,
@@ -782,7 +784,8 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
     },
 
     setWebpayMontoMatricula(monto: number | null) {
-      this.webpayMontoMatricula = montoWebpayPersistido(monto)
+      // Reintegro: matrícula neta $0 debe persistir como 0 (no null).
+      this.webpayMontoMatricula = montoWebpayPersistido(monto, { allowZero: true })
       this.persistToSessionStorage()
     },
 
@@ -818,6 +821,10 @@ export const useMatriculaAlumnoContextStore = defineStore('matriculaAlumnoContex
       const persistido = planCuentaWebpayPersistido(plan)
       if (!persistido) return
       this.planCuentaWebpay = persistido
+      // Reintegro: el plan trae $0; no dejar webpayMontoMatricula en null (rompe el grabado post-firma).
+      if (persistido.montoMatricula === 0) {
+        this.webpayMontoMatricula = 0
+      }
       this.persistToSessionStorage()
     },
 

@@ -44,6 +44,24 @@ describe('envioFirmaIniciado', () => {
   })
 })
 
+describe('montos Webpay', () => {
+  it('persiste matrícula neta $0 (reintegro) y no la convierte en null', () => {
+    const store = useMatriculaAlumnoContextStore()
+    store.setMedioArancel('webpay')
+    store.setWebpayArancelEstado('autorizada')
+    store.setWebpayMontoMatricula(0)
+    store.setWebpayMontoArancel(3_519_000)
+    expect(store.webpayMontoMatricula).toBe(0)
+    expect(store.webpayMontoArancel).toBe(3_519_000)
+
+    setActivePinia(createPinia())
+    const restaurado = useMatriculaAlumnoContextStore()
+    restaurado.hydrateFromSessionStorage()
+    expect(restaurado.webpayMontoMatricula).toBe(0)
+    expect(restaurado.webpayMontoArancel).toBe(3_519_000)
+  })
+})
+
 describe('cuenta Webpay', () => {
   it('recuerda que la cuenta ya se grabó y el plan con el beneficio', () => {
     const store = useMatriculaAlumnoContextStore()

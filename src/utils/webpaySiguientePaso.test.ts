@@ -147,4 +147,17 @@ describe('siguientePaso', () => {
       }),
     ).toEqual({ tipo: 'firma' })
   })
+
+  it('matrícula $0 con arancel Webpay autorizado va a firma', () => {
+    expect(
+      siguientePaso({
+        ...base,
+        medioMatricula: null,
+        medioArancel: 'webpay',
+        matriculaPorPagar: 0,
+        arancelPorPagar: 3_343_050,
+        arancelAutorizado: true,
+      }),
+    ).toEqual({ tipo: 'firma' })
+  })
 })

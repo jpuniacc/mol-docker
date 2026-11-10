@@ -19,7 +19,8 @@ export type ContratoMatriculaViewModelConMedio = ContratoMatriculaViewModel & {
 }
 
 export function bloquesContrato(input: {
-  medioMatricula: 'pagare' | 'webpay'
+  /** null = matrícula cubierta (neto $0 / reintegro), sin cuotas ni Webpay. */
+  medioMatricula: 'pagare' | 'webpay' | null
   /** null = arancel cubierto (neto $0), sin cuotas ni Webpay. */
   medioArancel: 'pagare' | 'webpay' | null
   descuentoFormaPagoArancel: number

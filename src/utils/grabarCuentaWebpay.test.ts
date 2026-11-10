@@ -107,6 +107,34 @@ describe('armarGrabarCuentaWebpay', () => {
     expect(armado.payload.beneficios?.[0]?.codben).toBe(1744)
   })
 
+  it('acepta matrícula $0 (reintegro) sin medio de matrícula y con arancel Webpay', () => {
+    const armado = armarGrabarCuentaWebpay({
+      ...base,
+      montoMatricula: 0,
+      montoArancel: 3_519_000,
+      descuentos: [
+        {
+          concepto: 'matricula',
+          documento: '90121413001',
+          tipoDocumento: 'DESCUENTO MATRÍCULA',
+          descripcion: 'Descuento Matricula Reintegro',
+          detalle: 'DESCUENTO MATRÍCULA',
+          monto: 250_000,
+          vencimiento: '29/12/2027',
+          codben: '2003',
+          porc: 100,
+          montoSolicitado: 250_000,
+        },
+      ],
+    })
+    expect(armado.ok).toBe(true)
+    if (!armado.ok) return
+    expect(armado.payload.montoMatricula).toBe(0)
+    expect(armado.payload.medioMatricula).toBeUndefined()
+    expect(armado.payload.medioArancel).toBe('webpay')
+    expect(armado.payload.beneficios?.[0]?.codben).toBe(2003)
+  })
+
   it('rechaza un beneficio con monto si no trae CODBEN o folio', () => {
     const sinCodigo = armarGrabarCuentaWebpay({
       ...base,

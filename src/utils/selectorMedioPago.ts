@@ -25,13 +25,18 @@ export function puedeContinuar(input: {
   medioMatricula: Medio
   medioArancel: Medio
   matriculaAutorizada: boolean
+  /** Arancel Webpay ya autorizado: Continuar lleva a firma (no a Transbank). */
+  arancelAutorizado?: boolean
   /** Neto de arancel tras beneficios. Si ≤ 0 no se exige medio de arancel. */
   arancelPorPagar?: number | null
   /** Neto de matrícula. Si ≤ 0 no se exige medio de matrícula. */
   matriculaPorPagar?: number | null
 }): boolean {
-  if (arancelRequiereMedio(input.arancelPorPagar) && input.medioArancel !== 'pagare') {
-    return false
+  if (arancelRequiereMedio(input.arancelPorPagar)) {
+    const arancelListo =
+      input.medioArancel === 'pagare' ||
+      (input.medioArancel === 'webpay' && input.arancelAutorizado === true)
+    if (!arancelListo) return false
   }
   if (input.matriculaAutorizada) return true
   if (input.matriculaPorPagar != null && !matriculaRequiereMedio(input.matriculaPorPagar)) return true
