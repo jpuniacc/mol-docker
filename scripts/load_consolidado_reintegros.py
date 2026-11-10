@@ -7,6 +7,10 @@ Fuente:
   - precios medianos de mnp_mv_plan_pagos_consolidado por carrera
     (+ fallback U+ para carreras sin precio en consolidado)
 
+Tras --apply, completar tel/mail del sostenedor (es_rf=N) con:
+  scripts/sync_apoderado_contacto_reintegros.mjs --apply
+  (mnp_datos_alumnos no trae contacto del apoderado; solo el del alumno).
+
 Por defecto dry-run. Con --apply:
   - upsert filas en mnp_mv_plan_pagos_consolidado (periodo 2027-1)
   - upsert filas en mnp_mv_alumnos_matricular_periodo
