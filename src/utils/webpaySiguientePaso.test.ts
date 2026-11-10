@@ -123,4 +123,28 @@ describe('siguientePaso', () => {
       }),
     ).toEqual({ tipo: 'firma' })
   })
+
+  it('matrícula $0 (reintegro) con arancel pagaré arma solo el plan de arancel', () => {
+    expect(
+      siguientePaso({
+        ...base,
+        medioMatricula: null,
+        medioArancel: 'pagare',
+        matriculaPorPagar: 0,
+        arancelPorPagar: 2_380_800,
+      }),
+    ).toEqual({ tipo: 'plan-pagare', concepto: 'arancel' })
+  })
+
+  it('matrícula $0 y arancel $0 van a firma', () => {
+    expect(
+      siguientePaso({
+        ...base,
+        medioMatricula: null,
+        medioArancel: null,
+        matriculaPorPagar: 0,
+        arancelPorPagar: 0,
+      }),
+    ).toEqual({ tipo: 'firma' })
+  })
 })

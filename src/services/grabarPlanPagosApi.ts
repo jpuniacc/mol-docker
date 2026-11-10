@@ -85,14 +85,16 @@ export function armarGrabarPlanPagos(input: {
   }
   const montoMatricula = sumaItem(pago, 1)
   const montoArancel = sumaItem(pago, 2)
-  if (montoMatricula <= 0 || montoArancel <= 0) {
+  const matriculaCubierta = montoMatricula <= 0
+  const arancelCubierto = montoArancel <= 0
+  if (matriculaCubierta && arancelCubierto) {
     return {
       ok: false,
       error: 'El grabado en TEST cubre matrícula y arancel en pagaré. Falta uno de los dos montos.',
     }
   }
-  const corrpagMatricula = folioItem(pago, 1)
-  const corrpagArancel = folioItem(pago, 2)
+  const corrpagMatricula = matriculaCubierta ? '0' : folioItem(pago, 1)
+  const corrpagArancel = arancelCubierto ? '0' : folioItem(pago, 2)
   if (!/^\d+$/.test(corrpagMatricula) || !/^\d+$/.test(corrpagArancel)) {
     return { ok: false, error: 'Faltan los folios CORRPAGNUM del plan' }
   }

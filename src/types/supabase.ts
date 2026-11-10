@@ -865,6 +865,8 @@ export type MnpCarteraBeneficiosRow = {
   consolidado: string | null;
   cod_beneficio_1: string | null;
   cod_beneficio_2: string | null;
+  /** Campaña reintegro: aplica aunque U+ no la tenga asignada/renovable. */
+  fuerza_aplica?: boolean;
   loaded_at: string;
 };
 

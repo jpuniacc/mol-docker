@@ -107,7 +107,9 @@ export function filasBeneficioConPromedio(input: {
     const cod = (item.cod_beneficio ?? '').trim() || null
     const cat = cod ? porCodigo.get(cod) : undefined
     const flujo = cat?.flujo ?? item.flujo ?? null
-    const exige = flujo === 'MOL_DVU' && exigeMedicionPromedio(cat?.renovable)
+    // Campaña reintegro (fuerzaAplica): la beca se mantiene sin ajuste Art.13 por nota.
+    const exige =
+      !item.fuerzaAplica && flujo === 'MOL_DVU' && exigeMedicionPromedio(cat?.renovable)
     const ajuste = ajusteDePorcentaje(item.pct, exige, input.promedio)
     return {
       slot: item.slot,
@@ -211,7 +213,19 @@ export function textoPorcentajeFila(fila: FilaBeneficioPromedio): string {
   if (fila.resultado === 'MANTIENE') return `${base} % · se mantiene`
   if (fila.resultado === 'PIERDE') return `${base} % · no aplica por promedio`
   if (fila.resultado === 'SIN_PROMEDIO') return `${base} % · sin promedio para ajustar`
+  // NO_APLICA (sin requisito de notas / reintegro fuerza_aplica): solo el %.
   return `${base} %`
+}
+
+/** Subtítulo del bloque de beneficios según campaña. */
+export function textoDescripcionBeneficios(input: {
+  periodoLabel: string
+  esReintegro: boolean
+}): string {
+  if (input.esReintegro) {
+    return `Periodo ${input.periodoLabel}. En reintegro tus becas se mantienen sin ajuste por promedio.`
+  }
+  return `Periodo ${input.periodoLabel}. El porcentaje de cada beca ya considera tu promedio.`
 }
 
 function fmtPct(valor: number): string {

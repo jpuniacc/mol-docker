@@ -46,6 +46,8 @@ const loading = ref(false)
 const loadingDetalle = ref(false)
 const resumen = ref<ResumenGrabadoUp | null>(null)
 const filas = ref<FilaGrabadoUp[]>([])
+const ambienteErp = ref<'prod' | 'test' | null>(null)
+const ambienteErpLabel = ref<string | null>(null)
 const carrera = ref('')
 const busqueda = ref('')
 const chip = ref<FiltroChipGrabadoUp>('todos')
@@ -84,6 +86,8 @@ async function cargar() {
     if (list.error) return mostrarErrorRematricula(`Error al cargar grabado U+: ${list.error}`)
     filas.value = list.data
     resumen.value = list.resumen
+    ambienteErp.value = list.ambiente
+    ambienteErpLabel.value = list.ambienteLabel
     if (!carrera.value && !busqueda.value.trim()) {
       carrerasDisponibles.value = [
         ...new Set(list.data.map((f) => f.nombreCarrera ?? '').filter(Boolean)),
@@ -327,7 +331,9 @@ onMounted(async () => {
           <CardTitle>Grabado U+ · Matriculados online (MOL)</CardTitle>
           <CardDescription class="mt-1">
             Periodo <b class="text-foreground">{{ periodoLabel }}</b>
-            · Lectura en vivo de control y cuentas U+
+            · U+
+            <b class="text-foreground">{{ ambienteErpLabel ?? (ambienteErp === 'test' ? 'Test' : ambienteErp === 'prod' ? 'Producción' : '—') }}</b>
+            · Lectura en vivo de control y cuentas
             <template v-if="actualizado">
               · Actualizado
               {{ actualizado.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) }}

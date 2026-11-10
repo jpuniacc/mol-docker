@@ -195,7 +195,7 @@ function planCuentaWebpayPersistido(v: unknown): PlanCuentaWebpayPersistido | nu
   if (
     typeof plan.montoMatricula !== 'number' ||
     !Number.isInteger(plan.montoMatricula) ||
-    plan.montoMatricula <= 0 ||
+    plan.montoMatricula < 0 ||
     typeof plan.montoArancel !== 'number' ||
     !Number.isInteger(plan.montoArancel) ||
     plan.montoArancel < 0

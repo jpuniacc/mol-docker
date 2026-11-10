@@ -30,7 +30,8 @@ import { Label } from '@/components/ui/label'
 import AccionesFlujo from '@/components/rematricula/AccionesFlujo.vue'
 import RetencionMicroStepper from '@/components/matricula/RetencionMicroStepper.vue'
 import TextoPortalSolicitudes from '@/components/rematricula/TextoPortalSolicitudes.vue'
-import { MSG_DEUDA_PENDIENTE } from '@/constants/carteraOficial'
+import { esFuenteReintegroCartera, MSG_DEUDA_PENDIENTE } from '@/constants/carteraOficial'
+import { estadoCarteraOficial } from '@/services/carteraOficialApi'
 import ConvenioVigenteUpload from '@/components/rematricula/ConvenioVigenteUpload.vue'
 import { useAlumnoRematriculaFuente } from '@/composables/useAlumnoRematriculaFuente'
 import { BadgePercent, Check, ChevronDown, Clock, CreditCard, FileText, GraduationCap, TriangleAlert } from 'lucide-vue-next'
@@ -72,6 +73,7 @@ import { esperaDesdeConsolidado, requiereVerificacionCae } from '@/utils/esperaC
 import {
   anioNotasRematricula,
   filasBeneficioConPromedio,
+  textoDescripcionBeneficios,
   textoFuentePromedio,
   textoNotaPromedio,
   textoPorcentajeFila,
@@ -270,7 +272,7 @@ const arancelPagadoWebpay = computed(() => alumnoCtx.webpayArancelEstado === 'au
 /** Micro-stepper Matrícula → Arancel → Firma dentro del modal de medios. */
 const microPasoFormaPago = computed((): 1 | 2 | 3 => {
   if (arancelPagadoWebpay.value) return 3
-  if (matriculaPagadaWebpay.value) return 2
+  if (matriculaPagadaWebpay.value || montoNetoMatricula() <= 0) return 2
   return 1
 })
 
@@ -323,6 +325,7 @@ const arancelEncendido = computed(
     arancelHabilitado({
       medioMatricula: medioPagoMatricula.value,
       matriculaAutorizada: matriculaPagadaWebpay.value,
+      matriculaPorPagar: montoNetoMatricula(),
     }) && !arancelPagadoWebpay.value,
 )
 
@@ -331,6 +334,8 @@ function totalCuotasActual(): 12 | 10 {
 }
 
 const arancelPorPagarSelector = computed(() => montoNetoArancel())
+const matriculaPorPagarSelector = computed(() => montoNetoMatricula())
+const matriculaCubierta = computed(() => matriculaPorPagarSelector.value <= 0)
 
 const puedeContinuarSelectorMedios = computed(() =>
   puedeContinuar({
@@ -338,12 +343,13 @@ const puedeContinuarSelectorMedios = computed(() =>
     medioArancel: medioPagoArancel.value,
     matriculaAutorizada: matriculaPagadaWebpay.value,
     arancelPorPagar: arancelPorPagarSelector.value,
+    matriculaPorPagar: matriculaPorPagarSelector.value,
   }),
 )
 
 const cuotasEsperadasPagare = computed(() => {
   let conceptos = 0
-  if (medioPagoMatricula.value === 'pagare') conceptos += 1
+  if (!matriculaCubierta.value && medioPagoMatricula.value === 'pagare') conceptos += 1
   if (medioPagoArancel.value === 'pagare') conceptos += 1
   return conceptos * totalCuotasActual()
 })
@@ -652,6 +658,9 @@ const nombresBecaEstatal = computed(() => {
 const hoyChileIso = ref(fechaChileIso())
 let timerMedianocheChile: ReturnType<typeof setTimeout> | null = null
 
+/** Campaña reintegro: fuente en cartera oficial (matrícula 100%). */
+const esAlumnoReintegro = ref(false)
+
 const descuentoMatriculaAplicadoConFila = computed(() =>
   descuentoMatriculaAplicado({
     filas: descuentosMatriculaCatalogo.value,
@@ -660,6 +669,7 @@ const descuentoMatriculaAplicadoConFila = computed(() =>
     tieneCae: requiereCae.value,
     tieneBecaEstatal: esperaConsolidado.value.ministerial,
     reserva: reservaMatricula.value,
+    esReintegro: esAlumnoReintegro.value,
   }),
 )
 
@@ -924,6 +934,16 @@ async function cargarDescuentosMatricula() {
   descuentosMatriculaCatalogo.value = data
 }
 
+async function cargarMarcaReintegro() {
+  const rut = pickCampoAlumno(fuente.rutMostrado.value)
+  if (!rut) {
+    esAlumnoReintegro.value = false
+    return
+  }
+  const estado = await estadoCarteraOficial(rut)
+  esAlumnoReintegro.value = esFuenteReintegroCartera(estado.fuente)
+}
+
 async function cargarCarteraBeneficios() {
   const codcli = pickCampoAlumno(fuente.codcliMostrado.value)
   const rut = pickCampoAlumno(fuente.rutMostrado.value)
@@ -931,6 +951,7 @@ async function cargarCarteraBeneficios() {
     carteraBeneficiosRow.value = null
     codigosBeneficioAsignados.value = new Set()
     errorCarteraBeneficios.value = null
+    esAlumnoReintegro.value = false
     initBeneficiosSeleccionados()
     return
   }
@@ -945,6 +966,7 @@ async function cargarCarteraBeneficios() {
         rutNorm: rut ? rutNorm(rut) : null,
       }),
       consultarCodigosBeneficioAsignados(codcli),
+      cargarMarcaReintegro(),
     ])
     if (error || asignados.error) {
       errorCarteraBeneficios.value = error ?? asignados.error
@@ -1359,11 +1381,10 @@ function montoNetoArancel(): number {
 }
 
 const puedeAbrirPagoMatricula = computed(() => {
-  const monto = montoNetoMatricula()
   const rut = rutMostrado.value
   const tieneRut = !!rut && rut !== '—'
+  // Matrícula $0 (reintegro) también debe abrir el selector para pagar el arancel.
   return (
-    monto > 0 &&
     tieneRut &&
     !cargandoDeuda.value &&
     !tieneDeuda.value &&
@@ -1444,9 +1465,10 @@ function prepararSelectorMedios(): void {
   segundosSalida.value = 3
   avisoWebpay.value = ''
   pagoMatriculaPaso.value = 'selector'
-  medioPagoMatricula.value = medioInicialMatricula()
+  medioPagoMatricula.value = montoNetoMatricula() <= 0 ? null : medioInicialMatricula()
   medioPagoArancel.value = montoNetoArancel() <= 0 ? null : medioInicialArancel()
-  arancelMedioAbierto.value = montoNetoArancel() <= 0
+  matriculaMedioAbierto.value = montoNetoMatricula() > 0
+  arancelMedioAbierto.value = montoNetoArancel() <= 0 || montoNetoMatricula() <= 0
   pagareDiaVencimiento.value = '5'
   pagareTotalCuotas.value = '12'
   sincronizarFechaInicioConDiaVencimiento()
@@ -1522,13 +1544,17 @@ function onPagoMatriculaDialogOpenChange(open: boolean) {
 }
 
 function persistirMediosYMontosWebpay(): void {
+  const matriculaNeto = montoNetoMatricula()
   const arancelNeto = montoNetoArancel()
+  if (matriculaNeto <= 0) {
+    medioPagoMatricula.value = null
+  }
   if (arancelNeto <= 0) {
     medioPagoArancel.value = null
   }
-  alumnoCtx.setMedioMatricula(medioPagoMatricula.value)
+  alumnoCtx.setMedioMatricula(matriculaNeto <= 0 ? null : medioPagoMatricula.value)
   alumnoCtx.setMedioArancel(arancelNeto <= 0 ? null : medioPagoArancel.value)
-  alumnoCtx.setWebpayMontoMatricula(montoNetoMatricula())
+  alumnoCtx.setWebpayMontoMatricula(matriculaNeto)
   // Saldo antes del 5 %. El contrato y la cuenta calculan el descuento sobre este monto.
   alumnoCtx.setWebpayMontoArancel(arancelNeto)
   alumnoCtx.setDatosContratoWebpay({
@@ -1731,23 +1757,27 @@ async function continuarSelectorMedios() {
     mostrarErrorRematricula('Selecciona Pagaré para continuar. Webpay te lleva al pago al elegirlo.')
     return
   }
+  const matriculaNeto = montoNetoMatricula()
+  const matriculaCero = matriculaNeto <= 0
+  if (matriculaCero) medioPagoMatricula.value = null
   const medioMat = medioPagoMatricula.value
   const arancelNeto = montoNetoArancel()
   const arancelCero = arancelNeto <= 0
   if (arancelCero) medioPagoArancel.value = null
   const medioAra = medioPagoArancel.value
-  if (medioMat == null) return
+  if (!matriculaCero && medioMat == null) return
   if (!arancelCero && medioAra == null) return
 
   persistirMediosYMontosWebpay()
 
   const paso = siguientePaso({
-    medioMatricula: medioMat,
+    medioMatricula: matriculaCero ? null : medioMat,
     medioArancel: arancelCero ? null : medioAra,
     matriculaAutorizada: alumnoCtx.webpayMatriculaEstado === 'autorizada',
     arancelAutorizado: alumnoCtx.webpayArancelEstado === 'autorizada',
     planListo: false,
     arancelPorPagar: arancelNeto,
+    matriculaPorPagar: matriculaNeto,
   })
 
   if (paso.tipo === 'flujo-pagare' || paso.tipo === 'plan-pagare') {
@@ -1873,12 +1903,14 @@ async function confirmarPagareMatricula() {
 
   alumnoCtx.marcarPasoAlcanzado(3)
   toast.success('Plan de pagos confirmado. Continúa con el contrato.')
-  const medioMat = medioPagoMatricula.value ?? alumnoCtx.medioMatricula
+  const matriculaNeto = montoNetoMatricula()
+  const medioMat =
+    matriculaNeto <= 0 ? null : (medioPagoMatricula.value ?? alumnoCtx.medioMatricula)
   const arancelNeto = montoNetoArancel()
   const medioAra =
     arancelNeto <= 0 ? null : (medioPagoArancel.value ?? alumnoCtx.medioArancel)
   cerrarPagoMatriculaDialog()
-  if (medioMat == null) return
+  if (matriculaNeto > 0 && medioMat == null) return
   if (arancelNeto > 0 && medioAra == null) return
   const paso = siguientePaso({
     medioMatricula: medioMat,
@@ -1887,6 +1919,7 @@ async function confirmarPagareMatricula() {
     arancelAutorizado: alumnoCtx.webpayArancelEstado === 'autorizada',
     planListo: true,
     arancelPorPagar: arancelNeto,
+    matriculaPorPagar: matriculaNeto,
   })
   if (paso.tipo === 'firma') {
     alumnoCtx.marcarPasoAlcanzado(3)
@@ -2139,7 +2172,12 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
           <CardHeader>
             <CardTitle class="hidden text-lg text-zinc-900 md:block">Tus beneficios</CardTitle>
             <CardDescription>
-              Periodo {{ periodoBeneficioLabel }}. El porcentaje de cada beca ya considera tu promedio.
+              {{
+                textoDescripcionBeneficios({
+                  periodoLabel: periodoBeneficioLabel,
+                  esReintegro: esAlumnoReintegro,
+                })
+              }}
             </CardDescription>
           </CardHeader>
           <CardContent class="space-y-3">
@@ -2620,7 +2658,14 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
                 </span>
               </button>
               <div id="panel-medio-matricula" :class="clasePanelMedio(matriculaMedioAbierto)">
-              <div class="grid gap-2 sm:grid-cols-2">
+              <p
+                v-if="matriculaCubierta"
+                class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-900"
+              >
+                Cubierta por descuento de matrícula ·
+                <span class="font-semibold tabular-nums">{{ fmt(0) }}</span>
+              </p>
+              <div v-else class="grid gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 :disabled="matriculaPagadaWebpay"

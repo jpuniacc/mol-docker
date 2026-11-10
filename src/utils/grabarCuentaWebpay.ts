@@ -66,7 +66,8 @@ export function armarGrabarCuentaWebpay(input: GrabarCuentaWebpayInput): ArmadoC
     return { ok: false, error: 'Falta el periodo académico para grabar el plan' }
   }
   const { montoMatricula, montoArancel } = input
-  if (!Number.isInteger(montoMatricula) || montoMatricula <= 0) {
+  // Matrícula $0 = reintegro cubierto; arancel $0 = beca 100 %.
+  if (!Number.isInteger(montoMatricula) || montoMatricula < 0) {
     return { ok: false, error: 'Falta el saldo de matrícula' }
   }
   if (!Number.isInteger(montoArancel) || montoArancel < 0) {

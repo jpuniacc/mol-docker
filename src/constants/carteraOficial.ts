@@ -51,6 +51,13 @@ export type EstadoCarteraOficial = {
   carteraCargada: boolean
   enCartera: boolean
   excluidoMol: boolean
+  /** Origen de carga en `mnp_cartera_oficial.fuente` (ej. reintegro_2025_ult_mat). */
+  fuente?: string | null
+}
+
+/** True si la fila de cartera oficial corresponde a campaña de reintegro. */
+export function esFuenteReintegroCartera(fuente: string | null | undefined): boolean {
+  return (fuente ?? '').trim().toLowerCase().startsWith('reintegro')
 }
 
 export function fueraCarteraDesdeEstado(estado: EstadoCarteraOficial): boolean {

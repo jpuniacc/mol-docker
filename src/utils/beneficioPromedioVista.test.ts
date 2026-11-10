@@ -243,6 +243,39 @@ describe('textoPorcentajeFila', () => {
     expect(filas[0]).toMatchObject({ resultado: 'NO_APLICA', porcAplica: 20, monto: 200_000 })
   })
 
+  it('fuerzaAplica (reintegro) no ajusta por promedio aunque el catálogo exija notas', () => {
+    const filas = filasBeneficioConPromedio({
+      items: [
+        {
+          slot: 1,
+          descripcion: 'Beca Talento Virtual 2',
+          cod_beneficio: '1809',
+          pct: 36,
+          sinMapear: false,
+          aplica: true,
+          flujo: 'MOL_DVU',
+          fuerzaAplica: true,
+        },
+      ],
+      catalogo: [
+        {
+          codigo_beneficio: '1809',
+          flujo: 'MOL_DVU',
+          renovable: 'CON REQUISITO DE NOTAS',
+        },
+      ],
+      seleccionados: { 1: true },
+      arancelBruto: 3_720_000,
+      promedio: 3.5,
+    })
+    expect(filas[0]).toMatchObject({
+      resultado: 'NO_APLICA',
+      porcAplica: 36,
+      monto: Math.round(3_720_000 * 0.36),
+    })
+    expect(textoPorcentajeFila(filas[0]!)).toBe('36 %')
+  })
+
   it('la beca que baja conserva el porcentaje que queda', () => {
     expect(
       textoPorcentajeFila(

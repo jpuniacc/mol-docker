@@ -49,15 +49,23 @@ export async function listarReporteGrabadoUp(
   semestre: number,
   carrera: string | null = null,
   q: string | null = null,
-): Promise<{ data: FilaGrabadoUp[]; resumen: ResumenGrabadoUp | null; error: string | null }> {
+): Promise<{
+  data: FilaGrabadoUp[]
+  resumen: ResumenGrabadoUp | null
+  ambiente: 'prod' | 'test' | null
+  ambienteLabel: string | null
+  error: string | null
+}> {
   const params = new URLSearchParams({ anio: String(anio), semestre: String(semestre) })
   if (carrera) params.set('carrera', carrera)
   if (q) params.set('q', q)
   const r = await getJson(`/api/rematricula/reportes/grabado-up?${params.toString()}`)
-  if (!r.ok) return { data: [], resumen: null, error: r.error }
+  if (!r.ok) return { data: [], resumen: null, ambiente: null, ambienteLabel: null, error: r.error }
   const body = r.body as {
     filas?: unknown[]
     resumen?: Partial<ResumenGrabadoUp>
+    ambiente?: unknown
+    ambienteLabel?: unknown
   }
   const filas: FilaGrabadoUp[] = []
   for (const row of Array.isArray(body.filas) ? body.filas : []) {
@@ -72,7 +80,12 @@ export async function listarReporteGrabadoUp(
     ),
     sin_op: Number(body.resumen?.sin_op ?? filas.filter((f) => f.semaforo === 'sin_op').length),
   }
-  return { data: filas, resumen, error: null }
+  const ambiente = body.ambiente === 'test' || body.ambiente === 'prod' ? body.ambiente : null
+  const ambienteLabel =
+    typeof body.ambienteLabel === 'string' && body.ambienteLabel.trim()
+      ? body.ambienteLabel.trim()
+      : null
+  return { data: filas, resumen, ambiente, ambienteLabel, error: null }
 }
 
 export async function detalleReporteGrabadoUp(input: {
@@ -94,6 +107,11 @@ export async function detalleReporteGrabadoUp(input: {
     data: {
       anio: Number(b.anio ?? input.anio),
       semestre: Number(b.semestre ?? input.semestre),
+      ambiente: b.ambiente === 'test' || b.ambiente === 'prod' ? b.ambiente : null,
+      ambienteLabel:
+        typeof b.ambienteLabel === 'string' && b.ambienteLabel.trim()
+          ? b.ambienteLabel.trim()
+          : null,
       rutCodcli: b.rutCodcli == null ? null : String(b.rutCodcli),
       numOperacion: b.numOperacion == null ? null : String(b.numOperacion),
       semaforo: asSemaforo(b.semaforo),

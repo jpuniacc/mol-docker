@@ -3,6 +3,8 @@ export const FLUJO_DESCUENTO_MATRICULA = 'DESCUENTO_MATRICULA'
 
 export type FilaDescuentoMatriculaMes = {
   id?: number
+  /** Código ERP (ej. 2003 = Descuento Matrícula Reintegro). */
+  cod_beneficio?: number | null
   nombre: string
   periodo: string
   aplicable_a: string
@@ -11,6 +13,17 @@ export type FilaDescuentoMatriculaMes = {
   vigencia_desde: string
   vigencia_hasta: string
   reserva_hasta?: string | null
+}
+
+function esFilaReintegro(fila: FilaDescuentoMatriculaMes): boolean {
+  if (Number(fila.cod_beneficio) === 2003) return true
+  if (/reintegro/i.test(fila.nombre)) return true
+  const desde = ymd(fila.vigencia_desde)
+  const hasta = ymd(fila.vigencia_hasta)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(desde) && /^\d{4}-\d{2}-\d{2}$/.test(hasta)) {
+    return !vigenciaDeUnSoloMes(desde, hasta)
+  }
+  return false
 }
 
 export type ReservaDescuentoMatriculaAplicar = {
@@ -72,6 +85,7 @@ function vigenciaDeUnSoloMes(desde: string, hasta: string): boolean {
  * Fila activa de matrícula del periodo cuya vigencia cabe en un mes
  * y contiene el día indicado. El reintegro queda fuera: su vigencia cruza meses.
  * Con CAE o beca estatal no hay descuento.
+ * Si `esReintegro`, prioriza la fila de campaña reintegro (vigencia multi-mes / cód. 2003).
  */
 export function filaDescuentoMatriculaDelMes(input: {
   filas: FilaDescuentoMatriculaMes[]
@@ -79,8 +93,9 @@ export function filaDescuentoMatriculaDelMes(input: {
   hoy: string
   tieneCae: boolean
   tieneBecaEstatal: boolean
+  esReintegro?: boolean
 }): DescuentoMatriculaDelMes | null {
-  const sel = seleccionDelMes(input)
+  const sel = input.esReintegro ? seleccionReintegro(input) ?? seleccionDelMes(input) : seleccionDelMes(input)
   return sel ? sel.descuento : null
 }
 
@@ -90,31 +105,49 @@ export type DescuentoMatriculaConFila = {
   fila: FilaDescuentoMatriculaMes
 }
 
-function seleccionDelMes(input: {
+type SeleccionInput = {
   filas: FilaDescuentoMatriculaMes[]
   periodo: string
   hoy: string
   tieneCae: boolean
   tieneBecaEstatal: boolean
-}): DescuentoMatriculaConFila | null {
-  if (input.tieneCae || input.tieneBecaEstatal) return null
+  esReintegro?: boolean
+}
+
+function candidatosBase(input: SeleccionInput, opts: { soloUnMes: boolean; soloReintegro: boolean }) {
+  if (input.tieneCae || input.tieneBecaEstatal) return []
   const periodo = input.periodo.trim()
   const hoy = ymd(input.hoy)
-  if (!periodo || !/^\d{4}-\d{2}-\d{2}$/.test(hoy)) return null
+  if (!periodo || !/^\d{4}-\d{2}-\d{2}$/.test(hoy)) return []
 
-  const candidatos = input.filas.filter((fila) => {
+  return input.filas.filter((fila) => {
     if (!fila.activo) return false
     if (fila.aplicable_a !== 'MATRICULA') return false
     if (fila.periodo.trim() !== periodo) return false
     const desde = ymd(fila.vigencia_desde)
     const hasta = ymd(fila.vigencia_hasta)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(desde) || !/^\d{4}-\d{2}-\d{2}$/.test(hasta)) return false
-    if (!vigenciaDeUnSoloMes(desde, hasta)) return false
     if (hoy < desde || hoy > hasta) return false
-    return Number(fila.monto_descuento) > 0
+    if (Number(fila.monto_descuento) <= 0) return false
+    const unMes = vigenciaDeUnSoloMes(desde, hasta)
+    if (opts.soloUnMes && !unMes) return false
+    if (opts.soloReintegro && !esFilaReintegro(fila)) return false
+    return true
   })
+}
 
+function seleccionDelMes(input: SeleccionInput): DescuentoMatriculaConFila | null {
+  const candidatos = candidatosBase(input, { soloUnMes: true, soloReintegro: false })
   candidatos.sort((a, b) => ymd(a.vigencia_desde).localeCompare(ymd(b.vigencia_desde)))
+  const fila = candidatos[0]
+  if (!fila) return null
+  return { descuento: { nombre: fila.nombre.trim(), monto: Number(fila.monto_descuento) }, fila }
+}
+
+/** Campaña reintegro: matrícula 100% (fila multi-mes / cód. 2003) si el día cae en su vigencia. */
+function seleccionReintegro(input: SeleccionInput): DescuentoMatriculaConFila | null {
+  const candidatos = candidatosBase(input, { soloUnMes: false, soloReintegro: true })
+  candidatos.sort((a, b) => Number(b.monto_descuento) - Number(a.monto_descuento))
   const fila = candidatos[0]
   if (!fila) return null
   return { descuento: { nombre: fila.nombre.trim(), monto: Number(fila.monto_descuento) }, fila }
@@ -122,7 +155,9 @@ function seleccionDelMes(input: {
 
 /**
  * La reserva vigente gana aunque haya CAE o beca estatal y aunque el día
- * ya no caiga en el mes. Si no hay reserva usable, queda la regla del mes.
+ * ya no caiga en el mes. Si el alumno es reintegro, gana la matrícula 100%
+ * de campaña (antes que reserva anticipada del mes). Si no hay reserva usable,
+ * queda la regla del mes.
  */
 export function descuentoMatriculaParaPago(input: {
   filas: FilaDescuentoMatriculaMes[]
@@ -131,6 +166,7 @@ export function descuentoMatriculaParaPago(input: {
   tieneCae: boolean
   tieneBecaEstatal: boolean
   reserva: ReservaDescuentoMatriculaAplicar | null
+  esReintegro?: boolean
 }): DescuentoMatriculaDelMes | null {
   return descuentoMatriculaAplicado(input)?.descuento ?? null
 }
@@ -143,7 +179,12 @@ export function descuentoMatriculaAplicado(input: {
   tieneCae: boolean
   tieneBecaEstatal: boolean
   reserva: ReservaDescuentoMatriculaAplicar | null
+  esReintegro?: boolean
 }): DescuentoMatriculaConFila | null {
+  if (input.esReintegro) {
+    const reintegro = seleccionReintegro(input)
+    if (reintegro) return reintegro
+  }
   const reservado = descuentoDesdeReserva(input.filas, input.hoy, input.reserva)
   if (reservado) return reservado
   return seleccionDelMes(input)

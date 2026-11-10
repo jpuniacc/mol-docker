@@ -52,6 +52,19 @@ describe('filaDescuentoMatriculaDelMes', () => {
     ).toEqual({ nombre: 'Matricula Anticipada Noviembre', monto: 50000 })
   })
 
+  it('alumno reintegro en noviembre toma matrícula 100% (250.000)', () => {
+    expect(
+      filaDescuentoMatriculaDelMes({
+        filas: FILAS,
+        periodo: '2027-1',
+        hoy: '2026-11-15',
+        tieneCae: false,
+        tieneBecaEstatal: false,
+        esReintegro: true,
+      }),
+    ).toEqual({ nombre: 'Descuento Matricula Reintegro', monto: 250000 })
+  })
+
   it('en diciembre toma los 25.000', () => {
     expect(
       filaDescuentoMatriculaDelMes({
@@ -263,6 +276,25 @@ describe('descuentoMatriculaAplicado', () => {
     })
     expect(r?.fila.id).toBe(10)
     expect(r?.descuento).toEqual({ nombre: 'Matricula Anticipada Noviembre', monto: 50000 })
+  })
+
+  it('alumno reintegro prioriza fila 2003 aunque haya reserva de noviembre', () => {
+    const filas = FILAS.map((f, i) => ({
+      ...f,
+      id: i + 10,
+      cod_beneficio: i === 2 ? 2003 : 2025 + i,
+    }))
+    const r = descuentoMatriculaAplicado({
+      filas,
+      periodo: '2027-1',
+      hoy: '2026-11-15',
+      tieneCae: false,
+      tieneBecaEstatal: false,
+      reserva: { descuentoId: 10, nombre: 'Matricula Anticipada Noviembre', monto: 50000 },
+      esReintegro: true,
+    })
+    expect(r?.fila.id).toBe(12)
+    expect(r?.descuento).toEqual({ nombre: 'Descuento Matricula Reintegro', monto: 250000 })
   })
 
   it('con reserva vigente devuelve la fila reservada', () => {

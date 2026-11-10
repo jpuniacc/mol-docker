@@ -987,11 +987,9 @@ function montoNetoArancel(): number {
 }
 
 const puedeAbrirPagoMatricula = computed(() => {
-  const monto = montoNetoMatricula()
   const rut = rutMostrado.value
   const tieneRut = !!rut && rut !== '—'
   return (
-    monto > 0 &&
     tieneRut &&
     !cargandoDeuda.value &&
     !tieneDeuda.value &&

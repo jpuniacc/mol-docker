@@ -244,6 +244,34 @@ describe('becas asignadas estado 4', () => {
     const visibles = filtrarBeneficiosAsignados(convenio, new Set())
     expect(visibles.map((item) => item.cod_beneficio)).toEqual(['2047'])
   })
+
+  it('fuerza_aplica en slot 1 salta asignación U+ y NO_RENOVABLE', () => {
+    const items = itemsBeneficioDesdeCartera(
+      {
+        ...VANESSA,
+        beca_1: 'Beneficio Apoyo UNIACC Renovable',
+        pct_1: 15,
+        cod_beneficio_1: '1756',
+        fuerza_aplica: true,
+        beca_2: 'ENAC Centro de Formacion Tecnica',
+        pct_2: 30,
+        cod_beneficio_2: '1773',
+      },
+      CATALOGO,
+    )
+    expect(items[0]).toMatchObject({
+      slot: 1,
+      fuerzaAplica: true,
+      aplica: true,
+      cod_beneficio: '1756',
+    })
+    expect(beneficioSeleccionable(items[0])).toBe(true)
+    expect(items[1]).toMatchObject({ slot: 2, aplica: false })
+    expect(beneficioSeleccionable(items[1])).toBe(false)
+
+    const visibles = filtrarBeneficiosAsignados(items, new Set())
+    expect(visibles.map((item) => item.cod_beneficio)).toEqual(['1756'])
+  })
 })
 
 describe('flagsConsolidado', () => {

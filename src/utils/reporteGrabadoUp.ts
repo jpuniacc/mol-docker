@@ -27,6 +27,8 @@ export type ResumenGrabadoUp = {
 export type DetalleGrabadoUp = {
   anio: number
   semestre: number
+  ambiente: 'prod' | 'test' | null
+  ambienteLabel: string | null
   rutCodcli: string | null
   numOperacion: string | null
   semaforo: SemaforoGrabadoUp

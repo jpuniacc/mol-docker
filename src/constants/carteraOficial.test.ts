@@ -8,6 +8,7 @@ import {
   MSG_FUERA_CARTERA_OFICIAL,
   TEXTO_ENLACE_PORTAL_SOLICITUDES,
   TITULO_BECA_SUBDERE,
+  esFuenteReintegroCartera,
   fueraCarteraDesdeEstado,
 } from './carteraOficial'
 
@@ -51,5 +52,13 @@ describe('fueraCarteraDesdeEstado', () => {
     expect(TITULO_MATRICULA_BACKOFFICE).toContain('matriculado')
     expect(MSG_MATRICULA_BACKOFFICE).toContain('Backoffice')
     expect(MSG_MATRICULA_BACKOFFICE).toContain('matriculado')
+  })
+})
+
+describe('esFuenteReintegroCartera', () => {
+  it('detecta fuente de campaña reintegro', () => {
+    expect(esFuenteReintegroCartera('reintegro_2025_ult_mat')).toBe(true)
+    expect(esFuenteReintegroCartera('BASE PARA PRUEBA.xlsx')).toBe(false)
+    expect(esFuenteReintegroCartera(null)).toBe(false)
   })
 })

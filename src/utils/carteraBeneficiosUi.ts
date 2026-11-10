@@ -11,6 +11,8 @@ export type CarteraBeneficioRow = {
   consolidado: string | null
   cod_beneficio_1: string | null
   cod_beneficio_2: string | null
+  /** true = campaña reintegro: aplica aunque U+ no la tenga asignada/renovable. */
+  fuerza_aplica?: boolean | null
 }
 
 export type CatalogoBeneficioAplica = {
@@ -34,6 +36,8 @@ export type BeneficioExcelUiItem = {
   /** null si el código no está en el catálogo del periodo. */
   aplica: boolean | null
   flujo: string | null
+  /** true = no filtrar por asignación U+ ni por NO_RENOVABLE del catálogo. */
+  fuerzaAplica?: boolean
 }
 
 export type FlagsConsolidado = {
@@ -56,6 +60,7 @@ function itemDesdeSlot(
   pct: number | null,
   codBeneficio: string | null,
   catalogo: CatalogoBeneficioAplica[],
+  fuerzaAplica = false,
 ): BeneficioExcelUiItem | null {
   if (esSinBeca(descripcion)) return null
   const texto = (descripcion ?? '').trim()
@@ -67,8 +72,9 @@ function itemDesdeSlot(
     cod_beneficio: cod,
     pct,
     sinMapear: !cod,
-    aplica: cat ? cat.aplica : null,
+    aplica: fuerzaAplica ? true : cat ? cat.aplica : null,
     flujo: cat?.flujo ?? null,
+    fuerzaAplica: fuerzaAplica || undefined,
   }
 }
 
@@ -116,6 +122,7 @@ export function filtrarBeneficiosAsignados(
   codigosAsignados: ReadonlySet<string>,
 ): BeneficioExcelUiItem[] {
   return items.filter((item) => {
+    if (item.fuerzaAplica) return true
     const cod = (item.cod_beneficio ?? '').trim()
     if (cod === CODIGO_BECA_SIN_ASIGNACION_PREVIA) return true
     return cod.length > 0 && codigosAsignados.has(cod)
@@ -127,8 +134,16 @@ export function itemsBeneficioDesdeCartera(
   catalogo: CatalogoBeneficioAplica[] = [],
 ): BeneficioExcelUiItem[] {
   if (!row) return []
+  const fuerzaSlot1 = row.fuerza_aplica === true
   const items: BeneficioExcelUiItem[] = []
-  const slot1 = itemDesdeSlot(1, row.beca_1, row.pct_1, row.cod_beneficio_1, catalogo)
+  const slot1 = itemDesdeSlot(
+    1,
+    row.beca_1,
+    row.pct_1,
+    row.cod_beneficio_1,
+    catalogo,
+    fuerzaSlot1,
+  )
   if (slot1) items.push(slot1)
   const slot2 = itemDesdeSlot(2, row.beca_2, row.pct_2, row.cod_beneficio_2, catalogo)
   if (slot2) items.push(slot2)
@@ -137,6 +152,7 @@ export function itemsBeneficioDesdeCartera(
 
 /** El catálogo 2027-01 manda: un código con aplica=false no entra al cálculo aunque U+ lo tenga vigente. */
 export function beneficioSeleccionable(item: BeneficioExcelUiItem): boolean {
+  if (item.fuerzaAplica) return !item.sinMapear
   return !item.sinMapear && item.aplica !== false
 }
 

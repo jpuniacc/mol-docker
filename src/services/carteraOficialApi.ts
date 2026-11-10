@@ -16,27 +16,28 @@ export async function estadoCarteraOficial(
     .select('rut_norm', { count: 'exact', head: true })
 
   if (countError || !count) {
-    return { carteraCargada: false, enCartera: true, excluidoMol: false }
+    return { carteraCargada: false, enCartera: true, excluidoMol: false, fuente: null }
   }
 
   const norm = rutNorm(rut)
   if (!norm) {
-    return { carteraCargada: true, enCartera: false, excluidoMol: false }
+    return { carteraCargada: true, enCartera: false, excluidoMol: false, fuente: null }
   }
 
   const { data, error } = await supabase
     .from('mnp_cartera_oficial')
-    .select('rut_norm, excluido_mol')
+    .select('rut_norm, excluido_mol, fuente')
     .eq('rut_norm', norm)
     .maybeSingle()
 
   if (error) {
-    return { carteraCargada: false, enCartera: true, excluidoMol: false }
+    return { carteraCargada: false, enCartera: true, excluidoMol: false, fuente: null }
   }
 
   return {
     carteraCargada: true,
     enCartera: Boolean(data),
     excluidoMol: data?.excluido_mol === true,
+    fuente: data?.fuente ?? null,
   }
 }

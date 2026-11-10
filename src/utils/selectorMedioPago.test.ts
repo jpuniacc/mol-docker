@@ -60,4 +60,23 @@ describe('selectorMedioPago', () => {
       }),
     ).toBe(true)
   })
+
+  it('con matrícula $0 (reintegro) enciende arancel y no exige medio de matrícula', () => {
+    expect(
+      arancelHabilitado({
+        medioMatricula: null,
+        matriculaAutorizada: false,
+        matriculaPorPagar: 0,
+      }),
+    ).toBe(true)
+    expect(
+      puedeContinuar({
+        medioMatricula: null,
+        medioArancel: 'pagare',
+        matriculaAutorizada: false,
+        matriculaPorPagar: 0,
+        arancelPorPagar: 2_380_800,
+      }),
+    ).toBe(true)
+  })
 })

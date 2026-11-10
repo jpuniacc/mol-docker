@@ -70,8 +70,9 @@ BEGIN
 
     IF @cuotas < 1 OR @cuotas > 12
         THROW 50001, 'Las cuotas deben ir de 1 a 12.', 1;
-    IF @monto_matricula <= 0 OR @monto_arancel <= 0
-        THROW 50002, 'Matrícula y arancel tienen que ser mayores que cero.', 1;
+    -- Matrícula $0 = reintegro cubierto; arancel $0 = beca 100 %. El SP ya omite CTAPAG si monto = 0.
+    IF @monto_matricula < 0 OR @monto_arancel < 0
+        THROW 50002, 'Matrícula y arancel no pueden ser negativos.', 1;
     IF @corrpag_matricula IS NULL OR @corrpag_arancel IS NULL
         THROW 50003, 'Faltan los CORRPAGNUM reservados.', 1;
     IF EXISTS (
