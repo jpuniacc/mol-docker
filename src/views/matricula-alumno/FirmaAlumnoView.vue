@@ -290,6 +290,7 @@ async function asegurarDocumentoFirma(): Promise<ContratoFirmaEstadoResponse> {
   const codcli = codcliRaw === '—' ? '' : codcliRaw.trim()
   let esResponsableFinanciero: string | null | undefined = esResponsableFinancieroPlan.value
   let emailApoderado = vm.emailApoderado
+  let emailAlumno = vm.emailAlumno
   if (codcli && periodoActivo.anio != null && periodoActivo.semestre != null) {
     const { data: planRow } = await fetchPlanPagosMvByCodcli({
       codcli,
@@ -298,8 +299,23 @@ async function asegurarDocumentoFirma(): Promise<ContratoFirmaEstadoResponse> {
     })
     esResponsableFinanciero = planRow?.es_responsable_financiero
     if (planRow) esResponsableFinancieroPlan.value = planRow.es_responsable_financiero ?? null
-    const mailPlan = (planRow?.mail_apoder ?? '').trim()
-    if (mailPlan && mailPlan !== '—') emailApoderado = mailPlan
+    const mailApoderPlan = (planRow?.mail_apoder ?? '').trim()
+    if (mailApoderPlan && mailApoderPlan !== '—') emailApoderado = mailApoderPlan
+    // Sesión OTP puede conservar un correo viejo igual al apoderado; el plan ya tiene el mail corregido.
+    const mailAlumnoPlan = (planRow?.mail ?? '').trim()
+    const alumnoNorm = (emailAlumno ?? '').trim().toLowerCase()
+    const apoNorm = (emailApoderado ?? '').trim().toLowerCase()
+    const planNorm = mailAlumnoPlan.toLowerCase()
+    if (
+      mailAlumnoPlan &&
+      mailAlumnoPlan !== '—' &&
+      apoNorm.length > 0 &&
+      alumnoNorm === apoNorm &&
+      planNorm !== apoNorm
+    ) {
+      emailAlumno = mailAlumnoPlan
+      alumnoCtx.marcarCorreoValidado(mailAlumnoPlan)
+    }
   }
   const incluirApoderado = tieneSostenedorFinanciero(
     esResponsableFinanciero,
@@ -316,6 +332,7 @@ async function asegurarDocumentoFirma(): Promise<ContratoFirmaEstadoResponse> {
     ...vm,
     numOperacion: numOp,
     incluirApoderado,
+    emailAlumno,
     emailApoderado,
     codcli,
   })
