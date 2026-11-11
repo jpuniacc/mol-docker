@@ -2,7 +2,10 @@ import { defineStore } from 'pinia'
 
 import { esEstadoAcademicoVigente } from '@/constants/accesoMnp'
 import { esCodcliArancelDiferenciado } from '@/constants/arancelDiferenciado'
-import { fueraCarteraDesdeEstado } from '@/constants/carteraOficial'
+import {
+  esFuenteReintegroCartera,
+  fueraCarteraDesdeEstado,
+} from '@/constants/carteraOficial'
 import { estadoCarteraOficial } from '@/services/carteraOficialApi'
 import { supabase } from '@/services/supabaseClient'
 import type { MnpDatosAlumnosRow } from '@/types/supabase'
@@ -90,6 +93,30 @@ export const useDatosAlumnoMnpStore = defineStore('datosAlumnoMnp', {
           this.accesoBloqueadoNoVigente = true
           this.accesoBloqueadoArancelDiferenciado = false
           await this.verificarCarteraOficial()
+          // Campaña reintegro: estado real suele ser SUSPENDIDO en U+; la cartera oficial habilita ingreso.
+          const cartera = await estadoCarteraOficial(todas[0]?.rut_alumno)
+          if (
+            cartera.carteraCargada &&
+            cartera.enCartera &&
+            !cartera.excluidoMol &&
+            esFuenteReintegroCartera(cartera.fuente)
+          ) {
+            const sinArancelDiferenciado = todas.filter(
+              (fila) => !esCodcliArancelDiferenciado(fila.codcli),
+            )
+            if (sinArancelDiferenciado.length === 0) {
+              this.accesoBloqueadoNoVigente = false
+              this.accesoBloqueadoArancelDiferenciado = true
+              this.filas = todas
+              return
+            }
+            this.accesoBloqueadoNoVigente = false
+            this.accesoBloqueadoArancelDiferenciado = false
+            this.filas = sinArancelDiferenciado
+            this.excluidoMol = cartera.excluidoMol
+            this.fueraCarteraOficial = fueraCarteraDesdeEstado(cartera)
+            return
+          }
           return
         }
         const sinArancelDiferenciado = vigentes.filter(
