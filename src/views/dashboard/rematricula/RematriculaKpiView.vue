@@ -82,6 +82,7 @@ const ORDEN_EMBUDO_ASC: EtapaProgresoRematricula[] = [
   'forma_pago',
   'firma',
   'matriculado',
+  'matriculado_bo',
 ]
 
 const periodoActivo = usePeriodoActivoStore()
@@ -101,12 +102,13 @@ function fmtSyncedAtCanal(iso: string | null): string {
   return d.toLocaleString('es-CL', { timeZone: 'America/Santiago' })
 }
 
-/** MOL = embudo (en vivo). BO = batch diario. */
+/** Totales desde el embudo (mismo criterio que las barras). El canal solo informa la hora del lote. */
 const matriculadosPorMol = computed(() => Number(kpi.value?.matriculado ?? 0) || 0)
-const matriculadosPorBo = computed(() => Number(kpiCanal.value?.por_bo ?? 0) || 0)
+const matriculadosPorBo = computed(() => Number(kpi.value?.matriculado_bo ?? 0) || 0)
 const matriculadosCarteraTotal = computed(
-  () => matriculadosPorMol.value + matriculadosPorBo.value,
+  () => Number(kpi.value?.total_matriculados ?? matriculadosPorMol.value + matriculadosPorBo.value) || 0,
 )
+const conflictosMolBo = computed(() => Number(kpi.value?.conflicto_mol_bo ?? 0) || 0)
 const etapaAbierta = ref<EtapaProgresoRematricula | null>(null)
 const alumnosPorEtapa = ref<Partial<Record<EtapaProgresoRematricula, MnpProgresoRematriculaRow[]>>>({})
 /** FEC_MAT U+ (solo etapa matriculado). */
@@ -195,6 +197,19 @@ const embudoEtapas = computed(() => {
   }))
 })
 
+const panelesEtapa = computed(() => {
+  const base = embudoEtapas.value
+  if (etapaAbierta.value !== 'conflicto_mol_bo') return base
+  return [
+    ...base,
+    {
+      etapa: 'conflicto_mol_bo' as const,
+      label: etiquetaEtapaProgreso('conflicto_mol_bo'),
+      count: conflictosMolBo.value,
+    },
+  ]
+})
+
 async function abrirDetalle(fila: MnpProgresoRematriculaRow) {
   if (!tienePeriodo.value) return
   timelineAlumno.value = fila
@@ -250,7 +265,7 @@ async function cargarEtapa(etapa: EtapaProgresoRematricula) {
         ? data.filter(fila => !fila.sin_match_mol)
         : data.filter(fila => !fila.excluido_mol && !fila.sin_match_mol),
   }
-  if (etapa === 'matriculado') {
+  if (etapa === 'matriculado' || etapa === 'matriculado_bo') {
     const fechas = await listarFecMatRematricula(
       periodoActivo.anio!,
       periodoActivo.semestre!,
@@ -481,7 +496,26 @@ onMounted(async () => {
       </Card>
     </div>
 
-    <Card v-if="tienePeriodo && kpi && embudoEtapas.length > 0">
+    <Card
+      v-if="tienePeriodo && kpi && conflictosMolBo > 0"
+      class="border-red-300 bg-red-50/70"
+    >
+      <CardHeader class="space-y-2">
+        <CardTitle class="text-red-800">Error de datos: matriculados por MOL y por BackOffice</CardTitle>
+        <CardDescription>
+          {{ conflictosMolBo }}
+          {{ conflictosMolBo === 1 ? 'alumno figura' : 'alumnos figuran' }}
+          en ambas fuentes. No se cuentan en Por MOL, ni en Por BO, ni en el total.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button variant="outline" class="border-red-300 text-red-800" @click="toggleEtapa('conflicto_mol_bo')">
+          Ver alumnos en conflicto
+        </Button>
+      </CardContent>
+    </Card>
+
+    <Card v-if="tienePeriodo && kpi && (embudoEtapas.length > 0 || etapaAbierta === 'conflicto_mol_bo')">
       <CardHeader>
         <CardTitle>Embudo de etapas</CardTitle>
         <CardDescription>
@@ -491,7 +525,7 @@ onMounted(async () => {
       <CardContent>
         <div class="space-y-3">
           <div
-            v-for="item in embudoEtapas"
+            v-for="item in panelesEtapa"
             :key="item.etapa"
             class="rounded-lg border"
           >
@@ -566,7 +600,7 @@ onMounted(async () => {
                         <TableHead>Nombre</TableHead>
                         <TableHead>Carrera</TableHead>
                         <TableHead>Código</TableHead>
-                        <TableHead v-if="item.etapa === 'matriculado'">Fecha matrícula</TableHead>
+                        <TableHead v-if="item.etapa === 'matriculado' || item.etapa === 'matriculado_bo'">Fecha matrícula</TableHead>
                         <TableHead></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -593,7 +627,7 @@ onMounted(async () => {
                         </TableCell>
                         <TableCell>{{ fila.nombre_carrera || '—' }}</TableCell>
                         <TableCell>{{ fila.codcli }}</TableCell>
-                        <TableCell v-if="item.etapa === 'matriculado'" class="whitespace-nowrap tabular-nums text-xs">
+                        <TableCell v-if="item.etapa === 'matriculado' || item.etapa === 'matriculado_bo'" class="whitespace-nowrap tabular-nums text-xs">
                           {{ fecMatPorCodcli[fila.codcli] ?? '—' }}
                         </TableCell>
                         <TableCell>

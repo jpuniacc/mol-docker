@@ -62,4 +62,9 @@ describe('utils chip bandeja UI v3', () => {
   it('colorEtapaChip distingue forma_pago de ingreso', () => {
     expect(colorEtapaChip('forma_pago').bg).not.toBe(colorEtapaChip('ingreso').bg)
   })
+
+  it('backoffice y conflicto son chips terminales propios', () => {
+    expect(chipBandejaDesdeSenales({ etapaActual: 'matriculado_bo', tufirmaEnviadaPendiente: false })).toBe('matriculado_bo')
+    expect(chipBandejaDesdeSenales({ etapaActual: 'conflicto_mol_bo', tufirmaEnviadaPendiente: true })).toBe('conflicto_mol_bo')
+  })
 })

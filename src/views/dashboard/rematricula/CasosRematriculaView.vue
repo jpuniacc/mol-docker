@@ -97,6 +97,7 @@ const ORDEN_EMBUDO: EtapaProgresoRematricula[] = [
   'forma_pago',
   'firma',
   'matriculado',
+  'matriculado_bo',
 ]
 
 const rows = ref<MnpCasoRematriculaRow[]>([])

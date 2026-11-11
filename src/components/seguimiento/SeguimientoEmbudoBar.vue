@@ -17,7 +17,7 @@ const emit = defineEmits<{
   limpiar: []
 }>()
 
-/** Explicación por posición en el embudo (1..8). */
+/** Explicación por posición en el embudo (1..10). */
 const AYUDA: string[] = [
   'No ha entrado al MOL en este periodo.',
   'Entró al MOL, pero no ha aceptado los términos y condiciones.',
@@ -27,10 +27,13 @@ const AYUDA: string[] = [
   'Pagó, pero falta firmar el contrato en Tu Firma.',
   'Firmó el contrato; falta que quede matriculado en U+.',
   'Ya quedó matriculado en U+.',
+  'Quedó matriculado por BackOffice, no por el MOL.',
+  'Aparece matriculado en MOL y en BackOffice a la vez; hay que revisar el dato.',
 ]
 const COLOR: string[] = [
   'bg-slate-400', 'bg-violet-400', 'bg-blue-400', 'bg-sky-400',
   'bg-amber-400', 'bg-orange-400', 'bg-emerald-400', 'bg-green-500',
+  'bg-amber-500', 'bg-red-500',
 ]
 
 function conteoChip(chip: ChipBandeja): number {
@@ -62,7 +65,7 @@ const fmt = (n: number) => n.toLocaleString('es-CL')
 <template>
   <TooltipProvider :delay-duration="150">
     <section class="mb-3">
-      <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+      <div class="grid grid-cols-2 gap-2 sm:grid-cols-5 xl:grid-cols-10">
         <button
           v-for="(chip, i) in ORDEN_CHIPS_BANDEJA"
           :key="chip"

@@ -6,6 +6,8 @@ export type EtapaProgresoRematricula =
   | 'forma_pago'
   | 'firma'
   | 'matriculado'
+  | 'matriculado_bo'
+  | 'conflicto_mol_bo'
 
 export type HitosProgresoRematricula = {
   tieneIngreso: boolean
@@ -14,10 +16,13 @@ export type HitosProgresoRematricula = {
   formaPagoOk: boolean
   firmaOk: boolean
   matriculadoOk: boolean
+  matriculadoBoOk?: boolean
 }
 
 const ORDEN: EtapaProgresoRematricula[] = [
+  'conflicto_mol_bo',
   'matriculado',
+  'matriculado_bo',
   'firma',
   'forma_pago',
   'datos',
@@ -27,7 +32,9 @@ const ORDEN: EtapaProgresoRematricula[] = [
 ]
 
 export function resolverEtapaProgreso(h: HitosProgresoRematricula): EtapaProgresoRematricula {
+  if (h.matriculadoOk && h.matriculadoBoOk) return 'conflicto_mol_bo'
   if (h.matriculadoOk) return 'matriculado'
+  if (h.matriculadoBoOk) return 'matriculado_bo'
   if (h.firmaOk) return 'firma'
   if (h.formaPagoOk) return 'forma_pago'
   if (h.datosOk) return 'datos'
@@ -97,6 +104,8 @@ export function etiquetaEtapaProgreso(etapa: EtapaProgresoRematricula): string {
     forma_pago: 'Forma de pago',
     firma: 'Contrato firmado',
     matriculado: 'Matriculado',
+    matriculado_bo: 'Matriculados por BackOffice',
+    conflicto_mol_bo: 'Error: MOL y BackOffice',
   }
   return map[etapa]
 }

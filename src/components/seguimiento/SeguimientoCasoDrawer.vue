@@ -75,7 +75,7 @@ watch(filtroTimeline, (filtro) => {
 watch(() => [props.caso.codcli, props.anio, props.semestre], () => { limiteTimeline.value = 10 })
 const etiquetasFirma = { firmado: 'firmado', pendiente: 'pendiente', no_aplica: 'no aplica', sin_informacion: 'sin información' }
 
-const esMatriculado = computed(() => props.caso.chip === 'matriculado')
+const esMatriculado = computed(() => ['matriculado','matriculado_bo','conflicto_mol_bo'].includes(props.caso.chip))
 
 const pillRecordatorio: Record<string, { label: string; cls: string }> = {
   programado: { label: 'Programado', cls: 'bg-blue-100 text-blue-700' },

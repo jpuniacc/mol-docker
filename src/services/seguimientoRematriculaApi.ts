@@ -82,6 +82,8 @@ export type KpiBandejaSeguimiento = {
   contrato_pdte: number
   firmado_pdte_u: number
   matriculado: number
+  matriculado_bo: number
+  conflicto_mol_bo: number
   mail_2h_pdte: number
   mail_2h_enviado: number
   sms_24h_pdte: number

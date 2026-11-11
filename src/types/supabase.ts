@@ -231,7 +231,9 @@ export type EtapaProgresoRematricula =
   | "datos"
   | "forma_pago"
   | "firma"
-  | "matriculado";
+  | "matriculado"
+  | "matriculado_bo"
+  | "conflicto_mol_bo";
 
 export type MnpProgresoRematriculaRow = {
   codcli: string;
@@ -279,6 +281,9 @@ export type KpiProgresoRematricula = {
   forma_pago_resto: number;
   firma: number;
   matriculado: number;
+  matriculado_bo: number;
+  total_matriculados: number;
+  conflicto_mol_bo: number;
   rematriculables: number;
   no_rematriculables: number;
   rut_dos_carreras: string | null;

@@ -6,6 +6,8 @@ export type EtapaProgresoBd =
   | 'forma_pago'
   | 'firma'
   | 'matriculado'
+  | 'matriculado_bo'
+  | 'conflicto_mol_bo'
 
 export type ChipBandeja =
   | 'sin_ingreso'
@@ -16,6 +18,8 @@ export type ChipBandeja =
   | 'contrato_pdte'
   | 'firmado_pdte_u'
   | 'matriculado'
+  | 'matriculado_bo'
+  | 'conflicto_mol_bo'
 
 /** Espejo API: chip 6 = TuFirma enviada !ready dentro de forma_pago. */
 export function chipBandejaDesdeSenales(input: {
@@ -23,6 +27,8 @@ export function chipBandejaDesdeSenales(input: {
   tufirmaEnviadaPendiente: boolean
 }): ChipBandeja {
   if (input.etapaActual === 'matriculado') return 'matriculado'
+  if (input.etapaActual === 'matriculado_bo') return 'matriculado_bo'
+  if (input.etapaActual === 'conflicto_mol_bo') return 'conflicto_mol_bo'
   if (input.etapaActual === 'firma') return 'firmado_pdte_u'
   if (input.etapaActual === 'forma_pago' && input.tufirmaEnviadaPendiente) {
     return 'contrato_pdte'
@@ -40,6 +46,8 @@ export const ETIQUETA_CHIP_BANDEJA: Record<ChipBandeja, string> = {
   contrato_pdte: 'Contrato / firma pendiente',
   firmado_pdte_u: 'Firmado · pdte U+',
   matriculado: 'Matriculado U+',
+  matriculado_bo: 'Matriculado por BackOffice',
+  conflicto_mol_bo: 'Error: MOL y BackOffice',
 }
 
 export const ORDEN_CHIPS_BANDEJA: ChipBandeja[] = [
@@ -51,6 +59,8 @@ export const ORDEN_CHIPS_BANDEJA: ChipBandeja[] = [
   'contrato_pdte',
   'firmado_pdte_u',
   'matriculado',
+  'matriculado_bo',
+  'conflicto_mol_bo',
 ]
 
 export function numeroChipBandeja(chip: ChipBandeja): number {
@@ -67,7 +77,10 @@ const COLOR_ETAPA: Record<ChipBandeja, { bg: string; text: string; border: strin
   contrato_pdte: { bg: 'bg-orange-50', text: 'text-[#FF5B00]', border: 'border-orange-200' },
   firmado_pdte_u: { bg: 'bg-lime-50', text: 'text-lime-800', border: 'border-lime-200' },
   matriculado: { bg: 'bg-emerald-50', text: 'text-emerald-800', border: 'border-emerald-200' },
+  matriculado_bo: { bg: 'bg-amber-50', text: 'text-amber-900', border: 'border-amber-200' },
+  conflicto_mol_bo: { bg: 'bg-red-50', text: 'text-red-800', border: 'border-red-200' },
 }
+
 
 export function colorEtapaChip(chip: ChipBandeja) {
   return COLOR_ETAPA[chip]

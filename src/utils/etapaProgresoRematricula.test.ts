@@ -63,6 +63,35 @@ describe('resolverEtapaProgreso', () => {
 
   it('etiqueta legible', () => {
     expect(etiquetaEtapaProgreso('forma_pago')).toMatch(/pago/i)
+    expect(etiquetaEtapaProgreso('matriculado_bo')).toMatch(/BackOffice/i)
+  })
+
+  it('solo backoffice → matriculado_bo', () => {
+    expect(
+      resolverEtapaProgreso({
+        tieneIngreso: true,
+        tycAcepta: true,
+        datosOk: true,
+        formaPagoOk: true,
+        firmaOk: false,
+        matriculadoOk: false,
+        matriculadoBoOk: true,
+      }),
+    ).toBe('matriculado_bo')
+  })
+
+  it('MOL y BackOffice a la vez → conflicto, no se mezclan', () => {
+    expect(
+      resolverEtapaProgreso({
+        tieneIngreso: true,
+        tycAcepta: true,
+        datosOk: true,
+        formaPagoOk: true,
+        firmaOk: true,
+        matriculadoOk: true,
+        matriculadoBoOk: true,
+      }),
+    ).toBe('conflicto_mol_bo')
   })
 })
 
