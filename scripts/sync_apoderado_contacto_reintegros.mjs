@@ -6,7 +6,10 @@
  * Uso (desde el contenedor uniacc-api, con env DB_* y SUPABASE_PG_*):
  *   node sync_apoderado_contacto_reintegros.mjs           # dry-run
  *   node sync_apoderado_contacto_reintegros.mjs --apply
+ *   node sync_apoderado_contacto_reintegros.mjs --fuente reintegro_2026 --apply
+ *   node sync_apoderado_contacto_reintegros.mjs --codcli-file /path/lista.txt --apply
  */
+import fs from 'fs'
 import sql from 'mssql'
 import pg from 'pg'
 
@@ -14,6 +17,15 @@ const APPLY = process.argv.includes('--apply')
 const BATCH = 80
 const ANIO = 2027
 const PERIODO = 1
+
+function argValue(flag) {
+  const i = process.argv.indexOf(flag)
+  if (i < 0 || i + 1 >= process.argv.length) return null
+  return process.argv[i + 1]
+}
+
+const FUENTE_FILTER = argValue('--fuente') // exact match; default LIKE 'reintegro%'
+const CODCLI_FILE = argValue('--codcli-file')
 
 function normalizeEmail(raw) {
   if (!raw) return null
@@ -48,20 +60,46 @@ async function main() {
   })
   await pgClient.connect()
 
+  let codcliFilter = null
+  if (CODCLI_FILE) {
+    const text = fs.readFileSync(CODCLI_FILE, 'utf8')
+    codcliFilter = text
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('#'))
+    console.log(`filtro codcli-file: ${codcliFilter.length}`)
+  }
+
+  const params = [ANIO, PERIODO]
+  let fuenteSql = `lower(o.fuente) LIKE 'reintegro%'`
+  if (FUENTE_FILTER) {
+    params.push(FUENTE_FILTER)
+    fuenteSql = `o.fuente = $${params.length}`
+  }
+  let codcliSql = ''
+  if (codcliFilter && codcliFilter.length) {
+    params.push(codcliFilter)
+    codcliSql = ` AND c.codcli = ANY($${params.length})`
+  }
+
   const { rows: reintegros } = await pgClient.query(
     `SELECT c.codcli, c.rut_alumno
        FROM public.mnp_cartera_oficial o
        JOIN public.mnp_mv_plan_pagos_consolidado c
          ON regexp_replace(upper(coalesce(c.rut_alumno, '')), '[.\\s-]', '', 'g')
           = regexp_replace(upper(o.rut_norm), '[.\\s-]', '', 'g')
-      WHERE lower(o.fuente) LIKE 'reintegro%'
+      WHERE ${fuenteSql}
         AND upper(trim(coalesce(c.es_responsable_financiero, ''))) = 'N'
         AND c.anio_matricula = $1
         AND c.periodo_matricula = $2
+        ${codcliSql}
       ORDER BY c.codcli`,
-    [ANIO, PERIODO],
+    params,
   )
-  console.log(`reintegros con sostenedor: ${reintegros.length}`)
+  console.log(
+    `reintegros con sostenedor: ${reintegros.length}` +
+      (FUENTE_FILTER ? ` (fuente=${FUENTE_FILTER})` : ''),
+  )
   if (reintegros.length === 0) {
     await pgClient.end()
     return
@@ -156,6 +194,12 @@ async function main() {
   )
 
   if (APPLY) {
+    const checkParams = [ANIO, PERIODO]
+    let checkFuente = `lower(o.fuente) LIKE 'reintegro%'`
+    if (FUENTE_FILTER) {
+      checkParams.push(FUENTE_FILTER)
+      checkFuente = `o.fuente = $${checkParams.length}`
+    }
     const check = await pgClient.query(
       `SELECT
          count(*) FILTER (
@@ -170,10 +214,10 @@ async function main() {
        JOIN public.mnp_mv_plan_pagos_consolidado c
          ON regexp_replace(upper(coalesce(c.rut_alumno, '')), '[.\\s-]', '', 'g')
           = regexp_replace(upper(o.rut_norm), '[.\\s-]', '', 'g')
-      WHERE lower(o.fuente) LIKE 'reintegro%'
+      WHERE ${checkFuente}
         AND c.anio_matricula = $1
         AND c.periodo_matricula = $2`,
-      [ANIO, PERIODO],
+      checkParams,
     )
     console.log('post-check', check.rows[0])
   }
