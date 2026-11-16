@@ -14,6 +14,7 @@
 -- FECHA y SEDE de la boleta y de las cuotas, y MONTOINT / DEVENGO_SEM del cargo,
 -- quedan como en la matrícula de producción. FECREG de la boleta y de las cuotas
 -- es la fecha de la caja abierta: la clave foránea pide esa pareja en MT_PARCAJA.
+-- FECREG y FECREG_DEP del Webpay también usan @fecreg_caja, igual que la boleta 41.
 -- POSBEN guarda 0 en interés y porcentaje parcial.
 -- Una tabla vacía no inserta beneficios. @codcli es el RUT sin dígito verificador.
 -- Después del COMMIT, MOL llama aparte a SP_MOL_ACTUALIZA_MATRICULA_FIRMADA
@@ -507,7 +508,7 @@ BEGIN
                 VALUES (
                     @ctapag_json, @ctapagnum, @codcli, @codcarr, @codapod_boleta, @monto_json, 0, 0,
                     1, 'N', 0, 1, @ano, @periodo, @caja, @ctapagnum,
-                    @fecven_json, @hoy, @hoy, @fecha_json, @usuario, @num_operacion, @jornada
+                    @fecven_json, @hoy, @fecreg_caja, @fecha_json, @usuario, @num_operacion, @jornada
                 );
 
                 IF @aplica_json = 1
@@ -519,7 +520,7 @@ BEGIN
                     VALUES (
                         41, @ctadoc_boleta, @ctapag_json, @ctapagnum, @codcli, @codcarr, @codapod_boleta,
                         @monto_json, 1, @usuario, 0, '1', @ctadoc_boleta, @num_operacion,
-                        @caja, @hoy, @ano, @jornada
+                        @caja, @fecreg_caja, @ano, @jornada
                     );
             END
 
