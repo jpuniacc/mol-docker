@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-11-16  
 **Repos:** `mol-docker` (SP U+) + `uniacc-api-docker` / Supabase MOL (columna Postgres)  
-**Estado:** diseño aprobado; pendiente plan de implementación
+**Estado:** implementado 2026-11-16 (SP TEST+PROD; API deploy; grabado_en en supabase-db; smoke E2E pendiente)
 
 ## Problema
 
