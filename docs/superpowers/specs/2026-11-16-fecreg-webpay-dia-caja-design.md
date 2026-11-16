@@ -1,7 +1,7 @@
-# FECREG Webpay = día de caja (`sp_mol_grabar_plan_pagos`)
+# FECREG Webpay = día de caja + `grabado_en` en Postgres
 
 **Fecha:** 2026-11-16  
-**Repo:** `mol-docker` (SP en U+)  
+**Repos:** `mol-docker` (SP U+) + `uniacc-api-docker` / Supabase MOL (columna Postgres)  
 **Estado:** diseño aprobado; pendiente plan de implementación
 
 ## Problema
@@ -15,54 +15,75 @@ Cuando la fecha de caja abierta ≠ día calendario del `EXEC`, pago y boleta qu
 
 Casos MOL 2027-1 (usuario `68678`) ya se remedieron a mano alineando `FECREG`/`FECREG_DEP` al día de la boleta. Este cambio evita nuevos desfases.
 
+En paralelo, U+ no conserva el instante real del grabado ERP (solo día de caja / fecha documento). En Postgres ya existen `transaction_date`, `creado_en` y `actualizado_en` del cobro Transbank; falta el momento en que ese cobro quedó escrito en U+.
+
 ## Decisión
 
 | Decisión | Valor |
 |----------|--------|
-| Fecha canónica de registro | `@fecreg_caja` |
-| Alcance | Solo Webpay: `MT_CTAPAG` del JSON + su `MT_CTADEP` |
-| Superficie | Solo patch del SP en U+ (TEST → PROD) |
-| Enfoque | Cirugía mínima: dos literales `@hoy` → `@fecreg_caja` |
+| Fecha canónica de registro en U+ | `@fecreg_caja` |
+| Alcance U+ | Solo Webpay: `MT_CTAPAG` del JSON + su `MT_CTADEP` |
+| Enfoque U+ | Cirugía mínima: dos literales `@hoy` → `@fecreg_caja` |
 | `MT_CTAPAG.FECHA` | Sin cambio: sigue `@fecha_json` (Transbank) |
+| Fecha real en MOL | Columna `grabado_en` en `public.mnp_webpay_transaccion` (no en el borrador) |
+| Quién escribe `grabado_en` | API Node tras `EXEC sp_mol_grabar_plan_pagos` OK, sobre las filas Webpay del plan |
 
-## Cambio concreto
+## Parte A — SP U+
 
 En el cursor `#docs_web` del SP canónico `docs/SP a U+/sp_mol_grabar_plan_pagos.sql`:
 
 1. `INSERT MT_CTAPAG` Webpay: columna `FECREG` de `@hoy` a `@fecreg_caja` (dejar `FECCANCEL`/`FECHA` como están).
 2. `INSERT MT_CTADEP` con `aplicaBoleta = 1`: `FECREG_DEP` de `@hoy` a `@fecreg_caja`.
 
-Actualizar el comentario de cabecera del SP para documentar que `FECREG`/`FECREG_DEP` del Webpay usan el día de caja, igual que la boleta 41.
+Actualizar el comentario de cabecera del SP: `FECREG`/`FECREG_DEP` del Webpay usan el día de caja, igual que la boleta 41.
 
-## Artefactos
+**Artefacto:** patch idempotente `docs/SP a U+/patches/2026-11-16-sp_mol_grabar_plan_pagos_fecreg_webpay_caja.sql` (estilo `OBJECT_DEFINITION` + `REPLACE` de `2026-11-09-…_matricula_cero.sql`), con contexto único para no tocar otros `@hoy`.
 
-1. Diff en `docs/SP a U+/sp_mol_grabar_plan_pagos.sql`.
-2. Patch idempotente `docs/SP a U+/patches/2026-11-16-sp_mol_grabar_plan_pagos_fecreg_webpay_caja.sql`, mismo estilo que `2026-11-09-sp_mol_grabar_plan_pagos_matricula_cero.sql`:
-   - leer `OBJECT_DEFINITION`
-   - `CREATE` → `ALTER` si aplica
-   - `REPLACE` de fragmentos con contexto único (no tocar otros `@hoy`)
-   - fallar si el patrón no aparece o si queda `@hoy` en esos dos INSERT Webpay
+**Despliegue:** U+ TEST → smoke → U+ PROD.
 
-## Despliegue
+## Parte B — Postgres `grabado_en`
 
-1. Aplicar patch en **U+ TEST** (`TEST_UNIACC`).
-2. Smoke: grabar plan con Webpay (idealmente con `@fecreg_caja <> @hoy`, o forzar caja en día distinto).
-3. Verificar por folio Webpay:
-   - `CONVERT(date, CTAPAG.FECREG) = CONVERT(date, boleta41.FECREG) = @fecreg_caja`
-   - `CONVERT(date, CTADEP.FECREG_DEP)` igual
-   - `CTAPAG.FECHA` = fecha JSON Transbank (puede diferir del día de caja)
-4. Aplicar el mismo patch en **U+ PROD**.
-5. Query inventario post-deploy (usuario MOL, periodo activo): 0 filas nuevas con `FECREG` pago ≠ boleta 41.
+**Tabla:** `public.mnp_webpay_transaccion`  
+**Columna:** `grabado_en timestamptz NULL`  
+**Semántica:** instante en que el plan de pagos quedó grabado en U+ para ese cobro autorizado. Distinto de:
+
+- `transaction_date` / autorización Transbank  
+- `creado_en` / `actualizado_en` del ciclo Webpay  
+- `FECREG` día de caja en U+
+
+**No** va en `mol_borrador_rematricula` (estado UI, no fuente de verdad del cobro).
+
+**Migración:** SQL en el repo que usa Supabase MOL (`uniacc-api-docker` o migración equivalente del proyecto), `ADD COLUMN IF NOT EXISTS`.
+
+**Escritura:** en `grabarPlanPagosErp` (o helper inmediato), después de SP exitoso y con `num_operacion` / buy_orders del plan, `UPDATE … SET grabado_en = NOW() WHERE … AND grabado_en IS NULL` (idempotente si se reintenta). Solo filas `estado = 'autorizada'` del alumno/concepto involucrado.
+
+**Lectura:** disponible para reportes/conciliación; no cambia el contrato Transbank ni el SP.
+
+## Verificación
+
+**U+ (Parte A):**
+
+- `CONVERT(date, CTAPAG.FECREG) = CONVERT(date, boleta41.FECREG) = @fecreg_caja`
+- `FECREG_DEP` igual; `CTAPAG.FECHA` = JSON Transbank
+- Inventario MOL post-deploy: 0 desfases nuevos pago vs boleta
+
+**Postgres (Parte B):**
+
+- Tras un grabado Webpay de prueba, la(s) fila(s) autorizada(s) tienen `grabado_en` no nulo
+- Re-ejecutar el mismo camino no pisa un `grabado_en` ya seteado (si se usa `IS NULL`)
+- Filas solo autorizadas (sin grabar plan) siguen con `grabado_en` NULL
 
 ## Fuera de alcance
 
-- Cambios en Node / `uniacc-api-docker` (chequeo post-grabado queda como follow-up opcional).
+- Chequeo post-grabado que falle el request si pago ≠ boleta (observabilidad opcional después).
 - Unificar `FECREG` de pagarés tipo 5, cuotas, beneficios u otros `@hoy`.
-- Recentralización Finance / limpieza de plugs `9-9-99-99` ya existentes.
-- Reescritura de filas históricas ya alineadas el 2026-11-16.
+- Recentralización Finance / plugs `9-9-99-99` ya existentes.
+- Backfill masivo de `grabado_en` en histórico (opcional aparte; se puede derivar de logs si hace falta).
+- Campos nuevos en el borrador JSON.
 
 ## Criterios de éxito
 
-- En TEST y PROD, un grabado Webpay nuevo no genera desfase `FECREG` pago vs boleta.
-- El patch es idempotente (segunda ejecución no rompe ni reescribe de más).
-- No cambian `FECHA` documento Transbank ni la lógica de correlativos / companions 809/810/811.
+- Grabado Webpay nuevo en TEST/PROD: sin desfase `FECREG` pago vs boleta.
+- Patch SP idempotente.
+- `FECHA` Transbank y companions 809/810/811 sin cambio de lógica.
+- Cada Webpay que entra a U+ vía MOL deja `grabado_en` en Postgres.
