@@ -43,10 +43,7 @@ import {
 } from '@/services/carteraBeneficiosApi'
 import { detectarConveniosAlumno } from '@/services/convenioAlumno'
 import { fetchBeneficioPeriodo } from '@/services/fetchBeneficioPeriodo'
-import {
-  fetchDescuentosMatriculaAnticipada,
-  fmtFechaCalendario,
-} from '@/services/descuentoMatriculaAnticipada'
+import { fetchDescuentosMatriculaAnticipada } from '@/services/descuentoMatriculaAnticipada'
 import {
   consultarReservaDescuentoMatricula,
   consultarResolucionBecaEstatal,
@@ -131,6 +128,7 @@ import {
   type CuotaPagareDraftRow,
 } from '@/utils/pagareCuotasDraft'
 import { fechaInicioPagarePeriodo } from '@/utils/pagareFechaInicio'
+import { armarReservaDescuentoUi } from '@/utils/reservaDescuentoUi'
 import MatriculaAlumnoVerificacionCaeStep from '@/views/matricula-alumno/MatriculaAlumnoVerificacionCaeStep.vue'
 import MatriculaAlumnoVerificacionEstatalStep from '@/views/matricula-alumno/MatriculaAlumnoVerificacionEstatalStep.vue'
 import type {
@@ -728,14 +726,16 @@ function codbenDescuentoMatricula(): string | undefined {
   return Number.isInteger(cod) && cod > 0 ? String(cod) : undefined
 }
 
-const textoReservaMatricula = computed(() => {
+const reservaDescuentoMatricula = computed(() => {
   const descuento = descuentoMatriculaMes.value
   const reserva = reservaMatricula.value
   if (!descuento || !reserva) return null
   const fila = descuentosMatriculaCatalogo.value.find((item) => item.id === reserva.descuentoId)
-  const hasta = fmtFechaCalendario(fila?.reserva_hasta)
-  if (hasta === '—') return null
-  return `Tienes reservado ${descuento.nombre} por ${fmt(descuento.monto)} hasta el ${hasta}.`
+  return armarReservaDescuentoUi({
+    nombre: descuento.nombre,
+    monto: descuento.monto,
+    reservaHasta: fila?.reserva_hasta,
+  })
 })
 
 function pickCampoAlumno(val: string): string | null {
@@ -2024,7 +2024,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
       :periodo-label="periodoActivoLabel"
       :nombre-alumno="nombreMostrado"
       :codcli="codcliMostrado"
-      :reserva-texto="textoReservaMatricula"
+      :reserva-descuento="reservaDescuentoMatricula"
       @reintentar="correrVerificacionCae(true)"
       @volver="volverDatosPersonales"
     />
@@ -2048,7 +2048,7 @@ const estadoVerificacionCae = computed((): 'verificando' | 'pendiente' => {
       :codcli="codcliMostrado"
       :beneficios="nombresBecaEstatal"
       :reintentando="reintentandoEstatal"
-      :reserva-texto="textoReservaMatricula"
+      :reserva-descuento="reservaDescuentoMatricula"
       @reintentar="correrVerificacionEstatal"
       @volver="volverDatosPersonales"
     />
