@@ -54,22 +54,10 @@ const codcliDisplay = computed(() => props.codcli?.trim() || '—')
 
       <div
         v-if="reservaDescuento"
-        class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+        class="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-relaxed text-emerald-900"
       >
-        <dl class="space-y-1">
-          <div class="flex flex-wrap gap-x-2">
-            <dt class="font-medium">Descuento:</dt>
-            <dd>{{ reservaDescuento.nombre }}</dd>
-          </div>
-          <div class="flex flex-wrap gap-x-2">
-            <dt class="font-medium">Monto:</dt>
-            <dd>{{ reservaDescuento.montoFmt }}</dd>
-          </div>
-          <div class="flex flex-wrap gap-x-2">
-            <dt class="font-medium">Reservado hasta:</dt>
-            <dd>{{ reservaDescuento.hasta }}</dd>
-          </div>
-        </dl>
+        <p>{{ reservaDescuento.mensajeReserva }}</p>
+        <p>{{ reservaDescuento.mensajeMatriculaPagar }}</p>
       </div>
 
       <section class="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50/80 p-4">

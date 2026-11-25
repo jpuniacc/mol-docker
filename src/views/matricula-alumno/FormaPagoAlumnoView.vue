@@ -735,6 +735,7 @@ const reservaDescuentoMatricula = computed(() => {
     nombre: descuento.nombre,
     monto: descuento.monto,
     reservaHasta: fila?.reserva_hasta,
+    matriculaBruto: montoBrutoMatricula(),
   })
 })
 
