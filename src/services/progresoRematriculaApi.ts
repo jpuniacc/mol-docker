@@ -16,7 +16,7 @@ function correoEjecutivo(): { email: string | null } | { error: string } {
 
 type ResultadoRefresh = { count: number | null; error: string | null }
 const REFRESH_TTL_MS = 60_000
-const REFRESH_TIMEOUT_MS = 8_000
+const REFRESH_TIMEOUT_MS = 30_000
 const refreshEnCurso = new Map<string, Promise<ResultadoRefresh>>()
 const refreshCompletado = new Map<string, { at: number; result: ResultadoRefresh }>()
 
@@ -47,7 +47,7 @@ async function ejecutarRefresh(anio: number, semestre: number): Promise<Resultad
   try {
     const limite = new Promise<ResultadoRefresh>((resolve) => {
       timer = setTimeout(() => {
-        resolve({ count: null, error: 'Tiempo de espera agotado al refrescar el progreso (8 s)' })
+        resolve({ count: null, error: 'Tiempo de espera agotado al refrescar el progreso (30 s)' })
         controller.abort()
       }, REFRESH_TIMEOUT_MS)
     })

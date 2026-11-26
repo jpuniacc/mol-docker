@@ -56,14 +56,14 @@ describe('refresh de progreso: TTL y recuperación', () => {
     rpc.mockImplementation(() => request(Promise.reject(new Error('red caída'))))
     expect(await refresh(2027, 1)).toEqual({ count: null, error: 'red caída' })
   })
-  it('limita la espera a 8 segundos, aborta y deja reintentar', async () => {
+  it('limita la espera a 30 segundos, aborta y deja reintentar', async () => {
     const pending = request(new Promise<Response>(() => {}))
     rpc.mockReturnValueOnce(pending)
     const result = refresh(2027, 1)
     // Adjuntar await antes de avanzar evita promesas rechazadas sin observar.
     const observed = result.then(r => r)
-    await vi.advanceTimersByTimeAsync(8_000)
-    expect(await observed).toEqual({ count: null, error: 'Tiempo de espera agotado al refrescar el progreso (8 s)' })
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(await observed).toEqual({ count: null, error: 'Tiempo de espera agotado al refrescar el progreso (30 s)' })
     const signal = pending.abortSignal.mock.calls[0]?.[0] as AbortSignal
     expect(signal.aborted).toBe(true)
     rpc.mockReturnValueOnce(request(Promise.resolve({ data: 3, error: null })))
